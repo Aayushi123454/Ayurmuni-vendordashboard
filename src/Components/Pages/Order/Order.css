@@ -1,0 +1,475 @@
+
+.orders-header h1 {
+  font-size: 32px;
+  font-weight: 700;
+  color: #222;
+  margin: 0px;
+}
+
+.orders-header h1 span {
+  color: #2e7d5b;
+}
+
+.orders-header p {
+  margin-top: 8px;
+  color: #64748B;
+  max-width: 600px;
+  font-size: 16px;
+  font-weight: 400px;
+}
+
+.orders-containers {
+  margin-top: 30px;
+  display: flex;
+  flex-direction: row;  
+  gap: 20px;
+       width: 100%;
+       flex-wrap: wrap;
+}
+
+.order-card {
+  background: #fff;
+  padding: 20px;
+  border-radius: 14px;
+  flex: 1 1 220px;  
+  min-width: 220px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: 0.2s ease;
+  
+  
+}
+
+.order-card:hover {
+  transform: translateY(-3px);
+}
+
+.order-title {
+  color: #475569;
+  font-size: 14px;
+  font-weight: 500;
+  
+  
+}
+
+.order-card h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color:#1E1E21;
+ margin-top: 21px;
+ margin-bottom: 0px;
+
+}
+
+.order-card h2 span {
+  font-size: 14px;
+  color: #1E1E21;
+  margin-left: 4px;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+/* Status text */
+.order-change {
+ margin-bottom: 0px;
+    margin-top: 14px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.order-change.positive {
+  color: #16a34a;
+}
+
+.order-change.warning {
+  color: #f97316;
+}
+
+.order-change.danger {
+  color: #ef4444;
+}
+.alerts-section {
+  margin-top: 30px;
+  padding: 32px;
+  background:#F43F5E0D;
+  border-radius: 16px;
+}
+
+.alerts-title {
+  color: #F43F5E;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 20px;
+  margin-right: 4px;
+}
+.alerts-container {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.alert-card {
+  flex: 1;
+  min-width: 300px;
+  background: #fff;
+  border-radius: 16px;
+  padding:  20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+}
+
+.alert-icon {
+  font-size: 20px;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.alert-icon.red {
+  background:#F43F5E0D;
+  
+}
+
+.alert-icon.green {
+  background: #e6f7f1;
+  color: #2e8b57;
+}
+
+.alert-content {
+  flex: 1;
+  margin: 0 15px;
+}
+
+.alert-content h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color:#191C1B;
+}
+
+.alert-content p {
+  margin: 3px 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  max-width: 200px;
+  color:#64748B ;
+}
+
+.alert-btn {
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  
+}
+
+.alert-btn.red {
+  background: #ffe5e5;
+  color: #F43F5E;
+}
+
+.alert-btn.green {
+  background: #0D614E0D;
+  color: #0D614E;
+}
+.manage-orders {
+  margin-top: 30px;
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 16px;
+}
+
+/* Toolbar */
+.main-toolbar{
+  display: flex;
+  justify-content: space-between;
+}
+.orders-toolbar {
+  display: flex;
+ 
+  margin-bottom: 15px;
+}
+
+.toolbar-btn {
+  background: #C2C6D44D;
+  border: 1px solid #94A3B833;
+  padding: 8px 16px;
+  border-radius: 12px;
+  margin-right: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.toolbar-btn.primary {
+  background: #0d614e;
+  color: white;
+}
+
+/* Info */
+.orders-info {
+  background: #10B9810D;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 13px;
+  color: #0d614e;
+  border: 1px solid #10B9811A;
+  margin-bottom: 16px;
+}
+.alert-header-icon{
+  margin-bottom: -3px;
+}
+.orders-info h1{
+  font-size: 12px;
+  font-weight: 500;
+}
+.order-info-border{
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.orders-table {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* =========================
+   ORDERS TABLE FLEX UI
+========================= */
+
+.orders-table{
+  width: 100%;
+  margin-top: 24px;
+}
+
+/* HEADER */
+.order-table-header{
+  display: flex;
+  align-items: center;
+  padding: 0 24px 18px;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.order-table-header div{
+  font-size: 13px;
+  font-weight: 700;
+  color: #64748B;
+  text-transform: uppercase;
+}
+
+/* COLUMN WIDTHS */
+.col-order{
+  width: 16%;
+}
+
+.col-customer{
+  width: 22%;
+}
+
+.col-product{
+  width: 22%;
+}
+
+.col-value{
+  width: 12%;
+}
+
+.col-status{
+  width: 14%;
+}
+
+.col-action{
+  width: 24%;
+}
+
+/* ROW */
+.table-row{
+  display: flex;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #F1F5F9;
+  transition: 0.2s ease;
+}
+
+.table-row:hover{
+  background: #F8FAFC;
+}
+
+.active-row{
+  background: #F0FDF4;
+  border: 1px solid #D1FAE5;
+  border-radius: 18px;
+  margin-bottom: 12px;
+}
+
+/* ORDER */
+.order-id{
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.order-id h4{
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #065F46;
+}
+
+.order-id p{
+  margin: 0;
+  font-size: 13px;
+  color: #64748B;
+}
+
+/* CUSTOMER */
+.customer-info{
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.customer-info h4{
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1E293B;
+}
+
+.customer-info p{
+  margin: 0;
+  font-size: 14px;
+  color: #64748B;
+}
+
+/* PRODUCT */
+.product{
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.product img{
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.product h4{
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1E293B;
+}
+
+/* PRICE */
+.order-price{
+  font-size: 16px;
+  font-weight: 700;
+  color: #1E293B;
+}
+
+/* STATUS */
+.status{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.status.new{
+  background: #2563EB;
+  color: white;
+}
+
+.status.packing{
+  background: #FFF7ED;
+  color: #F97316;
+}
+
+.status.shipped{
+  background: #FEF3C7;
+  color: #D97706;
+}
+
+.status.ready{
+  background: #DCFCE7;
+  color: #16A34A;
+}
+
+/* ACTIONS */
+.actions{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.actions button{
+  border: none;
+  padding: 11px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.reject{
+  background: transparent;
+  color: #EF4444;
+}
+
+.accept{
+  background: transparent;
+  color: #10B981;
+}
+
+.packed{
+  background: #F97316;
+  color: white;
+}
+
+.track{
+  background: #FACC15;
+  color: #1E293B;
+}
+
+.handover{
+  background: #10B981;
+  color: white;
+}
+
+
+.manage-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 15px;
+  color: #1e293b;
+}
+.date-picker-wrapper input {
+  width: 142px;
+  cursor: pointer;
+}
+
+
+.react-datepicker {
+  border-radius: 12px !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.react-datepicker__header {
+  background: #f8fafc !important;
+  border-bottom: none !important;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--in-range {
+  background: #0d614e !important;
+  color: white !important;
+}
