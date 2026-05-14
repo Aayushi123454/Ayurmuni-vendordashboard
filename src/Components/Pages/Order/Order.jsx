@@ -4,13 +4,27 @@ import Critical from "../../../Assests/Critical.png"
 import Alerticon from "../../../Assests/Alert1.png"
 import Alerticon1 from "../../../Assests/Alert2.png"
 import arrowtrend from "../../../Assests/arrowtrend.png"
+import image4 from "../../../Assests/image 4.png"
+import image5 from "../../../Assests/Image5.png"
 import DatePicker from "react-datepicker";
+import ActionButton from "../../../Assests/Actionbutton.png"
+import bookmark from "../../../Assests/bookmark.svg"
+import buttonleft from "../../../Assests/buttonleft.png"
+import buttonright from "../../../Assests/buttonright.png"
+import filter from "../../../Assests/filter.png"
+import Icon from "../../../Assests/Icon.png"
+
 import "react-datepicker/dist/react-datepicker.css";
+
 import { useState } from "react";
 
 const Order = () => {
   const [dateRange, setDateRange] = useState([null, null]);
 const [startDate, endDate] = dateRange;
+const [warehouseData, setWarehouseData] = useState({
+  processing: 82,
+  backordered: 14,
+});
   const ordersData = [
   {
     id: "#AV-1096",
@@ -138,9 +152,20 @@ const [startDate, endDate] = dateRange;
       <select className="toolbar-btn"> <option> All Payment</option></select>
 
  </div>
- < div className="orders-filter">
-<button className="toolbar-btn"> Filter</button>
-<button className="toolbar-btn">Export</button>
+ <div className="orders-filter">
+  <button className="filter-btn">
+    <img src={filter} alt="filter" />
+    Filter
+  </button>
+
+  <button className="filter-btn">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="7 10 12 15 17 10"/>
+      <line x1="12" y1="15" x2="12" y2="3"/>
+    </svg>
+    Export
+  </button>
 </div>
  </div>
  
@@ -162,7 +187,7 @@ const [startDate, endDate] = dateRange;
         <th>Product</th>
         <th>Value</th>
         <th>Current Status</th>
-        <th>Fulfillment Actions</th>
+        <th className="fullfillment">Fulfillment Actions</th>
       </tr>
     </thead>
 
@@ -192,7 +217,7 @@ const [startDate, endDate] = dateRange;
         
           <td>
             <div className="product">
-              <img src={Critical} alt="" />
+              <img src={image5} alt="" />
               <h4>{order.product}</h4>
             </div>
           </td>
@@ -204,14 +229,14 @@ const [startDate, endDate] = dateRange;
             </div>
           </td>
 
-          {/* STATUS */}
+        
           <td>
             <span className={`status ${order.status}`}>
               {order.status}
             </span>
           </td>
 
-          {/* ACTIONS */}
+         
           <td>
             <div className="actions">
               {order.status === "new" && (
@@ -221,22 +246,43 @@ const [startDate, endDate] = dateRange;
                 </>
               )}
 
-              {order.status === "packing" && (
-                <button className="packed">
-                  Mark as Packed
-                </button>
-              )}
+             {order.status === "packing" && (
+  <>
+    <button className="packed">
+      Mark as Packed
+    </button >
+
+    <button className="icon-btn">
+     <img src ={bookmark}/>
+    </button>
+  </>
+
+  
+)}
 
               {order.status === "shipped" && (
-                <button className="track">
+                <>
+                     <button className="track">
                   Track Delivery
                 </button>
+
+                <button className="icon-btn">
+     <img src ={bookmark}/>
+    </button>
+                </>
+           
               )}
 
-              {order.status === "ready" && (
+              {order.status === "ready" && (<>
                 <button className="handover">
                   Handover to Courier
                 </button>
+                    <button className="icon-btn">
+     <img src ={bookmark}/>
+    </button>
+
+              </>
+              
               )}
             </div>
           </td>
@@ -247,17 +293,65 @@ const [startDate, endDate] = dateRange;
 </div>
  
   <div className="orders-footer">
-    Showing {ordersData.length} of 1,284 orders
+    <div>    Showing  <span> {ordersData.length}</span> of <span>1,284 </span> orders</div>
+   <div className="orders-footer-button">
+<button>
+  <img src={buttonleft}/>
+</button>
+<button>
+  <img src={buttonright}/>
+</button>
+ </div>
   </div>
  
 </div>
 
+<div className="post-table-section">
 
+  {/* LEFT CARD */}
+  <div className="warehouse-card">
+    <div className="warehouse-header">
+      <h3>Warehouse Cycle</h3>
+      <span>Refresh: 5m</span>
+    </div>
 
- 
+    <div className="progress-group">
+      <div className="progress-label">
+        <span>Processing Speed</span>
+        <span className="blue">82%</span>
+      </div>
+      <div className="progress-bar">
+        <div className="progress-fill blue-fill" style={{ width: "82%" }}></div>
+      </div>
+    </div>
 
- 
- 
+    <div className="progress-group">
+      <div className="progress-label">
+        <span className="red-text">Backordered Items</span>
+        <span className="red-text">14%</span>
+      </div>
+      <div className="progress-bar">
+        <div className="progress-fill red-fill" style={{ width: "14%" }}></div>
+      </div>
+    </div>
+  </div>
+
+  {/* RIGHT CARD */}
+  <div className="spotlight-card">
+    
+    <h3>Seller Spotlight</h3>
+    {/* <img  src={Icon} className="star-bg"/> */}
+    <p>
+      "Your top selling item 'Ashwagandha Elixir' has 
+reached 500 sales this week. Consider featuring 
+it on your homepage." Your top selling item 
+'Ashwagandha Elixir' has reached 500 sales this 
+week. Consider featuring it on your homepage."
+    </p>
+  </div>
+
+</div>
+
 
     </div>
   );

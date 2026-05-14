@@ -7,6 +7,7 @@ import Notification from "./Components/Pages/Notification/Notification";
 import OrderDetail from"./Components/Pages/OrderDetail/OrderDetail";
 import Dashboard from "./Components/Pages/Dashboard/Dashboard";
 import Order from "./Components/Pages/Order/Order"
+import Finance from "./Components/Finance/Finance";
 import "./App.css"
 
 
@@ -48,20 +49,17 @@ element={
 }
 />
 
-              {/* <Route
-                path="/inventory"
-                element={
-                  <ProtectedRoute>
-                    <Inventory />
-                  </ProtectedRoute>
-                }
-              /> */}
 <Route path="/notifications" element={
   <ProtectedRoute>
      <Notification />
   </ProtectedRoute>
  } />
-
+ <Route path="/finance" element ={
+<ProtectedRoute>
+  <Finance/>
+</ProtectedRoute>
+ }
+/>
             </Routes>
           </div>
         </div>
