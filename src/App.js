@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Sidebar from "./Components/Sidebar/sidebar";
+import Sidebar from "./Components/Sidebar/Sidebar";
 import Header from "./Components/Header/Header";
 
 import ProtectedRoute from "./Components/Auth/ProtectedRoute";
@@ -9,6 +9,9 @@ import Dashboard from "./Components/Pages/Dashboard/Dashboard";
 import Order from "./Components/Pages/Order/Order"
 import Finance from "./Components/Finance/Finance";
 import "./App.css"
+import Inventory from "./Components/Inventory/Inventory";
+import AddProduct from "./Components/Inventory/AddProduct";
+import Setting from "./Components/Setting/Setting";
 
 
 function App() {
@@ -45,6 +48,32 @@ path="/OrderDetail"
 element={
   <ProtectedRoute>
     <OrderDetail/>
+  </ProtectedRoute>
+}
+/>
+
+              <Route
+                path="/setting"
+                element={
+                  <ProtectedRoute>
+                    < Setting/>
+                  </ProtectedRoute>
+                }
+              />
+<Route
+path="/inventory"
+element={
+  <ProtectedRoute>
+    <Inventory/>
+  </ProtectedRoute>
+}
+/>
+
+<Route
+path="/AddProduct"
+element={
+  <ProtectedRoute>
+    <AddProduct/>
   </ProtectedRoute>
 }
 />

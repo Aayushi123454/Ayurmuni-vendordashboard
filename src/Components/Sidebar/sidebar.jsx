@@ -27,7 +27,7 @@ const Sidebar = () => {
 
   const generalItems = [
     { name: "Help & Support", icon: <HelpIcons />,path:"/Helpsupport" },
-    { name: "Settings", icon: <SettingIcon /> ,path :"/Settings" },
+    { name: "Settings", icon: <SettingIcon /> ,path :"/setting" },
   ];
 
   return (

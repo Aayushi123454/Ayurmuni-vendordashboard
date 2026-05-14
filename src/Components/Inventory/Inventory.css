@@ -1,0 +1,639 @@
+
+
+/* ─── CSS VARIABLES ─── */
+:root {
+  --green: #2d6a4f;
+  --green-light: #40916c;
+  --green-pale: #d8f3dc;
+  --green-muted: #b7e4c7;
+  --red: #F43F5E;
+  --red-pale: #fff0f0;
+  --orange: #FFC107;;
+  --bg: #f7f8f5;
+  --white: #ffffff;
+  --border: #e8ece6;
+  --text: #1a1f17;
+  --text-muted: #6b7c63;
+  --text-light: #9aab8f;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --radius: 32px;
+  --radius-sm: 8px;
+}
+
+.iv-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.iv-header-title h1 {
+ 
+  font-size: 28px;
+  
+
+}
+.inventoryspan{
+    color: #2d6a4f;
+}
+.iv-header-title p {
+  font-size: 12.5px;
+color:#64748B;
+font-size: 16px;
+font-weight: 500;
+  margin-top: 3px;
+  max-width: 520px;
+}
+.iv-btn-add {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--green);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px 18px;
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  letter-spacing: 0.1px;
+  transition: background 0.2s;
+}
+.iv-btn-add:hover { background: var(--green-light); }
+.iv-btn-add-icon { font-size: 18px; line-height: 1; }
+
+
+.iv-top-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+
+.iv-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  padding:32px
+}
+.iv-card-alerts {
+  background: #F43F5E0D;
+  border: 1px solid #F43F5E33;
+  padding: 32px;
+}
+
+
+.iv-alerts-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.iv-alert-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--red-pale);
+  color: var(--red);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.iv-dot-red {
+  width: 7px;
+  height: 7px;
+  background: var(--red);
+  border-radius: 50%;
+  animation: iv-pulse 1.5s infinite;
+}
+@keyframes iv-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(1.3); }
+}
+.iv-alerts-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+.iv-alert-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding:16px;
+  border-radius: var(--radius-sm);
+  background: #fff;
+  margin-bottom: 8px;
+}
+.iv-alert-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: #ffe0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 16px;
+}
+.iv-alert-info { flex: 1; min-width: 0; }
+.iv-alert-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.iv-alert-meta {
+  font-size: 14px;
+  color: #64748B;
+  margin-top: 1px;
+  font-weight: 400;
+}
+.iv-btn-restock {
+  background: #F43F5E1A;
+  color:#F43F5E;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.iv-show-more {
+  font-size: 12.5px;
+   color:#F43F5E;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 4px;
+  display: inline-block;
+}
+
+.inventoryicon{
+    width: 15px;
+    height: 15px;
+}
+/* Quantity Colors */
+.iv-qty {
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 13px;
+  display: inline-block;
+}
+
+.iv-qty.instock {
+  color:#10B981;
+}
+
+
+.iv-qty.lowstock {
+  
+  color:#FFC107; ;
+}
+
+
+.iv-qty.outofstock {
+
+  color:#F43F5E;
+}
+
+.iv-expiry-top-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+.iv-expiry-label {
+  font-size: 14px;
+  color: #475569;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.InventoryTimer{
+    width:18px;
+    height:18px;
+}
+.iv-expiry-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 20px;
+  letter-spacing: -0.3px;
+}
+.iv-circle-icon {
+  width: 30px;
+  height: 30px;
+  border-radius:7px;
+  /* border: 2px solid var(--green-muted); */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  background: #0D614E0D;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.iv-expiry-row { margin-bottom: 14px; }
+.iv-expiry-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.iv-expiry-row-label {
+  font-size: 14px;
+  color:#191C1B;
+  font-weight: 500;
+}
+.iv-expiry-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 20px;
+}
+.iv-badge-red    { color: #F43F5E; }
+.iv-badge-orange {  color: #FFC107; }
+
+.iv-progress-bar-wrap {
+  width: 100%;
+  background: #edf0eb;
+  border-radius: 20px;
+  height: 8px;
+  overflow: hidden;
+}
+.iv-progress-bar-fill {
+  height: 100%;
+  border-radius: 20px;
+  transition: width 0.7s ease;
+}
+.iv-fill-red    { background: var(--red); }
+.iv-fill-orange { background: #FFC107; }
+
+.iv-pro-tip {
+  background: #0D614E0D;
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin-top: 6px;
+  border: 1px solid #0D614E1A;
+}
+.iv-pro-tip-label {
+  font-size: 12px;
+  font-weight: 800;
+  color: #0D614E;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.iv-pro-tip-text {
+  font-size: 14px;
+    font-weight: 500;
+  color: #0D614E;
+
+}
+
+/* ─── BATCH LEDGER HEADER ─── */
+.iv-ledger-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.iv-ledger-title {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text);
+}
+.iv-ledger-actions { display: flex; gap: 8px; }
+.iv-btn-outline {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--white);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 7px 13px;
+  font-size: 12.5px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+}
+.iv-btn-outline:hover { background: var(--bg); }
+
+/* ─── PRODUCT BLOCK ─── */
+.iv-product-block {
+  background: var(--white);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+.iv-product-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 24px;
+  
+}
+.iv-product-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+}
+
+.iv-product-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.iv-product-info { flex: 1; }
+.iv-product-name {
+  font-size: 18px;
+  font-weight: 700;
+  color:#191C1B;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.iv-product-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 20px;
+  letter-spacing: 0.3px;
+}
+.iv-tag-ayurveda  { background: var(--green-pale); color: var(--green); }
+.iv-tag-beverage  { background: #fff3e0; color: #e07b00; }
+.iv-tag-nutrition { background: #e8f4fd; color: #1976d2; }
+.iv-product-meta {
+  font-size: 14px;
+  color: #94A3B8;
+  margin-top: 2px;
+}
+.iv-product-meta strong { color: var(--green); font-weight: 600; }
+.iv-btn-view-all {
+  font-size: 12px;
+  color: var(--green);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  font-family: 'DM Sans', sans-serif;
+}
+.iv-product-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  color: #94a3b8;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.iv-meta-label {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.iv-meta-value {
+  color: #334155;
+  font-weight: 700;
+}
+
+.iv-meta-dot {
+  color: #cbd5e1;
+  margin: 0 6px;
+}
+
+.iv-variants-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.iv-variants-table th {
+  font-size:14px;
+  font-weight: 600;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 26px 24px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.iv-variants-table td {
+  padding: 26px 24px;
+  font-size: 14px;
+  color:#191C1B;
+  border-bottom: 1px solid #f0f3ee;
+  vertical-align: middle;
+}
+.iv-variants-table tr:last-child td { border-bottom: none; }
+.iv-variants-table tr:hover td { background: #fafcf9; }
+
+.iv-sku-badge {
+  font-size: 14px;
+  color: #3F4945;
+  background: #94A3B833;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-weight: 500;
+
+}
+.iv-price-mrp {
+  font-size: 14px;
+  color: #94A3B8;
+  text-decoration: line-through;
+  display: block;
+}
+.iv-price-sell {
+  font-size: 14px;
+  font-weight: 700;
+  color: #191C1B;
+}
+
+/* STATUS CHIPS */
+.iv-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.iv-status-dot { width: 6px; height: 6px; border-radius: 50%; }
+.iv-chip-instock    {  color:#10B981; }
+
+.iv-chip-lowstock   {  color: #FFC107; }
+
+.iv-chip-outofstock {  color: #F43F5E; }
+
+
+/* TOGGLE */
+.iv-toggle {
+  position: relative;
+  display: inline-block;
+  width: 34px;
+  height: 18px;
+  cursor: pointer;
+}
+.iv-toggle input { opacity: 0; width: 0; height: 0; }
+.iv-toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: #ccc;
+  border-radius: 18px;
+  transition: 0.2s;
+}
+.iv-toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  left: 2px;
+  bottom: 2px;
+  background: #fff;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+.iv-toggle input:checked + .iv-toggle-slider { background: var(--green); }
+.iv-toggle input:checked + .iv-toggle-slider::before { transform: translateX(16px); }
+
+/* ACTION BUTTONS */
+.iv-actions-cell { display: flex; align-items: center; gap: 6px; }
+.iv-act-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 13px;
+  
+  transition: all 0.15s;
+  background: none;
+  border: none;
+}
+
+
+.greenicon{
+  font-size: 20px;
+  color:#0a6b57;
+}
+
+.redicon{
+  font-size: 20px;
+  color:red;
+}
+.iv-pagination-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding: 0 2px;
+}
+.iv-pagination-info { font-size: 12px; color: var(--text-muted); }
+.iv-pagination-btns { display: flex; gap: 5px; align-items: center; }
+.iv-page-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.15s;
+}
+.iv-page-btn:hover { background: var(--green-pale); border-color: var(--green-muted); }
+.iv-page-btn.active { background: var(--green); color: #fff; border-color: var(--green); }
+
+/* ─── BOTTOM GRID ─── */
+.iv-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+/* BATCH ORIGIN */
+.iv-batch-origin h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color:#191C1B;
+}
+.iv-batch-origin p {
+  font-size: 18px;
+  color: #64748B;
+  font-weight: 500;
+  max-width: 500px;
+ 
+}
+.iv-farm-imgs { display: flex; gap: 8px; margin-top: 10px; }
+.iv-farm-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: var(--green-pale);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+/* STOCK INTELLIGENCE */
+.iv-stock-intel {
+  background: var(--green) !important;
+  color: #fff;
+}
+.iv-stock-intel h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.iv-stock-intel p {
+  font-size: 12px;
+  color: rgba(255,255,255,0.82);
+  line-height: 1.6;
+}
+.iv-intel-badge {
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}

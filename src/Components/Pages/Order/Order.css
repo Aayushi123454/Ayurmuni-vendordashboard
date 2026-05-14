@@ -504,7 +504,10 @@
   background: #2563EB;
   color: white;
 }
-
+.status.failed{
+ 
+  color: #F43F5E;
+}
 .status.packing{
 
   color: #F97316;
