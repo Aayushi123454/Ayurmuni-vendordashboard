@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Sidebar from "./Components/Sidebar/Sidebar";
+import Sidebar from "./Components/Sidebar/sidebar";
 import Header from "./Components/Header/Header";
 
 import ProtectedRoute from "./Components/Auth/ProtectedRoute";
@@ -12,6 +12,7 @@ import "./App.css"
 import Inventory from "./Components/Inventory/Inventory";
 import AddProduct from "./Components/Inventory/AddProduct";
 import Setting from "./Components/Setting/Setting";
+import Rating from "./Components/Rating/Rating"
 
 
 function App() {
@@ -43,6 +44,14 @@ function App() {
                 }
               />
 
+ <Route
+                path="/Rating"
+                element={
+                  <ProtectedRoute>
+                    <Rating />
+                  </ProtectedRoute>
+                }
+              />
 <Route
 path="/OrderDetail"
 element={

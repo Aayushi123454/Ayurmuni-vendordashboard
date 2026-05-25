@@ -4,12 +4,28 @@ import "./Setting.css";
 const Setting = () => {
 
   const [activeTab, setActiveTab] = useState("profile");
-  const [showBankForm, setShowBankForm] = useState(false);
+ const [showAddBankForm, setShowAddBankForm] = useState(false);
+ const bankAccounts = [
+  {
+    id: 1,
+    bankName: "HDFC Bank",
+    accountNumber: "**** **** 1234",
+    accountType: "Current",
+    tag: "Primary",
+  },
+  {
+    id: 2,
+    bankName: "SBI",
+    accountNumber: "**** **** 5678",
+    accountType: "Savings",
+    tag: "Secondary",
+  },
+];
 
   return (
     <div className="account-settings-container">
 
-      {/* Heading */}
+      
       <div className="settings-header">
         <h1>
           Account <span>Settings</span>
@@ -49,10 +65,10 @@ const Setting = () => {
 
         </div>
 
-        {/* Content */}
+        
         <div className="settings-content">
 
-          {/* PROFILE TAB */}
+          
           {activeTab === "profile" && (
             <>
               <h2>Profile</h2>
@@ -116,7 +132,7 @@ Traditional Ayurvedic practitioner with over 12 years of experience.
             </>
           )}
 
-          {/* BUSINESS TAB */}
+         
           {activeTab === "business" && (
             <>
               <div className="settings-content">
@@ -126,16 +142,16 @@ Traditional Ayurvedic practitioner with over 12 years of experience.
             Essential information for legal and operational compliance.
           </p>
 
-          {/* Form Card */}
+         
           <div className="business-card">
-            {/* Store Name */}
+        
             <div className="form-group">
               <label>Store Name</label>
 
               <input type="text" value="Apothecary" />
             </div>
 
-            {/* Address */}
+           
             <div className="form-group">
               <label>Warehouse Address</label>
 
@@ -145,7 +161,7 @@ Traditional Ayurvedic practitioner with over 12 years of experience.
               />
             </div>
 
-            {/* GST + Category */}
+          
             <div className="form-row">
               <div className="form-group">
                 <label>Tax Identification (GST/VAT)</label>
@@ -160,7 +176,7 @@ Traditional Ayurvedic practitioner with over 12 years of experience.
               </div>
             </div>
 
-            {/* Upload Box */}
+           
             <div className="form-group">
               <label>Store Image or logo</label>
 
@@ -179,120 +195,202 @@ Traditional Ayurvedic practitioner with over 12 years of experience.
             </>
           )}
 
-          {/* BANK TAB */}
-        {/* BANK TAB */}
-{activeTab === "bank" && (() => {
+        
+{activeTab === "bank" && (
+  <>
 
-  const bankAccounts = [
-    {
-      id: 1,
-      bankName: "State Bank of India",
-      accountNumber: "**** 6011",
-      accountType: "Saving Account",
-      tag: "Primary"
-    },
-    {
-      id: 2,
-      bankName: "HDFC Bank",
-      accountNumber: "**** 8172",
-      accountType: "Business Account",
-      tag: "Secondary"
-    }
-  ];
+  
 
-  return (
-    <>
-      <div className="bank-header-top">
+    <div className="bank-header-top">
 
-        <div>
-          <h2>Bank info</h2>
+      <div>
+        <h2>Bank info</h2>
 
-          <p className="business-desc">
-            Where your earnings will be deposited every fortnight.
-          </p>
-        </div>
-
-        <button className="add-card-btn">
-          + Add New Card
-        </button>
-
+        <p className="business-desc">
+          Where your earnings will be deposited every fortnight.
+        </p>
       </div>
+
+     <div className="bank-header-actions">
+
+  {!showAddBankForm ? (
+
+    <button
+      className="add-card-btn"
+      onClick={() => setShowAddBankForm(true)}
+    >
+      + Add New Card
+    </button>
+
+  ) : (
+
+    <button
+      className="close-bank-btn"
+      onClick={() => setShowAddBankForm(false)}
+    >
+      ✕
+    </button>
+
+  )}
+
+</div>
+
+    </div>
+
+   
+
+    {showAddBankForm ? (
+
+  <div className="bank-card-container">
+
+
+    
+    <div className="bank-form-top">
+
+      <h3>Add Bank Account</h3>
+
+     
+
+    </div>
+
+    <div className="form-row">
+
+      <div className="form-group">
+        <label>Account Holder Name</label>
+
+        <input
+          type="text"
+          placeholder="Apothecary"
+        />
+      </div>
+
+      <div className="form-group">
+        <label>Bank Name</label>
+
+        <select>
+          <option>Apothecary</option>
+          <option>HDFC Bank</option>
+          <option>SBI</option>
+        </select>
+      </div>
+
+    </div>
+
+    <div className="form-group">
+      <label>Account Number</label>
+
+      <input
+        type="text"
+        placeholder="**** **** 6660"
+      />
+    </div>
+
+    <div className="form-group">
+      <label>Confirm Account Number</label>
+
+      <input
+        type="text"
+        placeholder="**** **** 6660"
+      />
+    </div>
+
+    <div className="form-group">
+      <label>IFSC Code</label>
+
+      <input
+        type="text"
+        placeholder="SBIN0001234"
+      />
+    </div>
+
+  </div>
+
+) : (
+
+      <>
 
       <div className="bank-card-container">
 
-        <p className="linked-account-text">
-          Linked Account
-        </p>
+  <div className="bank-top-header">
 
-        {/* Cards Row */}
-        <div className="bank-cards-row">
+    <p className="linked-account-text">
+      Linked Account
+    </p>
 
-          {bankAccounts.map((item) => (
-            <div className="single-bank-card" key={item.id}>
+    <button className="manage-card-btn">
+      Manage Card →
+    </button>
 
-              <div className="bank-card-top">
+  </div>
 
-                <span className="bank-icon">
-                  🏦
-                </span>
+  <div className="bank-cards-row">
 
-                <span
-                  className={
-                    item.tag === "Primary"
-                      ? "bank-tag"
-                      : "bank-tag secondary-tag"
-                  }
-                >
-                  {item.tag}
-                </span>
+    {bankAccounts.map((item) => (
 
-              </div>
+      <div className="single-bank-card" key={item.id}>
 
-              <h3>{item.bankName}</h3>
+        <div className="bank-card-top">
 
-              <p className="account-number">
-                {item.accountNumber}
-              </p>
+          <span className="bank-icon">
+            🏦
+          </span>
 
-              <div className="bank-card-bottom">
-
-                <span>
-                  {item.accountType}
-                </span>
-
-                <button>
-                  Edit
-                </button>
-
-              </div>
-
-            </div>
-          ))}
+          <span
+            className={
+              item.tag === "Primary"
+                ? "bank-tag"
+                : "bank-tag secondary-tag"
+            }
+          >
+            {item.tag}
+          </span>
 
         </div>
 
-        {/* Secure Box */}
-        <div className="secure-box">
+        <h3>{item.bankName}</h3>
 
-          <h4>
-            🛡 Secure Processing
-          </h4>
+        <p className="account-number">
+          {item.accountNumber}
+        </p>
 
-          <p>
-            All bank data is encrypted with bank-grade
-            256-bit SSL. Veda Merchant never stores your
-            full account credentials.
-          </p>
+        <div className="bank-card-bottom">
+
+          <span>{item.accountType}</span>
+
+          <button>Edit</button>
 
         </div>
 
       </div>
-    </>
-  );
 
-})()}
+    ))}
 
-          {/* Buttons */}
+  </div>
+
+  <div className="secure-processing-box">
+
+    <h4>🛡 Secure Processing</h4>
+
+    <p>
+      All bank data is encrypted with bank-grade 256-bit SSL.
+      Veda Merchant never stores your full account credentials.
+    </p>
+
+  </div>
+
+</div>
+
+
+      </>
+    )}
+
+    
+
+  
+
+  </>
+)}
+
           <div className="button-row">
 
             <button className="discard-btn">

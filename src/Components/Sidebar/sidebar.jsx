@@ -22,7 +22,7 @@ const Sidebar = () => {
   { name: "Inventory", icon: <InventoryIcon />, path: "/inventory" },
   { name: "Order Management", icon: <OrderIcon />, path: "/orders" },
   { name: "Finance", icon: <FinanceIcon />, path: "/finance" },
-  { name: "Ratings", icon: <RatingIcon />, path: "/ratings" },
+  { name: "Ratings", icon: <RatingIcon />, path: "/Rating" },
 ];
 
   const generalItems = [
