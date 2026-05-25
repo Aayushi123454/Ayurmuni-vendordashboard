@@ -1,0 +1,109 @@
+.sidebar {
+  max-width: 250px;
+  height: 100vh;
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease;
+}
+
+.sidebar.collapsed {
+  width: 70px;
+}
+
+/* Logo */
+.logo {
+  padding: 16px;
+  text-align: center;
+  border-bottom: 1px solid #0D614E;
+  position: relative;
+}
+
+.logo img {
+  width: 200px;
+}
+
+.sidebar.collapsed .logo img {
+  width: 50px;
+}
+
+/* Collapse Button */
+.collapse-btn {
+  text-align: right;
+  cursor: pointer;
+  position: absolute;
+  top: 53%;
+  transform: translateY(-50%);
+  right: -18px;
+}
+.collapse-btn svg{
+  background: #fff;
+  border-radius: 50%;
+  padding: 2px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+/* Menu */
+/* .menu {
+  padding: 10px;
+} */
+
+.menu-title {
+  font-size: 12px;
+  color: #94A3B8;
+  margin: 12px 14px;
+  font-weight: 600;
+}
+
+/* Menu Item */
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  /* border-radius: 8px; */
+  cursor: pointer;
+  transition: all 0.6s ease;
+}
+
+.menu-item svg {
+  display: block;
+}
+
+.menu-item svg path {
+  stroke: #727783;
+}
+
+.menu-item .label {
+  font-weight: 500;
+  font-size: 14px;
+  color: #727783;
+}
+
+.menu-item:hover svg path,
+.menu-item:hover .label,
+.menu-item.active svg path,
+.menu-item.active .label {
+  color: #fff;
+  font-weight: 600;
+  stroke: #fff;
+}
+
+.menu-item:hover {
+  background: #0D614E;
+}
+
+.menu-item.active {
+  background: #0D614E;
+  color: #fff;
+}
+
+.icon {
+  font-size: 18px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+}

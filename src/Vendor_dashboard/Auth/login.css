@@ -1,0 +1,1004 @@
+/* ============================================
+   auth.css  —  AuthPage (Login + Register tabs)
+   ============================================ */
+
+/* ── Layout ── */
+.auth-wrapper {
+    display: flex;
+    min-height: 100vh;
+    background: #f7f5f0;
+}
+
+/* ── Left Panel ── */
+.auth-banner {
+    flex: 0 0 58%;
+    position: relative;
+    overflow: hidden;
+    background: #4a7c59;
+}
+
+.auth-banner__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+}
+
+.auth-banner__overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+            rgba(26, 60, 30, 0.3) 0%,
+            rgba(74, 124, 89, 0.1) 100%);
+}
+
+/* Floating tab hint on banner */
+.auth-banner__tab-hint {
+    position: absolute;
+    top: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 100px;
+    padding: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.auth-banner__tab-hint span {
+    padding: 7px 20px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-family: system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.75);
+    cursor: pointer;
+    transition: background 0.25s, color 0.25s;
+    user-select: none;
+}
+
+.auth-banner__tab-hint span.active {
+    background: rgba(255, 255, 255, 0.9);
+    color: #0d614e;
+}
+
+.auth-banner__watermark {
+    position: absolute;
+    bottom: 36px;
+    left: 40px;
+    color: rgba(255, 255, 255, 0.75);
+    letter-spacing: 0.25em;
+    font-size: 11px;
+    text-transform: uppercase;
+    font-family: system-ui, sans-serif;
+}
+
+/* ── Right Panel ── */
+.auth-form-panel {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 40px;
+    background: #fafaf8;
+    position: relative;
+    overflow: hidden;
+    /* overflow-y: auto; */
+}
+
+/* ── Decorative Leaves ── */
+.leaf-decor {
+    position: absolute;
+}
+
+.leaf-decor--top-right {
+    top: -10px;
+    right: -10px;
+    transform: rotate(45deg);
+}
+
+.leaf-decor--bottom-left {
+    bottom: -10px;
+    left: -10px;
+    transform: rotate(225deg);
+}
+
+/* ── Card ── */
+.auth-card {
+    width: 100%;
+    max-width: 440px;
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 40px 44px 36px;
+    box-shadow:
+        0 4px 40px rgba(26, 92, 58, 0.08),
+        0 1px 4px rgba(0, 0, 0, 0.04);
+    position: relative;
+    z-index: 1;
+}
+
+/* Logo */
+.auth-card__logo-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.auth-card__logo {
+    width: 72px;
+    height: 72px;
+}
+
+/* ── Tab Bar ── */
+.auth-tabs {
+    display: flex;
+    position: relative;
+    background: #f2f0eb;
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 28px;
+    gap: 0;
+}
+
+.auth-tabs__btn {
+    flex: 1;
+    position: relative;
+    z-index: 1;
+    padding: 10px 0;
+    background: transparent;
+    border: none;
+    border-radius: 9px;
+    font-size: 13px;
+    font-family: system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    color: #737688;
+    cursor: pointer;
+    transition: color 0.25s;
+    text-transform: uppercase;
+}
+
+.auth-tabs__btn--active {
+    color: #0d614e;
+}
+
+/* Sliding pill indicator */
+.auth-tabs__indicator {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: calc(50% - 4px);
+    height: calc(100% - 8px);
+    background: #ffffff;
+    border-radius: 9px;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+}
+
+/* ── Animated Header ── */
+.auth-card__header {
+    overflow: hidden;
+    margin-bottom: 24px;
+}
+
+.auth-card__title {
+    text-align: center;
+    font-size: 26px;
+    color: #1a1a1a;
+    margin: 0 0 8px;
+    letter-spacing: -0.3px;
+    font-weight: 500;
+}
+
+.auth-card__subtitle {
+    text-align: center;
+    font-size: 13px;
+    color: #434656;
+    margin: 0;
+    line-height: 1.5;
+    font-weight: 500;
+}
+
+/* ── Form Wrap (animated container) ── */
+.auth-card__form-wrap {
+    overflow: hidden;
+}
+
+/* ── Animation states ── */
+
+/* Entering state (default — visible) */
+.auth-card__header--enter,
+.auth-card__form-wrap--enter {
+    animation: slideInRight 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Exiting to the left (switching → register) */
+.auth-card__header--exit-right,
+.auth-card__form-wrap--exit-right {
+    animation: slideOutLeft 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    pointer-events: none;
+}
+
+/* Exiting to the right (switching → login) */
+.auth-card__header--exit-left,
+.auth-card__form-wrap--exit-left {
+    animation: slideOutRight 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    pointer-events: none;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(28px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes slideOutLeft {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(-28px);
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(28px);
+    }
+}
+
+/* ── Field label ── */
+.auth-card__label {
+    display: block;
+    font-size: 13px;
+    color: #737688;
+    margin-bottom: 7px;
+    letter-spacing: 0.02em;
+    font-weight: 500;
+    font-family: system-ui, sans-serif;
+}
+
+.auth-card__label--optional {
+    font-size: 11px;
+    color: #b0b0b0;
+    font-weight: 400;
+}
+
+/* Input wrapper */
+.auth-card__input-wrap {
+    position: relative;
+    margin-bottom: 16px;
+}
+
+/* Input base */
+.auth-card__input {
+    width: 100%;
+    padding: 13px 16px;
+    font-size: 14px;
+    border: 1.5px solid #e0ddd7;
+    border-radius: 10px;
+    outline: none;
+    font-family: system-ui, sans-serif;
+    color: #1a1a1a;
+    /* background: #fafaf8; */
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+    -moz-appearance: textfield;
+}
+
+.auth-card__input::-webkit-inner-spin-button,
+.auth-card__input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.auth-card__input:focus {
+    border-color: #1a5c3a;
+    border-width: 1px !important;
+    box-shadow: 0 0 0 3px rgba(26, 92, 58, 0.08);
+}
+
+.auth-card__input--error {
+    border-color: #d94040;
+    box-shadow: 0 0 0 3px rgba(217, 64, 64, 0.07);
+}
+
+/* Inline error */
+.card__error {
+    display: block;
+    margin-top: 5px;
+    font-size: 11px;
+    color: #d94040;
+    font-family: system-ui, sans-serif;
+}
+
+/* Keep signed in */
+.auth-card__keep {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    margin-bottom: 24px;
+    user-select: none;
+}
+
+.auth-card__checkbox {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid #ccc;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.2s, border-color 0.2s;
+    cursor: pointer;
+}
+
+.auth-card__checkbox--checked {
+    border-color: #1a5c3a;
+    background: #1a5c3a;
+}
+
+.auth-card__keep-text {
+    font-size: 13px;
+    color: #737688;
+    font-weight: 500;
+    font-family: system-ui, sans-serif;
+}
+
+/* ── CTA Button ── */
+.auth-card__btn {
+    width: 100%;
+    padding: 15px;
+    background: #0d614e;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 12px;
+    text-transform: uppercase;
+    font-family: system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+    margin-top: 4px;
+    margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 4px 14px rgba(13, 97, 78, 0.25);
+}
+
+.auth-card__btn:hover:not(:disabled) {
+    background: #0a4f3f;
+    box-shadow: 0 6px 20px rgba(13, 97, 78, 0.35);
+    transform: translateY(-1px);
+}
+
+.auth-card__btn:active:not(:disabled) {
+    transform: translateY(0) scale(0.99);
+    box-shadow: 0 2px 8px rgba(13, 97, 78, 0.2);
+}
+
+.auth-card__btn:disabled {
+    cursor: default;
+    opacity: 0.85;
+}
+
+/* Spinner */
+.auth-card__spinner {
+    display: inline-block;
+    width: 13px;
+    height: 13px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ── Footer ── */
+.auth-card__footer {
+    text-align: center;
+    font-size: 13px;
+    color: #434656;
+    font-family: system-ui, sans-serif;
+    margin: 20px 0 0;
+}
+
+.auth-card__footer-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: #0d614e;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    font-family: system-ui, sans-serif;
+    transition: text-decoration 0.15s;
+}
+
+.auth-card__footer-link:hover {
+    text-decoration: underline;
+}
+
+/* ── Auth form wrapper ── */
+.auth-form {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ============================================
+   ENHANCED ANIMATIONS - Add to existing CSS
+   ============================================ */
+
+/* ── Banner Panel Animations ── */
+.auth-banner--enter {
+    animation: bannerSlideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.auth-banner--exit-right {
+    animation: bannerSlideOutLeft 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.auth-banner--exit-left {
+    animation: bannerSlideOutRight 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes bannerSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.98) translateX(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateX(0);
+    }
+}
+
+@keyframes bannerSlideOutLeft {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(-30px);
+    }
+}
+
+@keyframes bannerSlideOutRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+}
+
+/* ── Banner Tab Hint Animations ── */
+.auth-banner__tab-hint {
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.auth-banner__tab-hint--show {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+}
+
+.auth-banner__tab-hint--hide {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.95);
+}
+
+/* ── Card Logo Animation ── */
+.auth-card__logo-wrap--enter {
+    animation: logoEnter 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.auth-card__logo-wrap--exit-right {
+    animation: logoExitLeft 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.auth-card__logo-wrap--exit-left {
+    animation: logoExitRight 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes logoEnter {
+    from {
+        opacity: 0;
+        transform: scale(0.7) rotate(-10deg);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+    }
+}
+
+@keyframes logoExitLeft {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(-20px) scale(0.8);
+    }
+}
+
+@keyframes logoExitRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(20px) scale(0.8);
+    }
+}
+
+/* ── Tab Bar Animations ── */
+.auth-tabs--enter {
+    animation: fadeInUp 0.4s cubic-bezier(0.4, 0, 0.2, 1) 0.05s forwards;
+    opacity: 0;
+}
+
+.auth-tabs--exit-right {
+    animation: fadeOutLeft 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.auth-tabs--exit-left {
+    animation: fadeOutRight 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeOutLeft {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+}
+
+@keyframes fadeOutRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+}
+
+/* ── Enhanced Header Animation with Stagger ── */
+.auth-card__header--enter {
+    animation: headerEnter 0.45s cubic-bezier(0.4, 0, 0.2, 1) 0.1s forwards;
+    opacity: 0;
+}
+
+.auth-card__header--exit-right {
+    animation: headerExitLeft 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.auth-card__header--exit-left {
+    animation: headerExitRight 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes headerEnter {
+    0% {
+        opacity: 0;
+        transform: translateY(20px);
+        filter: blur(5px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+        filter: blur(0);
+    }
+}
+
+@keyframes headerExitLeft {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(-25px);
+        filter: blur(3px);
+    }
+}
+
+@keyframes headerExitRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(25px);
+        filter: blur(3px);
+    }
+}
+
+/* ── Enhanced Form Panel Animations ── */
+.auth-card__form-wrap--enter {
+    animation: formEnter 0.5s cubic-bezier(0.4, 0, 0.2, 1) 0.15s forwards;
+    opacity: 0;
+}
+
+.auth-card__form-wrap--exit-right {
+    animation: formExitLeft 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.auth-card__form-wrap--exit-left {
+    animation: formExitRight 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes formEnter {
+    0% {
+        opacity: 0;
+        transform: translateX(30px);
+        filter: blur(4px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateX(0);
+        filter: blur(0);
+    }
+}
+
+@keyframes formExitLeft {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(-30px);
+        filter: blur(4px);
+    }
+}
+
+@keyframes formExitRight {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateX(30px);
+        filter: blur(4px);
+    }
+}
+
+/* ── Footer Animation ── */
+.auth-card__footer--enter {
+    animation: footerEnter 0.4s cubic-bezier(0.4, 0, 0.2, 1) 0.2s forwards;
+    opacity: 0;
+}
+
+.auth-card__footer--exit-right {
+    animation: fadeOutLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.auth-card__footer--exit-left {
+    animation: fadeOutRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes footerEnter {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ── Input Field Stagger Animations ── */
+.auth-form>div {
+    animation: fieldEnter 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    opacity: 0;
+}
+
+.auth-form>div:nth-child(1) {
+    animation-delay: 0.18s;
+}
+
+.auth-form>div:nth-child(2) {
+    animation-delay: 0.22s;
+}
+
+.auth-form>div:nth-child(3) {
+    animation-delay: 0.26s;
+}
+
+.auth-form>div:nth-child(4) {
+    animation-delay: 0.30s;
+}
+
+@keyframes fieldEnter {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* ── Button Ripple Effect ── */
+.auth-card__btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.auth-card__btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.auth-card__btn:active::before {
+    width: 300px;
+    height: 300px;
+}
+
+/* ── Floating Label Effect ── */
+.auth-card__input:focus+.auth-card__floating-label,
+.auth-card__input:not(:placeholder-shown)+.auth-card__floating-label {
+    transform: translateY(-25px) scale(0.85);
+    color: #0d614e;
+}
+
+/* ── Shake Animation for Errors ── */
+.auth-card__input--error {
+    animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+        transform: translateX(-4px);
+    }
+
+    20%,
+    40%,
+    60%,
+    80% {
+        transform: translateX(4px);
+    }
+}
+
+/* ── Pulse Animation for Success ── */
+.auth-card__btn:disabled {
+    animation: pulse 0.5s ease-in-out;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(0.98);
+    }
+}
+
+/* ── Glassmorphism Effect on Banner Hint ── */
+.auth-banner__tab-hint {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+/* ── Smooth Transition for All Interactive Elements ── */
+.auth-tabs__btn,
+.auth-card__footer-link,
+.auth-card__checkbox {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Loading Spinner Enhanced ── */
+.auth-card__spinner {
+    animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ── OTP Input Styles ── */
+.otp-header {
+    margin-bottom: 24px;
+}
+
+.otp-back-btn {
+    background: none;
+    border: none;
+    color: #0d614e;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+    /* margin-bottom: 12px; */
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: color 0.2s;
+    margin-left: 43px;
+}
+
+.otp-back-btn:hover {
+    color: #0a4f3f;
+    text-decoration: underline;
+}
+
+.otp-info {
+    font-size: 13px;
+    color: #434656;
+    margin: 0;
+}
+
+.otp-input-container {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.otp-input {
+    width: 60px;
+    height: 60px;
+    text-align: center;
+    font-size: 24px;
+    font-weight: 600;
+    border: 2px solid #e0ddd7;
+    border-radius: 12px;
+    background: #fafaf8;
+    transition: all 0.2s;
+    font-family: monospace;
+}
+
+.otp-input:focus {
+    border-color: #1a5c3a;
+    box-shadow: 0 0 0 3px rgba(26, 92, 58, 0.08);
+    outline: none;
+}
+
+.otp-input--error {
+    border-color: #d94040;
+    animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+.otp-error {
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.otp-resend {
+    text-align: center;
+    font-size: 12px;
+    color: #737688;
+    margin-top: 20px;
+}
+
+.otp-resend-link {
+    background: none;
+    border: none;
+    color: #0d614e;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 12px;
+    text-decoration: underline;
+}
+
+.otp-resend-link:hover {
+    color: #0a4f3f;
+}
+
+/* Responsive OTP inputs */
+@media (max-width: 480px) {
+    .otp-input {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+    }
+
+    .otp-input-container {
+        gap: 8px;
+    }
+}
