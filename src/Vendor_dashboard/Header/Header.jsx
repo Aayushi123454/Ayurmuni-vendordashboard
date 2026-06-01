@@ -41,7 +41,6 @@ const Header = () => {
         </div>
       </div>
 
-      {console.log(user)}
       <div className="header-left">
         <div className="search-box">
           <Search className="search-icon" />

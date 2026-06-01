@@ -27,13 +27,13 @@ const DoctorSidebar = () => {
     { name: "Availability", icon: <Appointment />, path: "/doctor/availability" },
     { name: "Appointment", icon: <Appointment />, path: "/doctor/appointments" },
     { name: "Patients", icon: <Patients />, path: "/doctor/patients" },
-    { name: "Message", icon: <Message />, path: "/doctor/messages" },
-    { name: "Assessments", icon: <Assessments />, path: "/doctor/assessments" },
-    { name: "Earnings", icon: <FinanceIcon />, path: "/doctor/earnings" },
+    // { name: "Message", icon: <Message />, path: "/doctor/messages" },
+    // { name: "Assessments", icon: <Assessments />, path: "/doctor/assessments" },
+    // { name: "Earnings", icon: <FinanceIcon />, path: "/doctor/earnings" },
   ];
 
   const generalItems = [
-    { name: "Help & Support", icon: <HelpIcons />, path: "/doctor/help-support" },
+    // { name: "Help & Support", icon: <HelpIcons />, path: "/doctor/help-support" },
     { name: "Settings", icon: <SettingIcon />, path: "/doctor/settings" },
   ];
 

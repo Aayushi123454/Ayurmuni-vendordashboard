@@ -1,56 +1,86 @@
 // src/services/api.js
+
 import axios from "axios";
 import toast from "react-hot-toast";
-const BASE_URL = "https://06e4-203-110-81-106.ngrok-free.app";
+
+const BASE_URL = "https://6057-203-110-81-106.ngrok-free.app";
 
 const API = axios.create({
     baseURL: BASE_URL,
     withCredentials: true,
     headers: {
-        'Accept': 'application/json',
-        'ngrok-skip-browser-warning': 'true',
-    }
+        Accept: "application/json",
+        "ngrok-skip-browser-warning": "true",
+    },
 });
 
 let isRefreshing = false;
 let failedQueue = [];
 
+/**
+ * Process pending requests while token refresh
+ */
 const processQueue = (error, token = null) => {
     failedQueue.forEach((prom) => {
-        if (error) prom.reject(error);
-        else prom.resolve(token);
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(token);
+        }
     });
+
     failedQueue = [];
 };
 
-// 🔐 Attach token
+/**
+ * Request Interceptor
+ * Attach Access Token
+ */
 API.interceptors.request.use(
     (config) => {
-        const token = sessionStorage.getItem("accessToken") || sessionStorage.getItem("restoreToken");
-        // 🔐 Attach token if exists
+        const token =
+            sessionStorage.getItem("accessToken") ||
+            sessionStorage.getItem("restoreToken");
+
+        // Attach Authorization Token
         if (token) {
-            config.headers = {
-                ...config.headers,
-                Authorization: `Bearer ${token}`,
-            };
+            config.headers.Authorization = `Bearer ${token}`;
         }
-        // 📦 Default Content-Type (avoid overriding for file uploads)
+
+        // Default Content-Type
         if (!config.headers["Content-Type"]) {
             config.headers["Content-Type"] = "application/json";
         }
-        // ⚠️ Ngrok warning bypass
+
+        // Ngrok Bypass
         config.headers["ngrok-skip-browser-warning"] = "true";
+
         return config;
     },
-    (error) => Promise.reject(error)
+    (error) => {
+        return Promise.reject(error);
+    }
 );
 
-// 🔄 Handle refresh
+/**
+ * Response Interceptor
+ */
 API.interceptors.response.use(
-    (res) => res,
+    (response) => response,
+
     async (error) => {
         const originalRequest = error.config;
-        if (error.response?.status === 401 && !originalRequest._retry) {
+
+        /**
+         * ==========================
+         * Handle Token Refresh
+         * ==========================
+         */
+        if (
+            error.response?.status === 401 &&
+            !originalRequest._retry
+        ) {
+            // Already refreshing token
             if (isRefreshing) {
                 return new Promise((resolve, reject) => {
                     failedQueue.push({
@@ -62,33 +92,86 @@ API.interceptors.response.use(
                     });
                 });
             }
+
             originalRequest._retry = true;
             isRefreshing = true;
 
             try {
-                const refreshToken = sessionStorage.getItem("refreshToken");
-                const res = await axios.post(
-                    BASE_URL + "/auth/refresh",
-                    { refreshToken }
-                );
-                const newAccessToken = res.data.accessToken;
-                sessionStorage.setItem("accessToken", newAccessToken);
+                const refreshToken =
+                    sessionStorage.getItem("refreshToken");
 
-                API.defaults.headers.Authorization = `Bearer ${newAccessToken}`;
+                // Refresh API Call
+                const response = await axios.post(
+                    `${BASE_URL}/auth/refresh`,
+                    {
+                        refreshToken,
+                    }
+                );
+
+                const newAccessToken =
+                    response.data.accessToken;
+
+                // Save New Token
+                sessionStorage.setItem(
+                    "accessToken",
+                    newAccessToken
+                );
+
+                // Update Default Header
+                API.defaults.headers.Authorization =
+                    `Bearer ${newAccessToken}`;
+
+                // Retry Pending Requests
                 processQueue(null, newAccessToken);
+
+                // Retry Original Request
+                originalRequest.headers.Authorization =
+                    `Bearer ${newAccessToken}`;
+
                 return API(originalRequest);
-            } catch (err) {
-                const message = err?.response?.data?.message || "Something went wrong";
+
+            } catch (refreshError) {
+
+                const message =
+                    refreshError?.response?.data?.message ||
+                    "Session expired. Please login again.";
+
                 toast.error(message);
-                processQueue(err, null);
+
+                processQueue(refreshError, null);
+
+                // Clear Session
                 sessionStorage.clear();
+
+                // Redirect Login
                 // window.location.href = "/login";
-                return Promise.reject(err);
+
+                return Promise.reject(refreshError);
+
             } finally {
                 isRefreshing = false;
             }
         }
 
+        /**
+         * ==========================
+         * Handle All Other Errors
+         * ==========================
+         */
+
+        const message =
+            error?.response?.data?.message ||
+            error?.response?.data?.detail ||
+            Object.values(error?.response?.data || {})
+                ?.flat()
+                ?.join(", ") ||
+            error?.message ||
+            "Something went wrong";
+
+        // Show Toast
+        toast.error(message);
+
+        // Reject Error
         return Promise.reject(error);
     }
 );

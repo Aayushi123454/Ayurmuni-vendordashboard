@@ -20,13 +20,13 @@ export const authService = {
 
     // 👤 Restore account
 
-    restoreAccount: () => {
-        return API.patch("/doctors/profilerevive/")
+    restoreAccount: (data) => {
+        return API.patch("/user/profile-revive/", data)
     },
 
 
 
-    
+
     // 🔄 Refresh Token
     refreshToken: (refreshToken) => {
         return API.post("/auth/refresh", { refreshToken });

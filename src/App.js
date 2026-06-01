@@ -10,6 +10,7 @@ import ProtectedRoute from "./Vendor_dashboard/Auth/ProtectedRoute";
 import DoctorSidebar from "./Doctor_dashboard/Sidebar/sidebar";
 import DoctorAvailabilityCalendar2 from "./Doctor_dashboard/components/availability/DoctorAvailabilityCalendar/index";
 import DoctorDashboardTasks from "./Vendor_dashboard/Header/DoctorDashboardTasks";
+import ProductManagement from "./Vendor_dashboard/Pages/productManagement/productManagement";
 // import DoctorAvailabilityCalendar from "./Doctor_dashboard/components/availability/DoctorAvailabilityCalendar";
 
 // Doctor Pages
@@ -20,6 +21,8 @@ const PatientManagement = lazy(() => import("./Doctor_dashboard/components/Patie
 const FinanceDashboard = lazy(() => import("./Doctor_dashboard/components/Finance/FinanceManagement"));
 const HelpSupport = lazy(() => import("./Doctor_dashboard/components/HelpSupport/HelpSupport"));
 const DoctorProfile = lazy(() => import("./Doctor_dashboard/components/Profile/Profile"));
+const AppointmentDetail = lazy(() => import("./Doctor_dashboard/components/Appointment/AppointmentDetails"));
+
 // Lazy Loaded Vendor Pages
 const Login = lazy(() => import("./Vendor_dashboard/Auth/Login"));
 const Dashboard = lazy(() => import("./Vendor_dashboard/Pages/Dashboard/Dashboard"));
@@ -42,7 +45,24 @@ function App() {
   const token = sessionStorage.getItem("accessToken");
   const role = sessionStorage.getItem("role");
   const isAuthenticated = !!token;
+  const onboarding = JSON.parse(sessionStorage.getItem("profile"))
 
+
+  const hasCompletedProfile =
+    onboarding?.email &&
+    onboarding?.email.trim() !== "";
+  console.log(hasCompletedProfile, onboarding, window.location.pathname == "/vendor/onboarding");
+
+  if (hasCompletedProfile && (window.location.pathname == "/vendor/onboarding" || window.location.pathname == "/doctor/onboarding")) {
+    const redirectPath = hasCompletedProfile
+      ? role === "doctor"
+        ? "/doctor/dashboard"
+        : "/vendor/dashboard"
+      : role === "doctor"
+        ? "/doctor/onboarding"
+        : "/vendor/onboarding";
+    window.location.replace(redirectPath)
+  }
   return (
     <>
       <Toaster position="top-right" />
@@ -69,9 +89,9 @@ function App() {
                 <Route path="dashboard" element={<DoctorDashboard />} />
                 <Route path="availability" element={<DoctorAvailabilityCalendar2 />} />
                 <Route path="appointments" element={<AppointmentsPage />} />
-                <Route path="appointments/:id" element={<OrderDetail />} />
+                <Route path="appointments/:appointmentId" element={<AppointmentDetail />} />
                 <Route path="patients" element={<PatientManagement />} />
-                <Route path="patients/:id" element={<OrderDetail />} />
+                <Route path="patients/:id" element={<AppointmentDetail />} />
                 <Route path="messages" element={<Order />} />
                 <Route path="assessments" element={<Order />} />
                 <Route path="earnings" element={<FinanceDashboard />} />
@@ -96,6 +116,8 @@ function App() {
               >
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
+                <Route path="products" element={<ProductManagement />} />
+
                 <Route path="orders" element={<Order />} />
                 <Route path="orders/:id" element={<OrderDetail />} />
                 <Route path="profile" element={<VendorProfile />} />

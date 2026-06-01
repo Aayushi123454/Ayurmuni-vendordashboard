@@ -14,7 +14,7 @@ const ProtectedRoute = ({
 
   // Onboarding incomplete
 
-  if (onboarding?.email == null) {
+  if (onboarding?.email == null || onboarding?.email == "") {
     return <Navigate to={userRole === "doctor"
       ? "/doctor/onboarding"
       : "/vendor/onboarding"} replace />;

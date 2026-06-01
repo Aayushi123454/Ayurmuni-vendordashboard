@@ -25,7 +25,7 @@ const Sidebar = () => {
 
   const menuItems = [
     { name: "Dashboard", icon: <DashboardIcon />, path: "/vendor/dashboard" },
-    { name: "Inventory", icon: <InventoryIcon />, path: "/vendor/inventory" },
+    { name: "Product Management", icon: <InventoryIcon />, path: "/vendor/products" },
     { name: "Order Management", icon: <OrderIcon />, path: "/vendor/orders" },
     { name: "Finance", icon: <FinanceIcon />, path: "/vendor/finance" },
     { name: "Ratings", icon: <RatingIcon />, path: "/vendor/ratings" },

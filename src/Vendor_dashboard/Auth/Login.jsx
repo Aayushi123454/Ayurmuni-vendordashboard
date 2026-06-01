@@ -515,6 +515,7 @@ export default function AuthPage() {
 
         toast.success("OTP sent successfully");
         setOtpData(response.data);
+        setselectrole(response.data?.data?.user_roles[0])
         setMobile(userMobile);
         setShowOtp(true);
         if (keepSigned) {
@@ -567,10 +568,12 @@ export default function AuthPage() {
       let response;
 
       if (activeTab === "register") {
+        console.log(selectrole);
+
         response = await authService.register({
           phone_number: `+91${mobile}`,
           otp,
-          role: selectrole,
+          role: selectedRole || selectrole,
         });
       } else {
         const userRole = selectrole || selectedRole;
@@ -584,18 +587,8 @@ export default function AuthPage() {
 
       if (response?.data?.success) {
         const data = response?.data?.data;
-        // Deleted account
-        if (data?.is_deleted) {
-          setdeleteAccountActive(true);
-          if (data?.access) {
-            sessionStorage.setItem("restoreToken", data.access);
-          }
-          return;
-        }
-
-
         // Store Tokens
-        if (data?.access) {
+        if (data?.access && !data?.is_deleted) {
           sessionStorage.setItem("accessToken", data.access);
         }
 
@@ -611,8 +604,24 @@ export default function AuthPage() {
 
         sessionStorage.setItem("role", userRole);
         sessionStorage.setItem("user_mobile", mobile);
-        sessionStorage.setItem("profile", JSON.stringify({ ...data?.profile, verify: data?.is_verified }));
+        sessionStorage.setItem(
+          "profile",
+          JSON.stringify({
+            ...data?.profile,
+            email: data?.profile?.business_email || data?.profile?.email || "",
+            first_name: data?.profile?.business_name || data?.profile?.first_name || "",
+            verify: data?.is_verified,
+          })
+        );
+        console.log(data);
 
+        if (data?.is_deleted) {
+          setdeleteAccountActive(true);
+          if (data?.access) {
+            sessionStorage.setItem("restoreToken", data.access);
+          }
+          return
+        }
         toast.success(
           activeTab === "register"
             ? "Registration successful!"
@@ -621,8 +630,9 @@ export default function AuthPage() {
 
         // Check onboarding
         const hasCompletedProfile =
-          data?.profile?.email &&
-          data?.profile?.email.trim() !== "";
+          (data?.profile?.email &&
+            data?.profile?.email.trim() !== "") || (data?.profile?.business_email &&
+              data?.profile?.business_email.trim() !== "");
 
         const redirectPath = hasCompletedProfile
           ? userRole === "doctor"
@@ -665,7 +675,7 @@ export default function AuthPage() {
   const handleRestoreAccount = async () => {
     try {
       const response = await authService.restoreAccount({
-        "is_deleted": false
+        "role": selectrole
       });
       sessionStorage.setItem("accessToken", sessionStorage.getItem("restoreToken"));
       sessionStorage.removeItem("restoreToken")

@@ -9,6 +9,8 @@ export const doctorService = {
         for (const key in data) {
             if (data[key] instanceof File) {
                 formData.append(key, data[key]);
+            } else if (key == "health_diseases") {
+                data[key]?.filter((disdata) => formData.append("health_diseases", disdata))
             }
             else if (typeof data[key] === "object") {
                 formData.append(key, JSON.stringify(data[key]));
@@ -22,6 +24,23 @@ export const doctorService = {
                 "Content-Type": "multipart/form-data",
             },
         });
+    },
+
+    getPrakritiAndDiseases: async () => {
+        try {
+            const [prakriti, diseases] = await Promise.all([
+                API.get("/doctors/prakriti/analysis-contents/"),
+                API.get("/doctors/health-disease/")
+            ]);
+
+            return {
+                prakriti: prakriti.data,
+                diseases: diseases.data
+            };
+        } catch (error) {
+            console.error("Error fetching data:", error);
+            throw error;
+        }
     },
 
     // 🔹 Upload documents
@@ -81,6 +100,8 @@ export const doctorService = {
             if (data[key] == null) continue;
             if (data[key] instanceof File) {
                 formData.append(key, data[key]);
+            } else if (key == "health_diseases") {
+                data[key]?.forEach((disdata) => formData.append("health_diseases", disdata))
             }
             else if (typeof data[key] === "object") {
                 formData.append(key, JSON.stringify(data[key]));
@@ -121,18 +142,36 @@ export const doctorService = {
         });
     },
 
-    // 🔹 Get appointments
+    // 🔹 Get Slot
     getMonthlyAvailability: (year, month) => {
         return API.get(`/doctors/availabilities/?month=${month}&year=${year}`);
     },
 
-    // 🔹 Post appointments
+    // 🔹 Post Slot
     createSlot: (data) => {
         return API.post("/doctors/availabilities/", data);
     },
-    // 🔹 Update appointments
-
+    // 🔹 Update Slot
     updateTimeSlot: (slotId, slotData) => {
         return API.put("/doctors/availabilities/" + slotId + "/", slotData);
+    },
+
+
+    // 🔹 Get appointments List
+    getAppointment: () => {
+        return API.get("/doctors/dashboard/appointments/");
+    },
+
+    updateAppointmentstatus: (appointment_id, data) => {
+        return API.post(`/doctors/appointments/action/?id=${appointment_id}`, data);
+    },
+    getAppointmentDetails: (id) => {
+        return API.get("/doctors/dashboard/appointments/?id=" + id);
+    },
+
+    // 🔹 Get Patient List
+    getPatient: () => {
+        return API.get("/doctors/dashboard/patients/");
     }
+
 };
