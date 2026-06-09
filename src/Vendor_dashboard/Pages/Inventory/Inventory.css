@@ -1,6 +1,7 @@
 /* ─── CSS VARIABLES ─── */
 :root {
   --green: #0D614E;
+  --blue: #2563EB;
   --green-light: #1a7a62;
   --green-dark: #0a4d3e;
   --green-pale: #d8f3dc;
@@ -548,8 +549,8 @@ body {
 }
 
 .iv-tag-nutrition {
-  background: #e8f4fd;
-  color: #1976d2;
+  background: #d0eee6;
+  color: var(--green);
 }
 
 .iv-product-meta {
@@ -632,14 +633,14 @@ body {
 .iv-qty {
   font-size: 12px;
   font-weight: 600;
-  padding: 4px 12px;
+  /* padding: 4px 12px; */
   border-radius: 30px;
   display: inline-block;
 }
 
 .iv-qty.instock {
   color: #10B981;
-  background: #d1fae5;
+  /* background: #d1fae5; */
 }
 
 .iv-qty.lowstock {
@@ -698,7 +699,7 @@ body {
 
 .iv-chip-instock {
   color: #10B981;
-  background: #d1fae5;
+  /* background: #d1fae5; */
 }
 
 .iv-chip-instock .iv-status-dot {
@@ -793,7 +794,7 @@ body {
 
 .greenicon {
   font-size: 18px;
-  color: var(--green);
+  color: var(--blue);
 }
 
 .redicon {

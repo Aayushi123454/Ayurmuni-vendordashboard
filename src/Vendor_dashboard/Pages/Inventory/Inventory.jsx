@@ -153,8 +153,8 @@ function VariantRow({ variant, productName }) {
         </div>
       </td>
       <td><span className="iv-sku-badge">{variant.variant_code}</span></td>
-      <td><span className="iv-price-mrp">₹{parseFloat(variant.mrp).toLocaleString()}</span></td>
-      <td><span className="iv-price-sell">₹{parseFloat(variant.selling_price).toLocaleString()}</span></td>
+      <td><span className="iv-price-mrp">Rs.{parseFloat(variant.mrp).toLocaleString()}</span></td>
+      <td><span className="iv-price-sell">Rs.{parseFloat(variant.selling_price).toLocaleString()}</span></td>
       <td>
         <span className={`iv-qty ${status}`}>
           {formatQuantity(variant.stock, variant.low_stock_threshold)}
@@ -245,7 +245,7 @@ function Pagination({ currentPage, totalCount, onPageChange }) {
   return (
     <div className="iv-pagination-row">
       <div className="iv-pagination-info">
-        Showing <strong>{startItem}-{endItem}</strong> of <strong>{totalCount}</strong> Products
+        Showing <strong className="text-green-800">{startItem}-{endItem}</strong> of <strong className="text-green-800">{totalCount}</strong> Products
       </div>
       <div className="iv-pagination-btns">
         <button
