@@ -83,7 +83,7 @@ const Header = () => {
 
           <div className="profile-info">
             <p className="name">Dr. {(user?.first_name ? user?.first_name : "") + " " + (user?.last_name ? user?.last_name : "")}</p>
-            <span className="role">Doctor</span>
+            <span className="role">{sessionStorage.getItem("role").toUpperCase()}</span>
           </div>
 
           {/* <ChevronDown className="dropdown-icon" fontSize={14} /> */}
@@ -91,7 +91,7 @@ const Header = () => {
           {/* 🔽 Dropdown */}
           {openProfile && (
             <div className="profile-dropdown">
-              <div onClick={() => navigate("/doctor/profile")}>Profile</div>
+              <div onClick={() => navigate(`/${sessionStorage.getItem("role")}/profile`)}>Profile</div>
               <div onClick={() => navigate("/settings")}>Settings</div>
               <div className="logout" onClick={e => LogOut()}>Logout</div>
             </div>

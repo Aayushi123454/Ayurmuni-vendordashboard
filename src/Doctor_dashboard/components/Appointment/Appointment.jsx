@@ -394,7 +394,7 @@ const AppointmentsPage = () => {
     const fetchAppointments = useCallback(async () => {
         setIsLoading(true);
         try {
-            const response = await doctorService?.getAppointment();
+            const response = await doctorService?.getAppointment("appointment");
             console.log("API Response:", response);
 
             if (response?.data?.success && response?.data?.data?.results) {
@@ -708,7 +708,7 @@ const AppointmentsPage = () => {
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center space-x-2">
                                                     {/* View Button - Opens Details Modal */}
-                                                    <Link to={appointment.id}
+                                                    <Link to={`appointment/${appointment.id}`}
                                                         // onClick={() => { setSelectedAppointment(appointment); setShowDetailsModal(true); }}
                                                         className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
                                                         title="View Details"

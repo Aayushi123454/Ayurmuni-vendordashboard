@@ -11,6 +11,9 @@ import DoctorSidebar from "./Doctor_dashboard/Sidebar/sidebar";
 import DoctorAvailabilityCalendar2 from "./Doctor_dashboard/components/availability/DoctorAvailabilityCalendar/index";
 import DoctorDashboardTasks from "./Vendor_dashboard/Header/DoctorDashboardTasks";
 import ProductManagement from "./Vendor_dashboard/Pages/productManagement/productManagement";
+import InventoryVault from "./Vendor_dashboard/Pages/Inventory/Inventory";
+import AddProduct from "./Vendor_dashboard/Pages/Inventory/AddProduct";
+import EditProduct from "./Vendor_dashboard/Pages/Inventory/editproduct";
 // import DoctorAvailabilityCalendar from "./Doctor_dashboard/components/availability/DoctorAvailabilityCalendar";
 
 // Doctor Pages
@@ -89,9 +92,9 @@ function App() {
                 <Route path="dashboard" element={<DoctorDashboard />} />
                 <Route path="availability" element={<DoctorAvailabilityCalendar2 />} />
                 <Route path="appointments" element={<AppointmentsPage />} />
-                <Route path="appointments/:appointmentId" element={<AppointmentDetail />} />
+                <Route path="appointments/:type/:appointmentId" element={<AppointmentDetail />} />
+                <Route path="patients/:type/:appointmentId" element={<AppointmentDetail />} />
                 <Route path="patients" element={<PatientManagement />} />
-                <Route path="patients/:id" element={<AppointmentDetail />} />
                 <Route path="messages" element={<Order />} />
                 <Route path="assessments" element={<Order />} />
                 <Route path="earnings" element={<FinanceDashboard />} />
@@ -116,7 +119,9 @@ function App() {
               >
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
-                <Route path="products" element={<ProductManagement />} />
+                <Route path="products" element={<InventoryVault />} />
+                <Route path="new-product" element={<AddProduct />} />
+                <Route path="edit-product/:id" element={<EditProduct />} />
 
                 <Route path="orders" element={<Order />} />
                 <Route path="orders/:id" element={<OrderDetail />} />

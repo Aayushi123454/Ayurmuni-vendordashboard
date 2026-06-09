@@ -3,7 +3,7 @@
 import axios from "axios";
 import toast from "react-hot-toast";
 
-const BASE_URL = "https://6057-203-110-81-106.ngrok-free.app";
+const BASE_URL = "https://aghast-cognition-earflap.ngrok-free.dev";
 
 const API = axios.create({
     baseURL: BASE_URL,

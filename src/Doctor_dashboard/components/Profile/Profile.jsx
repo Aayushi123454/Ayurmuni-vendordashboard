@@ -394,6 +394,10 @@ const DoctorProfile = () => {
         try {
             const response = await doctorService.getProfile();
             const profile = response?.data?.data;
+            if (profile?.approval_status === 'approved') {
+                let data = sessionStorage.getItem('profile');
+                sessionStorage.setItem('profile', JSON.stringify({ ...JSON.parse(data), verify: true })); // Store the entire profile data in sessionStorage
+            }
             setDoctorData(prev => ({
                 ...prev,
                 ...profile,

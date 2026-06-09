@@ -158,20 +158,20 @@ export const doctorService = {
 
 
     // 🔹 Get appointments List
-    getAppointment: () => {
-        return API.get("/doctors/dashboard/appointments/");
+    getAppointment: (type) => {
+        return API.get(`/doctors/?type=${type}`);
     },
 
     updateAppointmentstatus: (appointment_id, data) => {
         return API.post(`/doctors/appointments/action/?id=${appointment_id}`, data);
     },
-    getAppointmentDetails: (id) => {
-        return API.get("/doctors/dashboard/appointments/?id=" + id);
+    getAppointmentDetails: (type, id) => {
+        return API.get(`/doctors/?type=${type}&id=${id}`);
     },
 
     // 🔹 Get Patient List
-    getPatient: () => {
-        return API.get("/doctors/dashboard/patients/");
+    getPatient: (type) => {
+        return API.get(`/doctors/?type=${type}`);
     }
 
 };

@@ -86,8 +86,7 @@ export const vendorService = {
     },
 
 
-    // Add bank detail
-
+    // Get Product list detail
     getProducts: async (data) => {
         try {
             const response = await API.get('/vendors/product/');
@@ -96,6 +95,39 @@ export const vendorService = {
             console.error('Admin service error:', error);
             throw error;
         }
+    },
+    // Get Product list detail
+    getsingleProducts: async (id) => {
+        try {
+            const response = await API.get('/vendors/product/?id=23792390-aeb5-421d-be97-20eb00afe7b5');
+            return response;
+        } catch (error) {
+            console.error('Admin service error:', error);
+            throw error;
+        }
+    },
+
+    // Add Product list detail
+    addProduct: async (productData) => {
+        try {
+            const response = await API.post('/vendors/product/add/', productData);
+            return response;
+        } catch (error) {
+            console.error('Admin service error:', error);
+            throw error;
+        }
+    },
+
+    //Get Brand,category
+    getbrandandcategory: async (productData) => {
+        try {
+            const response = await API.get('/vendors/fields/info/?search=' + productData);
+            return response;
+        } catch (error) {
+            console.error('Admin service error:', error);
+            throw error;
+        }
     }
+
 
 };

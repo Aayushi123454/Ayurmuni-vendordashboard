@@ -61,7 +61,7 @@ const PatientManagement = () => {
     const fetchPatients = async () => {
         setIsLoading(true);
         try {
-            const response = await doctorService.getPatient?.(currentPage, itemsPerPage, searchTerm, filterPrakriti, filterGender);
+            const response = await doctorService.getPatient?.("patient", currentPage, itemsPerPage, searchTerm, filterPrakriti, filterGender);
             const apiData = response?.data?.data || response?.data;
 
             setPatientsData({
@@ -463,7 +463,7 @@ const PatientManagement = () => {
                                                         <td className="px-6 py-4">
                                                             <div className="flex items-center space-x-2">
                                                                 <Link
-                                                                to={`${patient.id}`}
+                                                                    to={`patient/${patient.id}`}
                                                                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors group"
                                                                     title="View Full Details"
                                                                 >

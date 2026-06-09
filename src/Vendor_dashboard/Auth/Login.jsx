@@ -566,17 +566,15 @@ export default function AuthPage() {
 
     try {
       let response;
-
+      const userRole = selectrole || selectedRole;
       if (activeTab === "register") {
-        console.log(selectrole);
-
         response = await authService.register({
           phone_number: `+91${mobile}`,
           otp,
-          role: selectedRole || selectrole,
+          role: userRole,
         });
       } else {
-        const userRole = selectrole || selectedRole;
+
 
         response = await authService.login({
           phone_number: `+91${mobile}`,

@@ -1,0 +1,1042 @@
+/* ─── CSS VARIABLES ─── */
+:root {
+  --green: #0D614E;
+  --green-light: #1a7a62;
+  --green-dark: #0a4d3e;
+  --green-pale: #d8f3dc;
+  --green-muted: #b7e4c7;
+  --green-bg: #e8f5f2;
+  --red: #F43F5E;
+  --red-pale: #fff0f0;
+  --red-bg: #F43F5E0D;
+  --orange: #FFC107;
+  --orange-bg: #fff3cd;
+  --bg: #f7f8f5;
+  --white: #ffffff;
+  --border: #e8ece6;
+  --text: #1a1f17;
+  --text-muted: #6b7c63;
+  --text-light: #9aab8f;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+  --radius: 32px;
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --radius-sm: 8px;
+  --transition: all 0.2s ease;
+}
+
+/* ─── GLOBAL STYLES ─── */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+/* ─── HEADER SECTION ─── */
+.iv-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.iv-header-title h1 {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  text-shadow: 0 3px 2px rgba(0, 0, 0, 0.3);
+}
+
+.inventoryspan {
+  color: var(--green);
+  position: relative;
+  font-weight: 700;
+}
+
+.iv-header-title p {
+  font-size: 15px;
+  color: #64748B;
+  font-weight: 500;
+  margin-top: 6px;
+  max-width: 560px;
+  line-height: 1.5;
+  text-shadow: 0 3px 2px rgba(0, 0, 0, 0.1);
+
+}
+
+.iv-btn-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--green);
+  color: #fff;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.iv-btn-add:hover {
+  background: transparent;
+  border-color: var(--green);
+  color: var(--green);
+  transform: translateY(-1px);
+}
+
+.iv-btn-add-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* ─── TOP GRID ─── */
+.iv-top-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+@media (max-width: 768px) {
+  .iv-top-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── CARDS ─── */
+.iv-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  transition: var(--transition);
+  padding: 30px;
+}
+
+.iv-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+/* ─── CRITICAL ALERTS CARD ─── */
+.iv-card-alerts {
+  background: var(--red-bg);
+  border: 1px solid #F43F5E33;
+  position: relative;
+  overflow: hidden;
+}
+
+.iv-alerts-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.iv-alert-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--red);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 5px 12px 5px 0;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.iv-dot-red {
+  border: 2px solid var(--red);
+  border-radius: 5px;
+}
+
+@keyframes iv-pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+}
+
+.iv-alerts-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 20px;
+}
+
+.iv-alert-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: var(--white);
+  margin-bottom: 10px;
+  transition: var(--transition);
+  border: 1px solid transparent;
+}
+
+.iv-card-alerts::after {
+  content: '';
+  background: url(../../../Assests/Icon.png);
+  background-repeat: no-repeat;
+  background-size: cover;
+  width: 150px;
+  display: block;
+  height: 150px;
+  z-index: -1;
+  position: absolute;
+  bottom: 0;
+  right: 0;
+}
+
+.iv-alert-item:hover {
+  border-color: var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.iv-alert-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: var(--red-pale);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.inventoryicon {
+  width: 18px;
+  height: 18px;
+}
+
+.iv-alert-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.iv-alert-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.iv-alert-meta {
+  font-size: 13px;
+  color: #64748B;
+  font-weight: 500;
+}
+
+.iv-btn-restock {
+  background: var(--red-bg);
+  color: var(--red);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition);
+}
+
+.iv-btn-restock:hover {
+  background: var(--red);
+  color: white;
+  transform: translateY(-1px);
+}
+
+.iv-show-more {
+  font-size: 13px;
+  color: var(--red);
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: var(--transition);
+}
+
+.iv-show-more:hover {
+  gap: 8px;
+  color: #c71f3a;
+}
+
+/* ─── EXPIRY PIPELINE ─── */
+.iv-expiry-top-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.iv-expiry-label {
+  font-size: 14px;
+  color: #475569;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.InventoryTimer {
+  width: 20px;
+  height: 20px;
+}
+
+.iv-expiry-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 24px;
+  letter-spacing: -0.3px;
+}
+
+.iv-circle-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--green-bg);
+  flex-shrink: 0;
+}
+
+.iv-expiry-row {
+  margin-bottom: 18px;
+}
+
+.iv-expiry-row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.iv-expiry-row-label {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.iv-expiry-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 30px;
+}
+
+.iv-badge-red {
+  color: var(--red);
+  /* background: var(--red-bg); */
+}
+
+.iv-badge-orange {
+  color: var(--orange);
+  /* background: var(--orange-bg); */
+}
+
+.iv-progress-bar-wrap {
+  width: 100%;
+  background: #edf0eb;
+  border-radius: 30px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.iv-progress-bar-fill {
+  height: 100%;
+  border-radius: 30px;
+  transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.iv-fill-red {
+  background: var(--red);
+}
+
+.iv-fill-orange {
+  background: var(--orange);
+}
+
+.iv-pro-tip {
+  background: var(--green-md);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  margin-top: 12px;
+  border: 1px solid rgba(13, 97, 78, 0.1);
+}
+
+.iv-pro-tip-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--green);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+
+.iv-pro-tip-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--green);
+  line-height: 1.5;
+}
+
+/* ─── BATCH LEDGER HEADER ─── */
+.iv-ledger-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.iv-ledger-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.orders-filter {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--white);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.filter-btn:hover {
+  background: var(--bg);
+  border-color: var(--green-muted);
+}
+
+/* ─── PRODUCT BLOCK ─── */
+.iv-product-block {
+  background: var(--white);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 18px;
+  overflow: hidden;
+  transition: var(--transition);
+}
+
+.iv-product-block:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.iv-product-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 24px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .iv-product-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.iv-product-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+  flex-shrink: 0;
+}
+
+.iv-variant-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: var(--radius-sm);
+  background: #f5f5f5;
+  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.iv-product-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.iv-variant-avatar img{
+  object-fit: cover;
+}
+
+.iv-product-info {
+  flex: 1;
+}
+
+.iv-product-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.iv-product-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 30px;
+  letter-spacing: 0.3px;
+}
+
+.iv-tag-ayurveda {
+  background: var(--green-pale);
+  color: var(--green);
+}
+
+.iv-tag-beverage {
+  background: #fff3e0;
+  color: #e07b00;
+}
+
+.iv-tag-nutrition {
+  background: #e8f4fd;
+  color: #1976d2;
+}
+
+.iv-product-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #94a3b8;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.iv-meta-label {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.iv-meta-value {
+  color: #334155;
+  font-weight: 600;
+}
+
+.iv-meta-dot {
+  color: #cbd5e1;
+  margin: 0 4px;
+}
+
+.iv-btn-view-all {
+  font-size: 13px;
+  color: var(--green);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.iv-btn-view-all:hover {
+  background: var(--green-bg);
+}
+
+/* ─── VARIANTS TABLE ─── */
+.iv-variants-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.iv-variants-table th {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 20px 24px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  background: #fafcf9;
+}
+
+.iv-variants-table td {
+  padding: 20px 24px;
+  font-size: 14px;
+  color: var(--text);
+  border-bottom: 1px solid #f0f3ee;
+  vertical-align: middle;
+}
+
+.iv-variants-table tr:last-child td {
+  border-bottom: none;
+}
+
+.iv-variants-table tbody tr:hover {
+  background: #fafcf9;
+}
+
+/* Quantity Styles */
+.iv-qty {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 30px;
+  display: inline-block;
+}
+
+.iv-qty.instock {
+  color: #10B981;
+  background: #d1fae5;
+}
+
+.iv-qty.lowstock {
+  color: #FFC107;
+  background: #fef3c7;
+}
+
+.iv-qty.outofstock {
+  color: #F43F5E;
+  background: #ffe4e6;
+}
+
+/* SKU Badge */
+.iv-sku-badge {
+  font-size: 12px;
+  color: #3F4945;
+  background: #f1f5f4;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-weight: 600;
+  font-family: monospace;
+}
+
+/* Price Styles */
+.iv-price-mrp {
+  font-size: 13px;
+  color: #94A3B8;
+  text-decoration: line-through;
+  display: block;
+}
+
+.iv-price-sell {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* Status Chips */
+.iv-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 30px;
+  white-space: nowrap;
+}
+
+.iv-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.iv-chip-instock {
+  color: #10B981;
+  background: #d1fae5;
+}
+
+.iv-chip-instock .iv-status-dot {
+  background: #10B981;
+}
+
+.iv-chip-lowstock {
+  color: #FFC107;
+  background: #fef3c7;
+}
+
+.iv-chip-lowstock .iv-status-dot {
+  background: #FFC107;
+}
+
+.iv-chip-outofstock {
+  color: #F43F5E;
+  background: #ffe4e6;
+}
+
+.iv-chip-outofstock .iv-status-dot {
+  background: #F43F5E;
+}
+
+/* Toggle Switch */
+.iv-toggle {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  cursor: pointer;
+}
+
+.iv-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.iv-toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: #cbd5e1;
+  border-radius: 34px;
+  transition: 0.2s;
+}
+
+.iv-toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: 2px;
+  bottom: 2px;
+  background: white;
+  border-radius: 50%;
+  transition: 0.2s;
+}
+
+.iv-toggle input:checked+.iv-toggle-slider {
+  background: var(--green);
+}
+
+.iv-toggle input:checked+.iv-toggle-slider::before {
+  transform: translateX(18px);
+}
+
+/* Action Buttons */
+.iv-actions-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.iv-act-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+  background: none;
+  border: none;
+}
+
+.iv-act-btn:hover {
+  background: #f1f5f9;
+  transform: scale(1.05);
+}
+
+.greenicon {
+  font-size: 18px;
+  color: var(--green);
+}
+
+.redicon {
+  font-size: 18px;
+  color: var(--red);
+}
+
+/* ─── PAGINATION ─── */
+.iv-pagination-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24px;
+  padding: 16px 0;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.iv-pagination-info {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.iv-pagination-btns {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.iv-page-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text);
+  transition: var(--transition);
+}
+
+.iv-page-btn:hover {
+  background: var(--green-pale);
+  border-color: var(--green-muted);
+}
+
+.iv-page-btn.active {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green);
+}
+
+/* ─── BOTTOM GRID ─── */
+.iv-bottom-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  margin-top: 28px;
+}
+
+@media (max-width: 768px) {
+  .iv-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Batch Origin Card */
+.iv-batch-origin {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid var(--border);
+  padding: 28px;
+}
+
+.iv-batch-origin h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.iv-batch-origin p {
+  font-size: 14px;
+  color: #64748B;
+  font-weight: 400;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.iv-farm-imgs {
+  display: flex;
+  gap: 10px;
+}
+
+.iv-farm-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  background: var(--green-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  transition: var(--transition);
+}
+
+.iv-farm-thumb:hover {
+  transform: scale(1.05);
+  background: var(--green-pale);
+}
+
+/* Stock Intelligence Card */
+.iv-stock-intel {
+  background: linear-gradient(135deg, var(--green) 0%, var(--green-dark) 100%);
+  color: #fff;
+  padding: 28px;
+  position: relative;
+  overflow: hidden;
+}
+
+.iv-stock-intel::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.iv-stock-intel h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  z-index: 1;
+}
+
+.iv-stock-intel p {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.6;
+  position: relative;
+  z-index: 1;
+}
+
+.iv-intel-badge {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 30px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  display: inline-block;
+  margin-bottom: 12px;
+}
+
+/* ─── RESPONSIVE UTILITIES ─── */
+@media (max-width: 1024px) {
+  .iv-variants-table {
+    overflow-x: auto;
+    display: block;
+  }
+
+  .iv-product-header {
+    padding: 20px;
+  }
+
+  .iv-variants-table th,
+  .iv-variants-table td {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .iv-card {
+    padding: 20px;
+  }
+
+  .iv-card-alerts {
+    padding: 20px;
+  }
+
+  .iv-alerts-title {
+    font-size: 18px;
+  }
+
+  .iv-ledger-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .iv-pagination-row {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+/* ─── ANIMATIONS ─── */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.iv-product-block {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* ─── SCROLLBAR STYLING ─── */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--green-muted);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--green);
+}

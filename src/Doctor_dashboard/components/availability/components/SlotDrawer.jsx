@@ -266,8 +266,10 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
                         }
                     ]
                 } : {
-                    date: format(selectedDate, "yyyy-MM-dd"),
-                    slots: formattedNewSlots,
+                    "availability": [{
+                        date: format(selectedDate, "yyyy-MM-dd"),
+                        slots: formattedNewSlots,
+                    }]
                 });
                 toast.success(`${formattedNewSlots.length} new slot(s) added successfully`);
             }
