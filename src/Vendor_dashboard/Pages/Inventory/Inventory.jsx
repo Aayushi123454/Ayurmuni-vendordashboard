@@ -302,7 +302,7 @@ function StockIntelligence() {
   return (
     <div className="spotlight-card">
       <h3>Seller Spotlight</h3>
-      <p>
+      <p className="text-white">
         "Your top selling item 'Ashwagandha Elixir' has
         reached 500 sales this week. Consider featuring
         it on your homepage." Your top selling item

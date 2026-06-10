@@ -298,10 +298,10 @@ const [warehouseData, setWarehouseData] = useState({
     <div>    Showing  <span> {ordersData.length}</span> of <span>1,284 </span> orders</div>
    <div className="orders-footer-button">
 <button>
-  <img src={buttonleft}/>
+  <img src={buttonleft} alt="buttonleft"/>
 </button>
 <button>
-  <img src={buttonright}/>
+  <img src={buttonright} alt="buttonright"/>
 </button>
  </div>
   </div>
@@ -343,7 +343,7 @@ const [warehouseData, setWarehouseData] = useState({
     
     <h3>Seller Spotlight</h3>
     {/* <img  src={Icon} className="star-bg"/> */}
-    <p>
+    <p className="text-white">
       "Your top selling item 'Ashwagandha Elixir' has 
 reached 500 sales this week. Consider featuring 
 it on your homepage." Your top selling item 
