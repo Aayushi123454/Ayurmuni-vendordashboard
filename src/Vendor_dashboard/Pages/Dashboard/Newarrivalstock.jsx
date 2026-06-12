@@ -28,7 +28,7 @@ export default function NewlyArrivedStock({ products = defaultProducts }) {
     <div className="stock-wrap">
       <h2 className="header2">Newly Arrived Stock</h2>
       <br />
-      <table className="sales-table">
+      <table className="sales-table2">
         <thead>
           <tr>
             <th>Products</th>

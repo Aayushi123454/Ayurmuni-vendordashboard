@@ -247,8 +247,6 @@ const Dashboard = () => {
           <div className="revenue-section">
             <Revenue />
           </div>
-
-
           <div className="table-section">
             <div className="sales-header">
 

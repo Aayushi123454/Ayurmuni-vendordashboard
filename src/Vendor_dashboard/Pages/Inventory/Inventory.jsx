@@ -250,7 +250,7 @@ function Pagination({ currentPage, totalCount, onPageChange }) {
       <div className="iv-pagination-btns">
         <button
           className="iv-page-btn"
-          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+          onClick={() => onPageChange(Math.max(2, currentPage - 1))}
           disabled={currentPage === 1}
         >
           ‹
