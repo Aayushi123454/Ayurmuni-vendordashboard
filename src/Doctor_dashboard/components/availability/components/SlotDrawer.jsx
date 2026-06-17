@@ -54,20 +54,20 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
                 setOriginalSlots(JSON.parse(JSON.stringify(initializedSlot)));
             } else {
                 // Default new slot
-                const defaultSlot = [{
-                    id: Date.now(),
-                    start_time: '09:00',
-                    end_time: '10:00',
-                    max_patients: 5,
-                    consultation_type: 'video',
-                    break_between_slots: 15,
-                    is_active: true,
-                    amount: baseamount || 0,
-                    is_new: true,
-                    is_modified: false
-                }];
-                setSlots(defaultSlot);
-                setOriginalSlots([]);
+                // const defaultSlot = [{
+                //     id: Date.now(),
+                //     start_time: '09:00',
+                //     end_time: '10:00',
+                //     max_patients: 5,
+                //     consultation_type: 'video',
+                //     break_between_slots: 15,
+                //     is_active: true,
+                //     amount: baseamount || 0,
+                //     is_new: true,
+                //     is_modified: false
+                // }];
+                // setSlots(defaultSlot);
+                // setOriginalSlots([]);
             }
         }
     }, [editingSlot, isOpen, selectedDate]);
@@ -168,6 +168,11 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
     };
 
     const validateSlots = () => {
+        if (slots.length == 0) {
+            toast.error(`Add Slot`);
+            return false;
+        }
+
         for (let i = 0; i < slots.length; i++) {
             const slot = slots[i];
             if (!slot.is_active) continue;

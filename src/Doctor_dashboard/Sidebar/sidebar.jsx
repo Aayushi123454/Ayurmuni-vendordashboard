@@ -29,7 +29,7 @@ const DoctorSidebar = () => {
     { name: "Patients", icon: <Patients />, path: "/doctor/patients" },
     // { name: "Message", icon: <Message />, path: "/doctor/messages" },
     // { name: "Assessments", icon: <Assessments />, path: "/doctor/assessments" },
-    // { name: "Earnings", icon: <FinanceIcon />, path: "/doctor/earnings" },
+    { name: "Earnings", icon: <FinanceIcon />, path: "/doctor/earnings" },
   ];
 
   const generalItems = [

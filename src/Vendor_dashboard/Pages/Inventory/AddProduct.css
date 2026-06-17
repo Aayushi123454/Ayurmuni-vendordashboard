@@ -26,6 +26,20 @@
   transition: all 0.2s;
 }
 
+.crossicomn {
+  position: absolute;
+  right: 10px;
+  top: 7px;
+  background: #fff;
+  z-index: 9999;
+  font-size: 12px;
+  width: 20px;
+  height: 20px;
+  border-radius: 12px;
+  padding: 2px;
+  cursor: pointer;
+}
+
 .back-btn:hover {
   gap: 12px;
   color: #0a4d3e;
@@ -834,11 +848,13 @@ textarea.error {
   color: #1e293b;
   border-bottom: 1px solid #e2e8f0;
 }
+
 .variants-table td span {
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
+
 .variants-table tr:hover {
   background: #f8fafc;
 }
@@ -1272,7 +1288,7 @@ textarea.error {
   padding: 16px;
   background: white;
   border-radius: 8px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .summary-card svg {
@@ -1336,7 +1352,7 @@ textarea.error {
 
 .mode-btn {
   padding: 8px 16px;
-  background: rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.2);
   border: none;
   border-radius: 8px;
   color: white;
@@ -1351,7 +1367,7 @@ textarea.error {
 }
 
 .mode-btn:hover:not(.active) {
-  background: rgba(255,255,255,0.3);
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .calculator-content {
@@ -1405,25 +1421,39 @@ textarea.error {
   .form-row {
     grid-template-columns: 1fr;
   }
-  
+
   .cover-image-area {
     grid-template-columns: 1fr;
   }
-  
+
   .modal-content {
     width: 95%;
     margin: 20px;
   }
-  
+
   .variants-table-header,
   .variants-table-row {
     grid-template-columns: 2fr 1fr 1fr 1fr 1fr 0.8fr 1fr;
     font-size: 12px;
     padding: 12px;
   }
-  
+
   .col-variant img {
     width: 40px;
     height: 40px;
   }
+}
+
+.priciptiondata>div {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.priciptiondata>div label {
+  min-width: 100px;
+}
+
+.priciptiondata>div p {
+  text-transform: capitalize;
 }

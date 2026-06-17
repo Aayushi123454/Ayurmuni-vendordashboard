@@ -108,10 +108,10 @@ const DoctorAvailabilityCalendar1 = () => {
     const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
 
     const getSlotStatus = (slot) => {
-        const bookedCount = slot.booked_count || 0;
-        const availableCount = slot.max_patients - bookedCount;
-        if (availableCount === 0) return { status: 'full', label: 'Fully Booked', color: 'bg-red-100 text-red-700' };
-        if (availableCount <= 2) return { status: 'limited', label: 'Limited', color: 'bg-yellow-100 text-yellow-700' };
+        // const bookedCount = slot.is_booked ;
+        // const availableCount = slot.max_patients - bookedCount;
+        if (slot.is_booked ) return { status: 'full', label: 'Fully Booked', color: 'bg-red-100 text-red-700' };
+        // if (availableCount <= 2) return { status: 'limited', label: 'Limited', color: 'bg-yellow-100 text-yellow-700' };
         return { status: 'available', label: 'Available', color: 'bg-green-100 text-green-700' };
     };
 
@@ -250,9 +250,9 @@ const DoctorAvailabilityCalendar1 = () => {
                                                             {slot.start_time} - {slot.end_time}
                                                         </span>
                                                     </div>
-                                                    <span className="text-xs font-semibold">
+                                                    {/* <span className="text-xs font-semibold">
                                                         {slot.booked_count || 0}/{slot.max_patients}
-                                                    </span>
+                                                    </span> */}
                                                 </div>
 
                                                 {/* Tooltip with patient details */}

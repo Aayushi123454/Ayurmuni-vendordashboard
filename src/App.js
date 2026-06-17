@@ -14,6 +14,8 @@ import ProductManagement from "./Vendor_dashboard/Pages/productManagement/produc
 import InventoryVault from "./Vendor_dashboard/Pages/Inventory/Inventory";
 import AddProduct from "./Vendor_dashboard/Pages/Inventory/AddProduct";
 import EditProduct from "./Vendor_dashboard/Pages/Inventory/editproduct";
+import DoctorVideoCall from "./Doctor_dashboard/components/videocall/DoctorVideoCall";
+import PatientVideoCallWeb from "./Doctor_dashboard/components/videocall/PatientVideoCallWeb";
 // import DoctorAvailabilityCalendar from "./Doctor_dashboard/components/availability/DoctorAvailabilityCalendar";
 
 // Doctor Pages
@@ -94,6 +96,8 @@ function App() {
                 <Route path="appointments" element={<AppointmentsPage />} />
                 <Route path="appointments/:type/:appointmentId" element={<AppointmentDetail />} />
                 <Route path="patients/:type/:appointmentId" element={<AppointmentDetail />} />
+                <Route path="videocall/:consultationId" element={<DoctorVideoCall />} />
+                <Route path="patvideocall" element={<PatientVideoCallWeb />} />
                 <Route path="patients" element={<PatientManagement />} />
                 <Route path="messages" element={<Order />} />
                 <Route path="assessments" element={<Order />} />

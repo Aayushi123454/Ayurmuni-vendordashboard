@@ -363,6 +363,7 @@ const DoctorProfile = () => {
     const [editIndex, setEditIndex] = useState(null);
     const [prakritiAndDiseases, setprakritiAndDiseases] = useState({})
     const [uploadProgress, setUploadProgress] = useState(0);
+    const [loadingdoc, setloadingdoc] = useState(false)
     const fileInputRef = useRef(null);
     const docInputRef = useRef(null);
 
@@ -523,7 +524,8 @@ const DoctorProfile = () => {
     const handleDocumentUpload = useCallback(async () => {
         if (!selectedFile || !selectedDocument) return;
         try {
-            const response = await doctorService.uploadDocuments(selectedDocument, selectedFile);
+            setloadingdoc(true)
+            const response = await doctorService.uploadDocuments({ [selectedDocument]: selectedFile });
             setDoctorData(prev => ({
                 ...prev,
                 documents: { ...prev.documents, [selectedDocument]: response.url }
@@ -896,7 +898,7 @@ const DoctorProfile = () => {
                 </div>
                 <div className="flex gap-3 mt-6">
                     <button onClick={() => { setShowDocumentModal(false); setSelectedFile(null); }} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">Cancel</button>
-                    <button onClick={handleDocumentUpload} disabled={!selectedFile} className="flex-1 px-4 py-2 bg-[#0D614E] text-white rounded-lg hover:bg-emerald-700 disabled:bg-gray-300">Upload</button>
+                    <button onClick={handleDocumentUpload} disabled={!selectedFile || loadingdoc} className="flex-1 px-4 py-2 bg-[#0D614E] text-white rounded-lg hover:bg-emerald-700 disabled:bg-gray-300">{loadingdoc ? "Upload..." : "Upload"}</button>
                 </div>
             </Modal>
 

@@ -158,7 +158,17 @@ const transformToApiFormat = (formData) => ({
     branch_name: formData.bankInfo.branchName,
     upi_id: formData.bankInfo.upiId,
     payment_terms: formData.bankInfo.paymentTerms,
-    is_selected: true
+    is_selected: true,
+    medical_degree_certificate: formData.documents.medicalDegree,
+    registration_certificate: formData.documents.registrationCertificate,
+    identity_proof: formData.documents.identityProof,
+    address_proof: formData.documents.addressProof,
+    passport_photo: formData.documents.passportPhoto,
+    signature: formData.documents.signature,
+    experience_certificate: formData.documents.experienceCertificate,
+    pan_card: formData.documents.panCard,
+    gst_certificate: formData.documents.gstCertificate,
+    cancelled_cheque_or_bank_statement: formData.documents.bankDetails,
 });
 
 
