@@ -3,6 +3,13 @@ import API from "./api";
 
 export const doctorService = {
 
+    dashboardget: () => {
+        return API.get("/doctors/dashboard/");
+    },
+    financedashboard: () => {
+        return API.get("/doctors/dashboard/financial-metrics/");
+    },
+
     // 🔹 Create onboarding
     createOnboarding: (data) => {
         const formData = new FormData();
@@ -47,9 +54,9 @@ export const doctorService = {
     uploadDocuments: (data) => {
         const formData = new FormData();
         for (const key in data) {
-            console.log(data[key]?.file);
-            let file = data[key]?.file;
-            if (file == null) continue; // Skip if no file provided
+            console.log(data[key]);
+            let file = data[key];
+            if (file == null || file == undefined) continue; // Skip if no file provided
             formData.append(key, file);
         }
         return API.post("/doctors/documents/", formData, {
@@ -168,10 +175,32 @@ export const doctorService = {
     getAppointmentDetails: (type, id) => {
         return API.get(`/doctors/?type=${type}&id=${id}`);
     },
+    getAppointmentprec: (pid, id) => {
+        return API.get(`/doctors/prescription/?patient_id=${pid || ''}&appointment_id=${id || ''}`);
+    },
 
     // 🔹 Get Patient List
     getPatient: (type) => {
         return API.get(`/doctors/?type=${type}`);
-    }
+    },
 
+    // 🔹 Get search product List
+    getProductList: (type) => {
+        return API.get(`/doctors/medicines/search/?search=` + type);
+    },
+
+    // 🔹 Add prescription List
+    postprescription: (type, prescriptionData) => {
+        return API.post(`/doctors/prescription/?patient_id=` + type, prescriptionData);
+    },
+
+    // 🔹 Add prescription List
+    questionforpatient: (id) => {
+        return API.get(`/doctors/patient-onboarding/?patient_id=` + id);
+    },
+
+    // 🔹 Add prescription List
+    questionfillforpatient: (data) => {
+        return API.post(`/doctors/patient-onboarding/`, data);
+    }
 };

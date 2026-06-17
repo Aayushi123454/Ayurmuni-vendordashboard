@@ -324,7 +324,7 @@ export default function InventoryVault() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const response2 = await vendorService.getsingleProducts();
+      // const response2 = await vendorService.getsingleProducts();
       const response = await vendorService.getProducts();
 
       if (response.data.success) {

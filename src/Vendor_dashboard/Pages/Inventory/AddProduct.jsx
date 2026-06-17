@@ -731,7 +731,17 @@ export default function AddProduct() {
   const handlePrevTab = () => {
     setActiveTab("product");
   };
-
+  const removeEmptyFields = (obj) => {
+    return Object.fromEntries(
+      Object.entries(obj).filter(
+        ([_, value]) =>
+          value !== null &&
+          value !== undefined &&
+          value !== "" &&
+          !(Array.isArray(value) && value.length === 0)
+      )
+    );
+  };
   const handleSubmit = async () => {
     if (activeTab === "product") {
       if (!validateProductInfo()) return;
@@ -745,21 +755,28 @@ export default function AddProduct() {
     }
 
     const productData = {
-      product: {
+      product: removeEmptyFields({
         name,
         ...formData,
         health_disease_ids: healthConcerns,
-      },
-      variants: variants.map(v => ({
-        ...v,
-        // Remove temporary preview URLs and file objects
-        media: v.media || v.galleryImages?.map(img => ({
-          media_url: img.media_url,
-          media_type: "image",
-          is_cover: img.is_cover || (v.coverImage?.id === img.id)
-        })) || [],
-        galleryImages: undefined // Don't send galleryImages to API
-      })),
+      }),
+
+      variants: variants.map((v) =>
+        removeEmptyFields({
+          ...v,
+
+          media:
+            v.media ||
+            v.galleryImages?.map((img) => ({
+              media_url: img.media_url,
+              media_type: "image",
+              is_cover: img.is_cover || (v.coverImage?.id === img.id),
+            })) ||
+            [],
+
+          galleryImages: undefined,
+        })
+      ),
     };
 
     console.log("Product Data:", productData);

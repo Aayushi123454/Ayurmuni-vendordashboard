@@ -409,7 +409,7 @@ const AppointmentsPage = () => {
                     concern: apt.concern,
                     patient_id: apt.patient,
                     doctor_id: apt.doctor,
-                    patient_name: apt.patient_name,
+                    patient_name: apt.patient.first_name + " " + apt.patient.last_name,
                     patient_prakriti: apt.prakriti,
                     patient_email: '',
                     patient_phone: '',
@@ -680,7 +680,7 @@ const AppointmentsPage = () => {
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center space-x-3">
                                                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#0D614E] to-[#0a4d3e] flex items-center justify-center text-white font-semibold text-sm shadow-sm">
-                                                        {getInitials(appointment.patient_name)}
+                                                        {getInitials(appointment?.patient_name)}
                                                     </div>
                                                     <div>
                                                         <p className="font-medium text-gray-800">{appointment.patient_name}</p>
@@ -700,7 +700,7 @@ const AppointmentsPage = () => {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className="text-sm text-gray-600">{appointment.notes?.slice(0, 40) || '--'}</span>
+                                                <span className="text-sm text-gray-600" title={appointment.concern}>{appointment.concern?.slice(0, 40) || '--'}</span>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <StatusBadge status={appointment.status} />
