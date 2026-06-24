@@ -197,7 +197,7 @@ const Order = () => {
               {ordersData.map((order, index) => (
                 <tr
                   key={index}
-                  className={`table-row ${order.status === "new" ? "active-row" : ""}`}
+                  className={order.status === "new" ? "active-row" : ""}
                 >
 
 

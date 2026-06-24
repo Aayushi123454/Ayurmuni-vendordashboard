@@ -303,6 +303,7 @@ const Dashboard = () => {
                           <img src={item.image} alt="product" />
                         </div>
 
+
                         <div className="sale-product-info">
                           <p className="sale-product-name">{item.name}</p>
                           <span className="sale-stock-text">{item.stock} in stock</span>

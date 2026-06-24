@@ -287,7 +287,7 @@
 .revenue-section {
   background-color: white;
   padding: 25px;
-  border-radius: 12px;
+  border-radius: 32px;
   margin-bottom: 25px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
@@ -295,7 +295,7 @@
 .revenue-section1 {
   background-color: white;
   padding: 24px;
-  border-radius: 12px;
+  border-radius: 32px;
   margin-top: 22px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
@@ -413,7 +413,7 @@
 .best-selling-card {
   background-color: white;
   padding: 24px;
-  border-radius: 15px;
+  border-radius: 32px;
 
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   margin-top: 28px;
@@ -519,7 +519,7 @@
 
 .table-section {
   background: #fff;
-  border-radius: 18px;
+  border-radius: 32px;
 
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
 }
