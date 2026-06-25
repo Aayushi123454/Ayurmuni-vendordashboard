@@ -335,7 +335,7 @@ const DoctorDashboard = () => {
                     <div className="flex justify-between items-center">
                         <div>
                             <h2 className="text-2xl font-bold mb-2 text-white">Welcome back</h2>
-                            <p className="text-emerald-100">You have {dashboardData.todayAppointments.length} confirmed appointments today</p>
+                            <p className="text-emerald-100 text-green-600">You have {dashboardData.todayAppointments.length} confirmed appointments today</p>
                             <div className="flex items-center space-x-2 mt-3">
                                 <div className="flex -space-x-2">
                                     {dashboardData.recentPatients.slice(0, 3).map((patient, idx) => (
@@ -611,11 +611,11 @@ const DoctorDashboard = () => {
                             <div className="h-[435px] flex flex-col">
                                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
                                     {chatMessages.map((msg) => (
-                                        <div key={msg.id} className={`flex ${msg.sender === "doctor" ? "justify-end" : "justify-start"}`}>
-                                            <div className={`max-w-xs rounded-lg p-3 ${msg.sender === "doctor" ? "text-white" : "bg-gray-100 text-gray-800"}`} style={msg.sender === "doctor" ? { backgroundColor: "#0D614E" } : {}}>
-                                                <p className="text-sm">{msg.message}</p>
-                                                <p className={`text-xs mt-1 opacity-75`}>{msg.time}</p>
+                                        <div key={msg.id} className={`flex flex-col ${msg.sender === "doctor" ? "items-end" : "items-start"}`}>
+                                            <div className={"max-w-xs rounded-2xl rounded-tl-sm p-3"} style={msg.sender === "doctor" ? { backgroundColor: "#0D614E" } : {background:"#D3D3D3"}}>
+                                                <p className="text-sm text-black">{msg.message}</p>
                                             </div>
+                                            <p className={`text-xs mt-1 opacity-75 text-black`}>{msg.time}</p>
                                         </div>
                                     ))}
                                     <div ref={chatEndRef} />
