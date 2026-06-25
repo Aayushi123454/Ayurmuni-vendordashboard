@@ -6,20 +6,16 @@ import toast from 'react-hot-toast';
 
 const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpdate, baseamount }) => {
     const [slots, setSlots] = useState([]);
-    const [originalSlots, setOriginalSlots] = useState([]); // Track original slots for comparison
+    const [originalSlots, setOriginalSlots] = useState([]);
     const [isRecurring, setIsRecurring] = useState(false);
     const [recurringDays, setRecurringDays] = useState([]);
     const [recurringEndDate, setRecurringEndDate] = useState('');
     const [editingSlotId, setEditingSlotId] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Initialize slots based on editingSlot (which can be a single slot or array of slots)
     useEffect(() => {
-        console.log(baseamount);
-
         if (isOpen) {
             if (editingSlot && Array.isArray(editingSlot) && editingSlot.length > 0) {
-                // Handle multiple slots for editing
                 const initializedSlots = editingSlot.map((slot, index) => ({
                     id: slot.id,
                     start_time: slot.start_time || "09:00",
@@ -28,15 +24,16 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
                     consultation_type: slot.consultation_type || "video",
                     break_between_slots: slot.break_between_slots || 15,
                     is_active: slot.is_active !== undefined ? slot.is_active : true,
-                    amount: slot.amount > 0 ? slot.amount : (baseamount || 0),
+                    // amount: slot.amount > 0 ? slot.amount : (baseamount || 0),
+                    amount: "499",
                     date: slot.date || format(selectedDate, 'yyyy-MM-dd'),
                     is_new: false,
-                    is_modified: false
+                    is_modified: false,
+                    ...slot
                 }));
                 setSlots(initializedSlots);
-                setOriginalSlots(JSON.parse(JSON.stringify(initializedSlots))); // Deep copy
+                setOriginalSlots(JSON.parse(JSON.stringify(initializedSlots)));
             } else if (editingSlot && !Array.isArray(editingSlot)) {
-                // Handle single slot for editing
                 const initializedSlot = [{
                     id: editingSlot.id,
                     start_time: editingSlot.start_time || "09:00",
@@ -45,98 +42,75 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
                     consultation_type: editingSlot.consultation_type || "video",
                     break_between_slots: editingSlot.break_between_slots || 15,
                     is_active: editingSlot.is_active !== undefined ? editingSlot.is_active : true,
-                    amount: editingSlot.amount > 0 ? editingSlot.amount : (baseamount || 0),
+                    // amount: editingSlot.amount > 0 ? editingSlot.amount : (baseamount || 0),
+                    amount: "499",
                     date: editingSlot.date || format(selectedDate, 'yyyy-MM-dd'),
                     is_new: false,
                     is_modified: false
                 }];
                 setSlots(initializedSlot);
                 setOriginalSlots(JSON.parse(JSON.stringify(initializedSlot)));
-            } else {
-                // Default new slot
-                // const defaultSlot = [{
-                //     id: Date.now(),
-                //     start_time: '09:00',
-                //     end_time: '10:00',
-                //     max_patients: 5,
-                //     consultation_type: 'video',
-                //     break_between_slots: 15,
-                //     is_active: true,
-                //     amount: baseamount || 0,
-                //     is_new: true,
-                //     is_modified: false
-                // }];
-                // setSlots(defaultSlot);
-                // setOriginalSlots([]);
             }
         }
-    }, [editingSlot, isOpen, selectedDate]);
+    }, [editingSlot, isOpen, selectedDate, baseamount]);
 
     const addNewSlot = () => {
-        const lastSlot = slots[slots.length - 1];
-        let nextStart = '10:00';
-
-        if (lastSlot && lastSlot.end_time) {
-            const [hours, minutes] = lastSlot.end_time.split(':').map(Number);
-            const nextDate = new Date();
-            nextDate.setHours(hours, minutes + (lastSlot.break_between_slots || 15), 0);
-            nextStart = format(nextDate, 'HH:mm');
-        }
-
         const newSlot = {
             id: Date.now() + Math.random(),
-            start_time: nextStart,
-            end_time: addMinutesToTime(nextStart, 60),
+            start_time: "",
+            end_time: "",
             max_patients: 5,
             consultation_type: 'video',
             break_between_slots: 15,
             is_active: true,
-            amount: baseamount || 0,
+            // amount: baseamount || 0,
+            amount: "499",
             is_new: true,
             is_modified: false
         };
-
         setSlots([...slots, newSlot]);
         setEditingSlotId(slots.length);
     };
 
     const removeSlot = (index) => {
-        const slotToRemove = slots[index];
+        if (slots.length === 1) {
+            toast.error('At least one time slot is required');
+            return;
+        }
 
-        // If it's an existing slot (not new), mark it for deletion
+        const slotToRemove = slots[index];
         if (!slotToRemove.is_new && slotToRemove.id) {
             const updatedSlots = slots.filter((_, i) => i !== index);
             setSlots(updatedSlots);
-            // Mark that this slot should be deleted
             if (window.deletedSlots) {
                 window.deletedSlots.push(slotToRemove.id);
             } else {
                 window.deletedSlots = [slotToRemove.id];
             }
         } else {
-            // Just remove new slot from UI
             const newSlots = slots.filter((_, i) => i !== index);
             setSlots(newSlots);
-        }
-
-        if (slots.length === 1) {
-            toast.warning('At least one time slot is required');
-            return;
         }
 
         if (editingSlotId === index) setEditingSlotId(null);
         if (editingSlotId > index) setEditingSlotId(editingSlotId - 1);
     };
 
-    const updateSlot = (index, field, value) => {
+    const updateSlot = async (index, field, value) => {
         const updatedSlots = [...slots];
         const oldSlot = updatedSlots[index];
+        // Auto-set end time to 30 minutes after start time
+        const [hours, minutes] = value.split(":").map(Number);
+        const date = new Date();
+        date.setHours(hours, minutes + 30, 0, 0);
+        const endTime = date.toTimeString().slice(0, 5);
 
         updatedSlots[index] = {
             ...oldSlot,
             [field]: value,
+            end_time: endTime,
             is_new: oldSlot.is_new || false,
-            is_modified: !oldSlot.is_new // Mark as modified for existing slots
+            is_modified: !oldSlot.is_new
         };
 
         // Auto-update next slot's start time if end time changes
@@ -157,7 +131,7 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
             }
         }
 
-        setSlots(updatedSlots);
+        await setSlots(updatedSlots);
     };
 
     const toggleSlotActive = (index) => {
@@ -168,13 +142,19 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
     };
 
     const validateSlots = () => {
-        if (slots.length == 0) {
-            toast.error(`Add Slot`);
+        if (slots.length === 0) {
+            toast.error('Please add at least one slot');
             return false;
         }
 
-        for (let i = 0; i < slots.length; i++) {
-            const slot = slots[i];
+        // Sort slots by start time for proper validation
+        const sortedSlots = [...slots].sort((a, b) => {
+            if (!a.start_time || !b.start_time) return 0;
+            return a.start_time.localeCompare(b.start_time);
+        });
+
+        for (let i = 0; i < sortedSlots.length; i++) {
+            const slot = sortedSlots[i];
             if (!slot.is_active) continue;
 
             if (!slot.start_time || !slot.end_time) {
@@ -186,31 +166,53 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
                 toast.error(`Slot ${i + 1}: End time must be after start time`);
                 return false;
             }
-            if (slot.amount == 0) {
-                toast.error(`Slot ${i + 1}: Please fill Amount`);
+
+            const diff = getMinutesDifference(slot.start_time, slot.end_time);
+            if (diff < 30) {
+                toast.error(`Slot ${i + 1}: Minimum slot duration must be 30 minutes`);
                 return false;
             }
-            if (isRecurring) {
-                if (recurringEndDate == "") {
-                    toast.error(`Slot ${i + 1}: Repeat end date required`);
-                    return false;
-                }
+
+            if (slot.amount === 0 || slot.amount === null || slot.amount === undefined) {
+                toast.error(`Slot ${i + 1}: Please set the fee amount`);
+                return false;
             }
 
-            // Check overlap with next slots
-            for (let j = i + 1; j < slots.length; j++) {
-                const nextSlot = slots[j];
-                if (!nextSlot.is_active || !nextSlot.start_time) continue;
-                if (slot.end_time > nextSlot.start_time) {
-                    toast.error(`Slot ${i + 1} (${slot.start_time}-${slot.end_time}) overlaps with Slot ${j + 1} (${nextSlot.start_time}-${nextSlot.end_time})`);
+            // Check overlap with next slots using sorted order
+            for (let j = i + 1; j < sortedSlots.length; j++) {
+                const nextSlot = sortedSlots[j];
+                if (!nextSlot.is_active || !nextSlot.start_time || !nextSlot.end_time) continue;
+
+                // Check if slots overlap
+                const isTimeBetween = (time, start, end) =>
+                    time > start && time < end;
+
+                if (
+                    isTimeBetween(nextSlot.start_time, slot.start_time, slot.end_time) ||
+                    isTimeBetween(nextSlot.end_time, slot.start_time, slot.end_time) ||
+                    isTimeBetween(slot.start_time, nextSlot.start_time, nextSlot.end_time) ||
+                    isTimeBetween(slot.end_time, nextSlot.start_time, nextSlot.end_time)
+                ) {
+                    toast.error("Slot timing conflicts with another slot");
                     return false;
                 }
             }
         }
+
+        if (isRecurring) {
+            if (recurringDays.length === 0) {
+                toast.error('Please select at least one day for recurring slots');
+                return false;
+            }
+            if (recurringEndDate === "") {
+                toast.error('Please set an end date for recurring slots');
+                return false;
+            }
+        }
+
         return true;
     };
 
-    // Helper function to check if slot data has changed
     const hasSlotChanged = (originalSlot, currentSlot) => {
         if (!originalSlot) return true;
         return originalSlot.start_time !== currentSlot.start_time ||
@@ -222,34 +224,34 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
             originalSlot.is_active !== currentSlot.is_active;
     };
 
+    const closemodel = () => {
+        onClose();
+        setSlots([]);
+        setEditingSlotId(null)
+        window.deletedSlots = [];
+    };
+
     const handleSubmit = async () => {
         try {
             if (!validateSlots()) return;
 
-            // Separate new slots and modified existing slots
             const newSlots = slots.filter(slot => slot.is_new && slot.start_time && slot.end_time);
             const existingSlots = slots.filter(slot => !slot.is_new && slot.start_time && slot.end_time);
-
-            // Find modified existing slots
-            const modifiedSlots = existingSlots.filter((slot, index) => {
+            const modifiedSlots = existingSlots.filter((slot) => {
                 const originalSlot = originalSlots.find(orig => orig.id === slot.id);
                 return hasSlotChanged(originalSlot, slot);
             });
-
-            // Prepare deletions (if any)
             const deletedSlotIds = window.deletedSlots || [];
 
             if (newSlots.length === 0 && modifiedSlots.length === 0 && deletedSlotIds.length === 0) {
                 toast.error("No changes to save");
-                onClose();
+                closemodel();
                 return;
             }
 
             setIsLoading(true);
 
-            // Handle CREATE - New Slots
             if (newSlots.length > 0 && onSave) {
-
                 const formattedNewSlots = newSlots.map((slot) => ({
                     start_time: slot.start_time,
                     end_time: slot.end_time,
@@ -279,7 +281,6 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
                 toast.success(`${formattedNewSlots.length} new slot(s) added successfully`);
             }
 
-            // Handle UPDATE - Modified Existing Slots
             if (modifiedSlots.length > 0 && onUpdate) {
                 const updatePromises = modifiedSlots.map(async (slot) => {
                     const updatedSlot = {
@@ -297,18 +298,12 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
                 toast.success(`${modifiedSlots.length} slot(s) updated successfully`);
             }
 
-            // Handle DELETE - Removed Slots
             if (deletedSlotIds.length > 0 && onUpdate) {
-                // Assuming you have a delete API endpoint
-                // If you have a separate delete function, use that instead
                 toast.success(`${deletedSlotIds.length} slot(s) removed`);
             }
 
-            // Clear deleted slots tracking
             window.deletedSlots = [];
-
-            // Close drawer after successful save
-            onClose();
+            closemodel();
 
         } catch (error) {
             console.error("Slot submit error:", error);
@@ -324,82 +319,6 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
 
     const isPastDate = isPast(selectedDate) && !isToday(selectedDate);
 
-    // Quick template functions
-    const applyMorningTemplate = () => {
-        const morningSlots = [
-            { start_time: '09:00', end_time: '10:00' },
-            { start_time: '10:00', end_time: '11:00' },
-            { start_time: '11:00', end_time: '12:00' },
-            { start_time: '12:00', end_time: '13:00' }
-        ];
-        const newSlots = morningSlots.map((slot, idx) => ({
-            id: Date.now() + idx,
-            start_time: slot.start_time,
-            end_time: slot.end_time,
-            max_patients: 5,
-            consultation_type: 'video',
-            break_between_slots: 15,
-            is_active: true,
-            amount: 0,
-            is_new: true,
-            is_modified: false
-        }));
-        setSlots(newSlots);
-        setOriginalSlots([]);
-        setEditingSlotId(null);
-    };
-
-    const applyAfternoonTemplate = () => {
-        const afternoonSlots = [
-            { start_time: '14:00', end_time: '15:00' },
-            { start_time: '15:00', end_time: '16:00' },
-            { start_time: '16:00', end_time: '17:00' },
-            { start_time: '17:00', end_time: '18:00' }
-        ];
-        const newSlots = afternoonSlots.map((slot, idx) => ({
-            id: Date.now() + idx,
-            start_time: slot.start_time,
-            end_time: slot.end_time,
-            max_patients: 5,
-            consultation_type: 'video',
-            break_between_slots: 15,
-            is_active: true,
-            amount: 0,
-            is_new: true,
-            is_modified: false
-        }));
-        setSlots(newSlots);
-        setOriginalSlots([]);
-        setEditingSlotId(null);
-    };
-
-    const applyFullDayTemplate = () => {
-        const fullDaySlots = [
-            { start_time: '09:00', end_time: '10:00' },
-            { start_time: '10:00', end_time: '11:00' },
-            { start_time: '11:00', end_time: '12:00' },
-            { start_time: '12:00', end_time: '13:00' },
-            { start_time: '14:00', end_time: '15:00' },
-            { start_time: '15:00', end_time: '16:00' },
-            { start_time: '16:00', end_time: '17:00' }
-        ];
-        const newSlots = fullDaySlots.map((slot, idx) => ({
-            id: Date.now() + idx,
-            start_time: slot.start_time,
-            end_time: slot.end_time,
-            max_patients: 5,
-            consultation_type: 'video',
-            break_between_slots: 15,
-            is_active: true,
-            amount: 0,
-            is_new: true,
-            is_modified: false
-        }));
-        setSlots(newSlots);
-        setOriginalSlots([]);
-        setEditingSlotId(null);
-    };
-
     if (!isOpen) return null;
 
     const getActiveSlotsCount = () => {
@@ -408,7 +327,7 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
 
     return (
         <>
-            <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
+            <div className="fixed inset-0 bg-black/50 z-40" onClick={closemodel} />
             <div className="fixed right-0 top-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out overflow-y-auto">
                 <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center z-[5]">
                     <div>
@@ -419,7 +338,7 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
                             {format(selectedDate, 'EEEE, MMMM d, yyyy')}
                         </p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition">
+                    <button onClick={closemodel} className="p-2 hover:bg-gray-100 rounded-full transition">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -433,29 +352,11 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
                         </div>
                     ) : (
                         <>
-                            {/* Quick Templates */}
-                            {/* {!editingSlot && (
-                                <div className="mb-6">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Quick Templates</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        <button onClick={applyMorningTemplate} className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition">
-                                            🌅 Morning (9AM-1PM)
-                                        </button>
-                                        <button onClick={applyAfternoonTemplate} className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition">
-                                            🌤️ Afternoon (2PM-6PM)
-                                        </button>
-                                        <button onClick={applyFullDayTemplate} className="px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition">
-                                            ⭐ Full Day (9AM-5PM)
-                                        </button>
-                                    </div>
-                                </div>
-                            )} */}
-
-                            {/* Slots List */}
                             <div className="space-y-3 mb-6">
                                 {slots.map((slot, index) => (
                                     <SlotEditorCard
                                         key={slot.id}
+                                        selectedDate={selectedDate}
                                         slot={slot}
                                         index={index}
                                         isEditing={editingSlotId === index}
@@ -468,8 +369,6 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
                                 ))}
                             </div>
 
-                            {/* Add Slot Button */}
-                            {/* {!editingSlot && ( */}
                             <button
                                 type="button"
                                 onClick={addNewSlot}
@@ -479,9 +378,7 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
                                 <Plus className="w-4 h-4" />
                                 Add Another Slot
                             </button>
-                            {/* )} */}
 
-                            {/* Recurring Options */}
                             {!editingSlot && (
                                 <div className="border-t border-gray-200 pt-4 mb-6">
                                     <label className="flex items-center gap-2 cursor-pointer mb-3">
@@ -499,7 +396,7 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-2">Repeat on</label>
                                                 <div className="grid grid-cols-7 gap-1">
-                                                    {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, idx) => (
+                                                    {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day) => (
                                                         <label key={day} className="flex flex-col items-center cursor-pointer">
                                                             <input
                                                                 type="checkbox"
@@ -514,7 +411,7 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
                                                                 }}
                                                                 className="mb-1"
                                                             />
-                                                            <span className="text-xs text-gray-600">{day}</span>
+                                                            <span className="text-xs text-gray-600">{day.slice(0, 3)}</span>
                                                         </label>
                                                     ))}
                                                 </div>
@@ -535,24 +432,22 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
                                 </div>
                             )}
 
-                            {/* Summary */}
                             {!editingSlot && getActiveSlotsCount() > 0 && (
                                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                                     <p className="text-sm text-blue-800">
                                         <strong>Summary:</strong> {getActiveSlotsCount()} active slot(s) will be created/updated
                                         {isRecurring && recurringDays.length > 0 &&
-                                            `, repeating weekly on ${recurringDays.map(d => ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].filter(e => e == d)).join(', ')}`}
+                                            `, repeating weekly on ${recurringDays.join(', ')}`}
                                         {isRecurring && recurringEndDate &&
                                             ` until ${format(new Date(recurringEndDate), 'MMM dd, yyyy')}`}
                                     </p>
                                 </div>
                             )}
 
-                            {/* Action Buttons */}
                             <div className="flex gap-3 pt-4 border-t border-gray-200">
                                 <button
                                     type="button"
-                                    onClick={onClose}
+                                    onClick={closemodel}
                                     disabled={isLoading}
                                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition disabled:opacity-50"
                                 >
@@ -584,7 +479,78 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
     );
 };
 
-const SlotEditorCard = ({ slot, index, isEditing, onEdit, onSave, onUpdate, onDelete, onToggleActive }) => {
+const SlotEditorCard = ({ slot, index, selectedDate, isEditing, onEdit, onSave, onUpdate, onDelete, onToggleActive }) => {
+    console.log(slot);
+
+    const getCurrentTime = () => {
+        const now = new Date();
+        return `${String(now.getHours()).padStart(2, "0")}:${String(
+            now.getMinutes()
+        ).padStart(2, "0")}`;
+    };
+
+    const isToday = new Date(selectedDate).toDateString() === new Date().toDateString();
+    const currentTime = getCurrentTime();
+
+    const isTimeInPast = (time) => {
+        if (!isToday) return false;
+        if (!time) return true;
+
+        const [hours, minutes] = time.split(':').map(Number);
+        const [currentHours, currentMinutes] = currentTime.split(':').map(Number);
+
+        if (hours < currentHours) return true;
+        if (hours === currentHours && minutes < currentMinutes) return true;
+        return false;
+    };
+
+    const getMinutesDifference = (startTime, endTime) => {
+        if (!startTime || !endTime) return 0;
+        const start = new Date(`2000-01-01T${startTime}`);
+        const end = new Date(`2000-01-01T${endTime}`);
+        return (end - start) / (1000 * 60);
+    };
+
+    const handleStartTimeChange = async (value) => {
+        if (!value) return;
+
+        if (isToday && isTimeInPast(value)) {
+            toast.error("Past time slots are not allowed. Please select a future time.");
+            return;
+        }
+
+        await onUpdate("start_time", value);
+
+
+    };
+
+    const handleEndTimeChange = (value) => {
+        if (!value) return;
+
+        // Check if end time is before start time
+        if (slot.start_time && value <= slot.start_time) {
+            toast.error("End time must be after start time");
+            return;
+        }
+
+        // Check minimum duration
+        if (slot.start_time) {
+            const diff = getMinutesDifference(slot.start_time, value);
+            if (diff < 30) {
+                toast.error("Minimum slot duration must be 30 minutes");
+                return;
+            }
+        }
+
+        // Check if end time is in the past (only for today)
+        if (isToday && isTimeInPast(value)) {
+            toast.error("End time cannot be in the past");
+            return;
+        }
+
+        onUpdate('end_time', value);
+    };
+
     if (isEditing) {
         return (
             <div className="border border-[#0D614E]/60 rounded-xl p-4 bg-[#0D614E]/10">
@@ -594,19 +560,34 @@ const SlotEditorCard = ({ slot, index, isEditing, onEdit, onSave, onUpdate, onDe
                             <label className="block text-xs font-medium text-gray-600 mb-1">Start Time</label>
                             <input
                                 type="time"
-                                value={slot.start_time}
-                                onChange={(e) => onUpdate('start_time', e.target.value)}
-                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                                value={slot.start_time || ''}
+                                min={isToday ? currentTime : undefined}
+                                onChange={(e) => handleStartTimeChange(e.target.value)}
+                                className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-teal-500 ${isToday && slot.start_time && isTimeInPast(slot.start_time)
+                                    ? 'border-red-300 bg-red-50'
+                                    : 'border-gray-300'
+                                    }`}
                             />
+                            {isToday && slot.start_time && isTimeInPast(slot.start_time) && (
+                                <p className="text-xs text-red-500 mt-1">Time is in the past</p>
+                            )}
                         </div>
                         <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">End Time</label>
                             <input
                                 type="time"
-                                value={slot.end_time}
-                                onChange={(e) => onUpdate('end_time', e.target.value)}
-                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                                disabled
+                                value={slot.end_time || ''}
+                                min={slot.start_time || (isToday ? currentTime : undefined)}
+                                onChange={(e) => handleEndTimeChange(e.target.value)}
+                                className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-teal-500 ${isToday && slot.end_time && isTimeInPast(slot.end_time)
+                                    ? 'border-red-300 bg-red-50'
+                                    : 'border-gray-300'
+                                    }`}
                             />
+                            {isToday && slot.end_time && isTimeInPast(slot.end_time) && (
+                                <p className="text-xs text-red-500 mt-1">End time is in the past</p>
+                            )}
                         </div>
                     </div>
 
@@ -619,7 +600,8 @@ const SlotEditorCard = ({ slot, index, isEditing, onEdit, onSave, onUpdate, onDe
                                 <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                                 <input
                                     type="number"
-                                    value={slot.amount}
+                                    value={slot.amount || ''}
+                                    disabled
                                     onChange={(e) => onUpdate('amount', parseInt(e.target.value) || 0)}
                                     className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                                     min="0"
@@ -631,8 +613,8 @@ const SlotEditorCard = ({ slot, index, isEditing, onEdit, onSave, onUpdate, onDe
                             <label className="block text-xs font-medium text-gray-600 mb-1">Break (mins)</label>
                             <input
                                 type="number"
-                                value={slot.break_between_slots}
-                                onChange={(e) => onUpdate('break_between_slots', parseInt(e.target.value))}
+                                value={slot.break_between_slots || 0}
+                                onChange={(e) => onUpdate('break_between_slots', parseInt(e.target.value) || 0)}
                                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                                 min="0"
                                 max="60"
@@ -644,7 +626,11 @@ const SlotEditorCard = ({ slot, index, isEditing, onEdit, onSave, onUpdate, onDe
                     <div className="flex gap-2 pt-2">
                         <button
                             onClick={onSave}
-                            className="flex-1 px-3 py-1.5 text-sm bg-[#0D614E] text-white rounded-lg hover:bg-teal-700 transition"
+                            disabled={!slot.start_time || !slot.end_time || (isToday && isTimeInPast(slot.start_time))}
+                            className={`flex-1 px-3 py-1.5 text-sm rounded-lg transition ${!slot.start_time || !slot.end_time || (isToday && isTimeInPast(slot.start_time))
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-[#0D614E] text-white hover:bg-teal-700'
+                                }`}
                         >
                             Save Slot
                         </button>
@@ -657,15 +643,21 @@ const SlotEditorCard = ({ slot, index, isEditing, onEdit, onSave, onUpdate, onDe
     const isIncomplete = !slot.start_time || !slot.end_time;
 
     return (
-        <div className={`border rounded-xl p-4 transition-all ${slot.is_active && !isIncomplete ? 'border-gray-200 bg-white' : 'border-gray-200 bg-gray-50 opacity-60'}`}>
+        <div className={`border rounded-xl p-4 transition-all ${slot.is_active && !isIncomplete ? 'border-gray-200 bg-white' : 'border-gray-200 bg-gray-50 opacity-60'
+            }`}>
             <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-3">
-                    <button
-                        onClick={onToggleActive}
-                        className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${slot.is_active ? 'bg-[#0D614E]' : 'bg-gray-300'}`}
-                    >
-                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${slot.is_active ? 'translate-x-5' : 'translate-x-1'}`} />
-                    </button>
+                    {
+                        !slot?.is_booked &&
+                        <button
+                            onClick={onToggleActive}
+                            className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${slot.is_active ? 'bg-[#0D614E]' : 'bg-gray-300'
+                                }`}
+                        >
+                            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${slot.is_active ? 'translate-x-5' : 'translate-x-1'
+                                }`} />
+                        </button>
+                    }
                     <span className="text-sm font-medium text-gray-500">Slot {index + 1}</span>
                     {isIncomplete && (
                         <span className="text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">Incomplete</span>
@@ -674,12 +666,29 @@ const SlotEditorCard = ({ slot, index, isEditing, onEdit, onSave, onUpdate, onDe
                         <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">Modified</span>
                     )}
                 </div>
-                <button onClick={onEdit} className="text-blue-500 hover:text-blue-600 transition">
-                    <Edit2 className="w-4 h-4 text-[#0D614E]" />
-                </button>
-                {/* <button onClick={onDelete} className="text-red-400 hover:text-red-600 transition">
-                    <Trash2 className="w-4 h-4" />
-                </button> */}
+                {
+                    slot?.is_booked ? (
+                        <div className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-md">
+                            Booked Slot
+                        </div>
+                    ) : (
+                        <div className="flex gap-2">
+                            <button
+                                onClick={onEdit}
+                                className="p-2 rounded-lg hover:bg-teal-50 transition"
+                            >
+                                <Edit2 className="w-4 h-4 text-[#0D614E]" />
+                            </button>
+
+                            <button
+                                onClick={!slot.is_new ? onToggleActive : onDelete}
+                                className="p-2 rounded-lg hover:bg-red-50 transition"
+                            >
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                            </button>
+                        </div>
+                    )
+                }
             </div>
 
             {isIncomplete ? (
@@ -699,7 +708,6 @@ const SlotEditorCard = ({ slot, index, isEditing, onEdit, onSave, onUpdate, onDe
                             <Clock className="w-4 h-4 text-gray-400" />
                             <span className="font-medium text-gray-800">{slot.start_time} - {slot.end_time}</span>
                         </div>
-
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
@@ -719,11 +727,19 @@ const SlotEditorCard = ({ slot, index, isEditing, onEdit, onSave, onUpdate, onDe
 };
 
 const addMinutesToTime = (time, minutes) => {
+    if (!time) return '00:00';
     const [hours, mins] = time.split(':').map(Number);
     const totalMinutes = hours * 60 + mins + minutes;
     const newHours = Math.floor(totalMinutes / 60) % 24;
     const newMins = totalMinutes % 60;
     return `${String(newHours).padStart(2, '0')}:${String(newMins).padStart(2, '0')}`;
+};
+
+const getMinutesDifference = (startTime, endTime) => {
+    if (!startTime || !endTime) return 0;
+    const start = new Date(`2000-01-01T${startTime}`);
+    const end = new Date(`2000-01-01T${endTime}`);
+    return (end - start) / (1000 * 60);
 };
 
 export default SlotDrawer;

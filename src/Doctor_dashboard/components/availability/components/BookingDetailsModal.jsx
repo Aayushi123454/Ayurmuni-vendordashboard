@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { X, Edit, Trash2, Users, Calendar, Clock, Phone, Mail, User, Activity, CreditCard, DollarSign, AlertCircle, CheckCircle, Video, MessageCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
+import { Link } from 'react-router-dom';
 
 const BookingDetailsModal = ({ slot, onClose, onEdit, onDelete, onUpdateStatus }) => {
     const [updatingStatus, setUpdatingStatus] = useState(false);
@@ -31,11 +32,11 @@ const BookingDetailsModal = ({ slot, onClose, onEdit, onDelete, onUpdateStatus }
     // Get status badge configuration
     const getStatusConfig = (status) => {
         switch (status?.toLowerCase()) {
-            case 'confirmed':
+            case 'completed':
                 return { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-200', icon: <CheckCircle className="w-3.5 h-3.5" /> };
             case 'pending':
                 return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200', icon: <AlertCircle className="w-3.5 h-3.5" /> };
-            case 'completed':
+            case 'confirmed':
                 return { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-200', icon: <CheckCircle className="w-3.5 h-3.5" /> };
             case 'cancelled':
                 return { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-200', icon: <X className="w-3.5 h-3.5" /> };
@@ -138,7 +139,7 @@ const BookingDetailsModal = ({ slot, onClose, onEdit, onDelete, onUpdateStatus }
                                         <div>
                                             <div className="flex items-center gap-2 mb-1">
                                                 <User className="w-4 h-4 text-gray-400" />
-                                                <p className="font-semibold text-gray-800">{booking.patient_name}</p>
+                                                <Link to={'/doctor/appointments/appointment/' + booking.appointment_id} className="font-semibold text-gray-800">{booking.patient_name}</Link>
                                             </div>
                                             {/* <div className="flex items-center gap-3 text-xs text-gray-500">
                                                 <div className="flex items-center gap-1">

@@ -1,22 +1,52 @@
 // components/SlotCard.jsx
 import React from 'react';
-import { Clock, Video, MessageCircle, Users, CheckCircle, XCircle, Calendar, DollarSign, User, Phone, Mail, AlertCircle } from 'lucide-react';
+import { Clock, Video, MessageCircle, Users, CheckCircle, XCircle, Calendar, DollarSign, User, Phone, Mail, AlertCircle, Clock3, RefreshCw } from 'lucide-react';
 
 const SlotCard = ({ slot, onClick, isCompact = false }) => {
     // Get status based on booking status
     const getStatusConfig = () => {
-        if (slot.is_booked) {
+        const status = slot?.booked_by?.appointment_status;
+
+        if (status === "completed") {
             return {
-                bg: 'bg-red-100',
-                text: 'text-red-700',
-                label: 'Booked',
+                bg: "bg-emerald-100",
+                text: "text-emerald-700",
+                label: "Completed",
+                icon: <CheckCircle className="w-3 h-3" />
+            };
+        }
+
+        if (status === "cancelled") {
+            return {
+                bg: "bg-red-100",
+                text: "text-red-700",
+                label: "Cancelled",
                 icon: <XCircle className="w-3 h-3" />
             };
         }
+
+        if (status === "rescheduled") {
+            return {
+                bg: "bg-orange-100",
+                text: "text-orange-700",
+                label: "Rescheduled",
+                icon: <RefreshCw className="w-3 h-3" />
+            };
+        }
+
+        if (slot?.is_booked) {
+            return {
+                bg: "bg-blue-100",
+                text: "text-blue-700",
+                label: "Booked",
+                icon: <Clock3 className="w-3 h-3" />
+            };
+        }
+
         return {
-            bg: 'bg-emerald-100',
-            text: 'text-emerald-700',
-            label: 'Available',
+            bg: "bg-[#0D614E]/10",
+            text: "text-[#0D614E]",
+            label: "Available",
             icon: <CheckCircle className="w-3 h-3" />
         };
     };

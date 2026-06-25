@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { Toaster } from "react-hot-toast";
 import "./App.css";
 
@@ -9,21 +9,21 @@ import Header from "./Vendor_dashboard/Header/Header";
 import ProtectedRoute from "./Vendor_dashboard/Auth/ProtectedRoute";
 import DoctorSidebar from "./Doctor_dashboard/Sidebar/sidebar";
 import DoctorAvailabilityCalendar2 from "./Doctor_dashboard/components/availability/DoctorAvailabilityCalendar/index";
-import DoctorDashboardTasks from "./Vendor_dashboard/Header/DoctorDashboardTasks";
-import ProductManagement from "./Vendor_dashboard/Pages/productManagement/productManagement";
+import DoctorVideoCall from "./Doctor_dashboard/components/videocall/DoctorVideoCall";
+import PatientVideoCallWeb from "./Doctor_dashboard/components/videocall/PatientVideoCallWeb";
 import InventoryVault from "./Vendor_dashboard/Pages/Inventory/Inventory";
 import AddProduct from "./Vendor_dashboard/Pages/Inventory/AddProduct";
 import EditProduct from "./Vendor_dashboard/Pages/Inventory/editproduct";
-import DoctorVideoCall from "./Doctor_dashboard/components/videocall/DoctorVideoCall";
-import PatientVideoCallWeb from "./Doctor_dashboard/components/videocall/PatientVideoCallWeb";
-// import DoctorAvailabilityCalendar from "./Doctor_dashboard/components/availability/DoctorAvailabilityCalendar";
+import Messenger from "./Doctor_dashboard/components/messenger/messanger";
 
 // Doctor Pages
 const DoctorDashboard = lazy(() => import("./Doctor_dashboard/components/dashboard/Dashboard"));
 const DoctorOnboarding = lazy(() => import("./Doctor_dashboard/components/onboarding/Onboarding"));
 const AppointmentsPage = lazy(() => import("./Doctor_dashboard/components/Appointment/Appointment"));
 const PatientManagement = lazy(() => import("./Doctor_dashboard/components/Patients/Patients"));
+// const PatientDetailPage = lazy(() => import("./Doctor_dashboard/components/Patients/PatientDetailPage"));
 const FinanceDashboard = lazy(() => import("./Doctor_dashboard/components/Finance/FinanceManagement"));
+const DoctorReviewInsights = lazy(() => import("./Doctor_dashboard/components/Reviews/DoctorReviewInsights"));
 const HelpSupport = lazy(() => import("./Doctor_dashboard/components/HelpSupport/HelpSupport"));
 const DoctorProfile = lazy(() => import("./Doctor_dashboard/components/Profile/Profile"));
 const AppointmentDetail = lazy(() => import("./Doctor_dashboard/components/Appointment/AppointmentDetails"));
@@ -37,7 +37,6 @@ const Notification = lazy(() => import("./Vendor_dashboard/Pages/Notification/No
 const VendorOnboarding = lazy(() => import("./Vendor_dashboard/Pages/onboarding/Onboarding"));
 const VendorProfile = lazy(() => import("./Vendor_dashboard/Pages/Profile/Profile"));
 
-
 // Loader
 const LoadingFallback = () => (
   <div className="loading-container">
@@ -46,39 +45,41 @@ const LoadingFallback = () => (
   </div>
 );
 
+/** Redirects users who already completed onboarding away from onboarding pages */
+function OnboardingRedirect() {
+  useEffect(() => {
+    try {
+      const onboarding = JSON.parse(sessionStorage.getItem("profile") || "null");
+      const role = sessionStorage.getItem("role");
+      const hasCompletedProfile = Boolean(onboarding?.email?.trim());
+      const path = window.location.pathname;
+
+      if (hasCompletedProfile && (path === "/vendor/onboarding" || path === "/doctor/onboarding")) {
+        window.location.replace(role === "doctor" ? "/doctor/dashboard" : "/vendor/dashboard");
+      }
+    } catch {
+      // ignore malformed session storage
+    }
+  }, []);
+  return null;
+}
+
 function App() {
   const token = sessionStorage.getItem("accessToken");
   const role = sessionStorage.getItem("role");
   const isAuthenticated = !!token;
-  const onboarding = JSON.parse(sessionStorage.getItem("profile"))
 
-
-  const hasCompletedProfile =
-    onboarding?.email &&
-    onboarding?.email.trim() !== "";
-  console.log(hasCompletedProfile, onboarding, window.location.pathname == "/vendor/onboarding");
-
-  if (hasCompletedProfile && (window.location.pathname == "/vendor/onboarding" || window.location.pathname == "/doctor/onboarding")) {
-    const redirectPath = hasCompletedProfile
-      ? role === "doctor"
-        ? "/doctor/dashboard"
-        : "/vendor/dashboard"
-      : role === "doctor"
-        ? "/doctor/onboarding"
-        : "/vendor/onboarding";
-    window.location.replace(redirectPath)
-  }
   return (
     <>
       <Toaster position="top-right" />
       <BrowserRouter>
+        <OnboardingRedirect />
         <Routes>
-
-          {/* 🔓 PUBLIC ROUTES */}
+          <Route path="patvideocall/:token/:consultationId" element={<PatientVideoCallWeb />} />
+          {/* PUBLIC ROUTES */}
           <Route path="/login" element={<Login />} />
-          {/* <Route path="/DoctorDashboardTasks" element={<DoctorDashboardTasks />} /> */}
 
-          {/* 🧑‍⚕️ DOCTOR ROUTES */}
+          {/* DOCTOR ROUTES */}
           {isAuthenticated && role === "doctor" && (
             <>
               <Route path="/doctor/onboarding" element={<DoctorOnboarding />} />
@@ -95,21 +96,24 @@ function App() {
                 <Route path="availability" element={<DoctorAvailabilityCalendar2 />} />
                 <Route path="appointments" element={<AppointmentsPage />} />
                 <Route path="appointments/:type/:appointmentId" element={<AppointmentDetail />} />
+                <Route path="patients" element={<PatientManagement />} />
+                {/* <Route path="patients/detail/:patientId" element={<PatientDetailPage />} /> */}
                 <Route path="patients/:type/:appointmentId" element={<AppointmentDetail />} />
                 <Route path="videocall/:consultationId" element={<DoctorVideoCall />} />
-                <Route path="patvideocall" element={<PatientVideoCallWeb />} />
-                <Route path="patients" element={<PatientManagement />} />
-                <Route path="messages" element={<Order />} />
-                <Route path="assessments" element={<Order />} />
+                <Route path="messages" element={<Messenger />} />
+                <Route path="assessments" element={<Navigate to="/doctor/appointments" replace />} />
                 <Route path="earnings" element={<FinanceDashboard />} />
-                <Route path="Help-support" element={<HelpSupport />} />
+                <Route path="reviews" element={<DoctorReviewInsights />} />
+                <Route path="help-support" element={<HelpSupport />} />
+                <Route path="Help-support" element={<Navigate to="/doctor/help-support" replace />} />
                 <Route path="notifications" element={<Notification />} />
                 <Route path="profile" element={<DoctorProfile />} />
+                <Route path="settings" element={<Navigate to="/doctor/profile" replace />} />
               </Route>
             </>
           )}
 
-          {/* 🏪 VENDOR ROUTES */}
+          {/* VENDOR ROUTES */}
           {isAuthenticated && role === "vendor" && (
             <>
               <Route path="/vendor/onboarding" element={<VendorOnboarding />} />
@@ -126,7 +130,6 @@ function App() {
                 <Route path="products" element={<InventoryVault />} />
                 <Route path="new-product" element={<AddProduct />} />
                 <Route path="edit-product/:id" element={<EditProduct />} />
-
                 <Route path="orders" element={<Order />} />
                 <Route path="orders/:id" element={<OrderDetail />} />
                 <Route path="profile" element={<VendorProfile />} />
@@ -135,7 +138,7 @@ function App() {
             </>
           )}
 
-          {/* 🔁 REDIRECTS */}
+          {/* REDIRECTS */}
           <Route
             path="/"
             element={
@@ -167,7 +170,6 @@ function DoctorLayout() {
   return (
     <div style={{ display: "flex" }}>
       <DoctorSidebar />
-
       <div className="main-content">
         <Header />
         <div className="page-content">
@@ -180,14 +182,12 @@ function DoctorLayout() {
   );
 }
 
-
 function VendorLayout() {
   return (
     <div style={{ display: "flex" }}>
       <Sidebar />
       <div className="main-content">
         <Header />
-
         <div className="page-content">
           <Suspense fallback={<LoadingFallback />}>
             <Outlet />

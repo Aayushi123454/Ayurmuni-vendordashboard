@@ -4,4 +4,14 @@ module.exports = {
         extend: {},
     },
     plugins: [],
+    animation: {
+        shimmer: "shimmer 2s infinite",
+    },
+    keyframes: {
+        shimmer: {
+            "100%": {
+                transform: "translateX(100%)",
+            },
+        },
+    },
 };

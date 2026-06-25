@@ -10,11 +10,10 @@ import {
     Smartphone, Monitor, Wifi, Moon, Sun, Bell, Settings, HelpCircle,
     TrendingUp, CalendarDays, ClockIcon, Zap, Sparkles, Leaf,
     Lock,
-    icons
 } from 'lucide-react';
 import { doctorService } from '../../../services/doctorService';
 import toast from 'react-hot-toast';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { BsBank, BsGenderNeuter, BsInstagram, BsTwitter } from 'react-icons/bs';
 import { IconBase } from 'react-icons';
 import { LiaLinkedin } from 'react-icons/lia';
@@ -65,11 +64,11 @@ const getStatusText = (isActive, isVerified) => {
 };
 
 // ==================== REUSABLE COMPONENTS ====================
-const StatCard = ({ value, label, icon: Icon, iconColor }) => (
+const StatCard = ({ value, label, showStar }) => (
     <div className="text-center">
         <p className="text-2xl font-bold text-gray-800">{value}</p>
         <div className="flex items-center justify-center gap-0.5">
-            {icons === Star && <Star size={16} className="text-amber-500 fill-amber-500" />}
+            {showStar && <Star size={16} className="text-amber-500 fill-amber-500" />}
             <p className="text-xs text-gray-500">{label}</p>
         </div>
     </div>
@@ -150,9 +149,9 @@ const FormTextArea = ({ label, value, onChange, disabled, rows = 4, placeholder 
 );
 
 const SectionHeader = ({ title }) => (
-    <div className="border-b border-gray-200 pb-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">{title}</h3>
-    </div>
+    // <div className="border-b border-gray-200 pb-6">
+    <h3 className="text-lg font-semibold text-gray-800 mb-4">{title}</h3>
+    // </div>
 );
 
 const ChipInput = ({ items, name, onAdd, onRemove, options, disabled, placeholder = "Add item", colorClass = "bg-emerald-100 text-emerald-700" }) => (
@@ -350,7 +349,17 @@ const Modal = ({ show, onClose, title, children }) => {
 // ==================== MAIN COMPONENT ====================
 const DoctorProfile = () => {
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('profile');
+    const [searchParams] = useSearchParams();
+    const tabFromUrl = searchParams.get('tab');
+    const [activeTab, setActiveTab] = useState(
+        STATUS_TABS.includes(tabFromUrl) ? tabFromUrl : 'profile'
+    );
+    useEffect(() => {
+        if (tabFromUrl && STATUS_TABS.includes(tabFromUrl)) {
+            setActiveTab(tabFromUrl);
+        }
+    }, [tabFromUrl]);
+
     const [isEditing, setIsEditing] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -432,10 +441,12 @@ const DoctorProfile = () => {
     }, []);
 
     const handleArrayAdd = useCallback((field, value) => {
-        if (value && !doctorData[field]?.includes(value)) {
-            setDoctorData(prev => ({ ...prev, [field]: [...(prev[field] || []), value] }));
-        }
-    }, [doctorData]);
+        if (!value) return;
+        setDoctorData(prev => {
+            if (prev[field]?.includes(value)) return prev;
+            return { ...prev, [field]: [...(prev[field] || []), value] };
+        });
+    }, []);
 
     const handleArrayRemove = useCallback((field, index) => {
         setDoctorData(prev => ({ ...prev, [field]: prev[field].filter((_, i) => i !== index) }));
@@ -540,30 +551,59 @@ const DoctorProfile = () => {
         }
     }, [selectedFile, selectedDocument, fetchDoctorProfile]);
 
-    const handlePhotoUpload = useCallback(async (e) => {
-        const file = e.target.files[0];
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+    const handlePhotoSelect = (e) => {
+        const file = e.target.files?.[0];
+
         if (!file) return;
+
         if (file.size > 2 * 1024 * 1024) {
-            toast.error('Profile photo must be less than 2MB');
+            toast.error("Profile photo must be less than 2MB");
             return;
         }
+
+        setSelectedFile(file);
+        setShowConfirmModal(true);
+    };
+
+    const handleConfirmUpload = async () => {
+        if (!selectedFile) return;
+
         const reader = new FileReader();
+        setShowConfirmModal(false);
         reader.onloadend = async () => {
-            setDoctorData(prev => ({ ...prev, profile_image: reader.result }));
-            const interval = setInterval(() => setUploadProgress(p => p >= 100 ? 100 : p + 20), 200);
+            setDoctorData(prev => ({
+                ...prev,
+                profile_image: reader.result
+            }));
+
+            const interval = setInterval(
+                () => setUploadProgress(p => (p >= 100 ? 100 : p + 20)),
+                200
+            );
+
             try {
-                const response = await doctorService.updateDocuments("profile_image", file);
-                toast.success('Profile photo updated!');
+                await doctorService.updateProfile({
+                    profile_image: selectedFile,
+                });
+
+                toast.success("Profile photo updated successfully");
                 await fetchDoctorProfile();
             } catch (error) {
-                toast.error('Failed to upload photo');
+                toast.error("Failed to upload photo");
             } finally {
                 clearInterval(interval);
                 setTimeout(() => setUploadProgress(0), 1000);
+                setShowConfirmModal(false);
+                setSelectedFile(null);
             }
         };
-        reader.readAsDataURL(file);
-    }, [fetchDoctorProfile]);
+
+        reader.readAsDataURL(selectedFile);
+    };
+
+
 
     const handlePasswordChange = useCallback(async (e) => {
         e.preventDefault();
@@ -603,349 +643,390 @@ const DoctorProfile = () => {
     if (isLoading) return <LoadingSpinner />;
 
     return (
-        <div className="min-h-screen pb-10 mt-10">
-            <div className="mx-auto px-4 sm:px-6 lg:px-8 -mt-8">
-                {/* Profile Card */}
-                <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-                    <div className="h-32 bg-gradient-to-r from-[#0D614E] to-[#0a4d3e] relative">
-                        <Link to="/dashboard" className="flex items-center max-w-[200px] space-x-2 px-4 py-2 bg-white bg-opacity-20 rounded-lg hover:bg-opacity-30 transition text-white absolute top-4 right-4 hover:text-white z-10">
-                            <ChevronRight size={18} /><span>Dashboard</span>
-                        </Link>
-                        <div className="absolute -bottom-14 left-8">
-                            <div className="relative group">
-                                <div className="w-28 h-28 rounded-full border-4 border-white bg-gray-100 overflow-hidden shadow-lg">
-                                    {doctorData.profile_image ? (
-                                        <img src={doctorData.profile_image} alt="Profile" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-emerald-100">
-                                            <User size={44} className="text-[#0D614E]" />
-                                        </div>
-                                    )}
-                                </div>
-                                <button className="absolute bottom-0 right-0 p-1.5 bg-[#0D614E] text-white rounded-full shadow-lg hover:bg-emerald-700 transition-all hover:scale-110">
-                                    <Camera size={14} />
-                                    <input disabled={!isEditing} onChange={handlePhotoUpload} type="file" accept="image/*" className="absolute left-0 top-0 w-[24px] h-[24px] cursor-pointer opacity-0" />
+        <>
+            {
+                showConfirmModal && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                        <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+                            <h3 className="text-lg font-semibold">
+                                Change Profile Photo?
+                            </h3>
+
+                            <p className="text-gray-600 mt-2">
+                                Are you sure you want to update your profile photo?
+                            </p>
+
+                            <div className="flex justify-end gap-3 mt-6">
+                                <button
+                                    onClick={() => {
+                                        setShowConfirmModal(false);
+                                        setSelectedFile(null);
+                                    }}
+                                    className="px-4 py-2 border rounded-lg"
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    onClick={handleConfirmUpload}
+                                    className="px-4 py-2 bg-[#0D614E] text-white rounded-lg"
+                                >
+                                    Yes, Update
                                 </button>
                             </div>
-                            {uploadProgress > 0 && uploadProgress < 100 && (
-                                <div className="absolute -bottom-6 left-0 w-28">
-                                    <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
-                                        <div className="h-full bg-[#0D614E] rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                        </div>
+                    </div>
+                )
+            }
+            <div className="min-h-screen pb-10 mt-10">
+
+                <div className="mx-auto px-4 sm:px-6 lg:px-8 -mt-8">
+                    {/* Profile Card */}
+                    <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+                        <div className="h-32 bg-gradient-to-r from-[#0D614E] to-[#0a4d3e] relative">
+                            <Link to="/dashboard" className="flex items-center max-w-[200px] space-x-2 px-4 py-2 bg-white bg-opacity-20 rounded-lg hover:bg-opacity-30 transition text-white absolute top-4 right-4 hover:text-white z-10">
+                                <ChevronRight size={18} /><span>Dashboard</span>
+                            </Link>
+                            <div className="absolute -bottom-14 left-8">
+                                <div className="relative group">
+                                    <div className="w-28 h-28 rounded-full border-4 border-white bg-gray-100 overflow-hidden shadow-lg">
+                                        {doctorData.profile_image ? (
+                                            <img src={doctorData.profile_image} alt="Profile" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center bg-emerald-100">
+                                                <User size={44} className="text-[#0D614E]" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    {
+                                        isEditing &&
+                                        <button className="absolute bottom-0 right-0 p-1.5 bg-[#0D614E] text-white rounded-full shadow-lg hover:bg-emerald-700 transition-all hover:scale-110">
+                                            <Camera size={14} />
+                                            <input disabled={!isEditing} onChange={handlePhotoSelect} type="file" accept="image/*" className="absolute left-0 top-0 w-[24px] h-[24px] cursor-pointer opacity-0" />
+                                        </button>
+                                    }
+                                </div>
+                                {uploadProgress > 0 && uploadProgress < 100 && (
+                                    <div className="absolute -bottom-6 left-0 w-28">
+                                        <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
+                                            <div className="h-full bg-[#0D614E] rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="pt-16 pl-8 pr-8 pb-6">
+                            <div className="flex flex-wrap justify-between items-start gap-4">
+                                <div>
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                        <h2 className="text-2xl font-bold text-gray-800">
+                                            {doctorData.title} {doctorData.first_name} {doctorData.last_name}
+                                        </h2>
+                                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusBadge}`}>{statusText}</span>
+                                    </div>
+                                    <div className="flex items-center gap-4 mt-2 text-gray-500 flex-wrap">
+                                        <InfoRow icon={Stethoscope} value={doctorData.qualification || 'Ayurvedic Doctor'} />
+                                        <InfoRow icon={Award} value={`${doctorData.experience_years}+ Years Experience`} />
+                                        <InfoRow icon={MapPin} value={doctorData.city || 'Location not set'} />
+                                    </div>
+                                </div>
+                                <div className="flex gap-3">
+                                    {!isEditing ? (
+                                        <button onClick={() => setIsEditing(true)} className="flex items-center px-5 py-2.5 bg-[#0D614E] text-white rounded-xl hover:bg-[#0D614E]/90 transition-all shadow-md hover:shadow-lg">
+                                            <Edit size={18} /><span>Edit Profile</span>
+                                        </button>
+                                    ) : (
+                                        <>
+                                            <button onClick={() => {
+                                                setIsEditing(false)
+                                                fetchDoctorProfile()
+                                            }} className="flex items-center px-5 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all">
+                                                <X size={18} /><span>Cancel</span>
+                                            </button>
+                                            <button onClick={handleSaveProfile} disabled={isSaving} className="flex items-center px-5 py-2.5 bg-[#0D614E] text-white rounded-xl hover:bg-emerald-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50">
+                                                {isSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Save size={18} />}
+                                                <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mt-6 pt-6 border-t border-gray-100">
+                                <StatCard value={doctorData.stats.totalPatients} label="Total Patients" />
+                                <StatCard value={doctorData.stats.totalConsultations} label="Consultations" />
+                                <StatCard value={doctorData.stats.averageRating} label={`(${doctorData.stats.totalReviews} reviews)`} showStar />
+                                <StatCard value={`${doctorData.stats.completionRate}%`} label="Completion" />
+                                <StatCard value={doctorData.stats.responseTime} label="Response (min)" />
+                                <StatCard value={`₹${doctorData.stats.thisMonthEarnings?.toLocaleString()}`} label="This Month" />
+                                <StatCard value={doctorData.stats.upcomingAppointments} label="Upcoming" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Tabs */}
+                    <div className="mt-6">
+                        <div className="border-b border-gray-200 bg-white rounded-t-xl">
+                            <nav className="flex flex-wrap gap-1 px-4">
+                                {STATUS_TABS.map(tab => (
+                                    <button key={tab} onClick={() => setActiveTab(tab)}
+                                        className={`flex items-center py-3 px-5 text-sm font-medium border-b-2 transition-all capitalize ${activeTab === tab
+                                            ? 'border-[#0D614E] text-[#0D614E]'
+                                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                            }`}>
+                                        {tab === 'profile' && <User size={16} />}
+                                        {tab === 'documents' && <FileText size={16} />}
+                                        {tab === 'bank' && <CreditCard size={16} />}
+                                        {tab === 'settings' && <Settings size={16} />}
+                                        <span>{tab === 'profile' ? 'Profile Information' : tab === 'bank' ? 'Bank Details' : tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
+                                    </button>
+                                ))}
+                            </nav>
+                        </div>
+
+                        <div className="bg-white rounded-b-xl shadow-sm p-6">
+                            {/* Profile Tab */}
+                            {activeTab === 'profile' && (
+                                <div className="space-y-6">
+                                    <SectionHeader title="Personal Information" />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <FormInput label="Title" value={doctorData.title} onChange={(e) => handleInputChange('title', e.target.value)} disabled={true} options={TITLES} />
+                                        <FormInput label="First Name" value={doctorData.first_name} onChange={(e) => handleInputChange('first_name', e.target.value)} disabled={!isEditing} required />
+                                        <FormInput label="Last Name" value={doctorData.last_name} onChange={(e) => handleInputChange('last_name', e.target.value)} disabled={!isEditing} required />
+                                        <FormInput label="Date of Birth" value={doctorData.dob?.split('T')[0] || doctorData.dob} onChange={(e) => handleInputChange('dob', e.target.value)} disabled={!isEditing} type="date" />
+                                        <FormSelect label="Gender" value={doctorData.gender} onChange={(e) => handleInputChange('gender', e.target.value)} disabled={!isEditing} options={GENDERS} icon={BsGenderNeuter} />
+                                        <FormInput label="Nationality" value={doctorData.nationality} onChange={(e) => handleInputChange('nationality', e.target.value)} disabled={!isEditing} />
+                                        <label className='-mb-3'>Selected Languages</label>
+                                        <ChipInput items={doctorData.languages_spoken || []} onAdd={(val) => handleArrayAdd('languages_spoken', val)}
+                                            onRemove={(idx) => handleArrayRemove('languages_spoken', idx)} options={LANGUAGES_LIST} disabled={!isEditing} />
+                                    </div>
+
+                                    <SectionHeader title="Contact Information" />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <FormInput label="Email Address" value={doctorData.email} onChange={(e) => handleInputChange('email', e.target.value)} disabled={!isEditing} type="email" icon={Mail} />
+                                        <FormInput label="Phone Number" value={doctorData.secondary_number} onChange={(e) => handleInputChange('secondary_number', e.target.value)} disabled={!isEditing} type="tel" icon={Phone} />
+                                        <div className="md:col-span-2">
+                                            <FormInput label="Street Address" value={doctorData.address_line} onChange={(e) => handleInputChange('address_line', e.target.value)} disabled={!isEditing} icon={MapPin} />
+                                        </div>
+                                        <FormInput label="City" value={doctorData.city} onChange={(e) => handleInputChange('city', e.target.value)} disabled={!isEditing} />
+                                        <FormInput label="State" value={doctorData.state} onChange={(e) => handleInputChange('state', e.target.value)} disabled={!isEditing} />
+                                        <FormInput label="Pincode" value={doctorData.pincode} onChange={(e) => handleInputChange('pincode', e.target.value)} disabled={!isEditing} />
+                                        <FormInput label="Country" value={doctorData.country} onChange={(e) => handleInputChange('country', e.target.value)} disabled={!isEditing} />
+                                    </div>
+
+                                    <SectionHeader title="Emergency Contact" />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <FormInput label="Contact Name" value={doctorData.emergency_contact_name} onChange={(e) => handleInputChange('emergency_contact_name', e.target.value)} disabled={!isEditing} />
+                                        <FormInput label="Relationship" value={doctorData.emergency_contact_relation} onChange={(e) => handleInputChange('emergency_contact_relation', e.target.value)} disabled={!isEditing} />
+                                        <FormInput label="Phone Number" value={doctorData.emergency_contact_phone} onChange={(e) => handleInputChange('emergency_contact_phone', e.target.value)} disabled={!isEditing} type="tel" />
+                                    </div>
+
+                                    <SectionHeader title="Professional Details" />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <FormInput label="Qualifications" value={doctorData.qualification} onChange={(e) => handleInputChange('qualification', e.target.value)} disabled={!isEditing} />
+                                        <FormInput label="Registration Number" value={doctorData.registration_number} onChange={(e) => handleInputChange('registration_number', e.target.value)} disabled={!isEditing} />
+                                        <FormInput label="Registration Council" value={doctorData.registration_council} onChange={(e) => handleInputChange('registration_council', e.target.value)} disabled={!isEditing} />
+                                        <FormInput label="Registration Year" value={doctorData.registration_year} onChange={(e) => handleInputChange('registration_year', e.target.value)} disabled={!isEditing} type="number" />
+                                        <FormInput label="Experience (Years)" value={doctorData.experience_years} onChange={(e) => handleInputChange('experience_years', e.target.value)} disabled={!isEditing} type="number" />
+                                        <FormInput label="Consultation Fee (₹)" value={doctorData.consultation_fee} onChange={(e) => handleInputChange('consultation_fee', e.target.value)} disabled={!isEditing} type="number" />
+                                        <FormInput label="Follow-up Fee (₹)" value={doctorData.followup_fee} onChange={(e) => handleInputChange('followup_fee', e.target.value)} disabled={!isEditing} type="number" />
+                                        <FormInput label="Average Consultation Time (min)" value={doctorData.average_consultation_time} onChange={(e) => handleInputChange('average_consultation_time', e.target.value)} disabled={!isEditing} type="number" />
+                                        <FormInput label="Max Patients Per Day" value={doctorData.max_patients_per_day} onChange={(e) => handleInputChange('max_patients_per_day', e.target.value)} disabled={!isEditing} type="number" />
+                                        <div className="md:col-span-2">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Consultation Modes</label>
+                                            <div className="flex flex-wrap gap-4">
+                                                {CONSULTATION_MODES_LIST.map(mode => (
+                                                    <label key={mode} className="flex items-center">
+                                                        <input type="checkbox" checked={doctorData.consultation_modes?.includes(mode)}
+                                                            onChange={(e) => {
+                                                                const current = doctorData.consultation_modes || [];
+                                                                handleInputChange('consultation_modes', e.target.checked ? [...current, mode] : current.filter(m => m !== mode));
+                                                            }} disabled={!isEditing} className="rounded border-gray-300 text-[#0D614E] focus:ring-[#0D614E]" />
+                                                        <span className="text-sm text-gray-700 capitalize">{mode}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <SectionHeader title="Ayurvedic Information" />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        {/* <FormInput label="Primary Dosha Expertise" value={doctorData.primary_dosha_expertise} onChange={(e) => handleInputChange('primary_dosha_expertise', e.target.value)} disabled={!isEditing} placeholder="Vata/Pitta/Kapha" /> */}
+                                        {/* <FormInput label="Primary Dosha Expertise" value={doctorData.health_diseases} onChange={(e) => handleInputChange('health_diseases', e.target.value)} disabled={!isEditing} placeholder="Vata/Pitta/Kapha" /> */}
+                                        {
+                                            prakritiAndDiseases?.diseases?.data &&
+                                            <ChipInput name="primaryDisease" items={doctorData.health_diseases || []} onAdd={(val) => handleInputChange('health_diseases', [...(doctorData.health_diseases || []), val])}
+                                                onRemove={(idx) => handleInputChange('health_diseases', doctorData.health_diseases.filter((_, i) => i !== idx))}
+                                                options={prakritiAndDiseases?.diseases?.data} disabled={!isEditing} colorClass="bg-purple-100 text-purple-700" />
+                                        }
+
+                                        <FormSelect name="primaryDosha" label="Primary Dosha Expertise" value={doctorData.primary_dosha_expertise} onChange={(e) => handleInputChange('primary_dosha_expertise', e.target.value)} disabled={!isEditing} options={prakritiAndDiseases?.prakriti?.data} />
+
+
+                                        <FormInput label="Years in Ayurveda" value={doctorData.ayurveda_practice_years} onChange={(e) => handleInputChange('ayurveda_practice_years', e.target.value)} disabled={!isEditing} type="number" />
+                                        <FormInput label="Ayurvedic Council ID" value={doctorData.ayurvedic_council_id} onChange={(e) => handleInputChange('ayurvedic_council_id', e.target.value)} disabled={!isEditing} />
+                                        <FormInput label="Practicing Since" value={doctorData.practicing_since?.split('T')[0] || doctorData.practicing_since} onChange={(e) => handleInputChange('practicing_since', e.target.value)} disabled={!isEditing} type="date" />
+                                        <div className="md:col-span-2">
+                                            <CheckboxOption label="Panchakarma Certified" checked={doctorData.is_panchakarma_certified} onChange={(e) => handleInputChange('is_panchakarma_certified', e.target.checked)} disabled={!isEditing} />
+                                        </div>
+                                        <ChipInput items={doctorData.specialized_therapies || []} onAdd={(val) => handleInputChange('specialized_therapies', [...(doctorData.specialized_therapies || []), val])}
+                                            onRemove={(idx) => handleInputChange('specialized_therapies', doctorData.specialized_therapies.filter((_, i) => i !== idx))}
+                                            options={THERAPIES_LIST} disabled={!isEditing} colorClass="bg-purple-100 text-purple-700" />
+                                    </div>
+
+                                    <SectionHeader title="Professional Bio" />
+                                    <FormTextArea value={doctorData.bio} onChange={(e) => handleInputChange('bio', e.target.value)} disabled={!isEditing} placeholder="Tell us about your professional journey, expertise, and philosophy..." />
+
+                                    <SectionHeader title="Social Media Profiles" />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                        <FormInput label="LinkedIn" value={doctorData.linkedin_url} onChange={(e) => handleInputChange('linkedin_url', e.target.value)} disabled={!isEditing} placeholder="https://linkedin.com/in/username" icon={LiaLinkedin} />
+                                        <FormInput label="Twitter" value={doctorData.twitter_url} onChange={(e) => handleInputChange('twitter_url', e.target.value)} disabled={!isEditing} placeholder="https://twitter.com/username" icon={BsTwitter} />
+                                        <FormInput label="Facebook" value={doctorData.facebook_url} onChange={(e) => handleInputChange('facebook_url', e.target.value)} disabled={!isEditing} placeholder="https://facebook.com/username" icon={FaFacebook} />
+                                        <FormInput label="Instagram" value={doctorData.instagram_url} onChange={(e) => handleInputChange('instagram_url', e.target.value)} disabled={!isEditing} placeholder="https://instagram.com/username" icon={BsInstagram} />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Documents Tab */}
+                            {activeTab === 'documents' && (
+                                <div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {Object.entries(DOCUMENT_REQUIREMENTS).map(([key, req]) => {
+                                            const docUrl = doctorData.documents?.[key];
+                                            return (
+                                                <DocumentCard
+                                                    key={key}
+                                                    docKey={key}
+                                                    docUrl={docUrl}
+                                                    req={req}
+                                                    onView={(url) => window.open(url, '_blank')}
+                                                    onUpload={(docKey) => { setSelectedDocument(docKey); setShowDocumentModal(true); }}
+                                                />
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="mt-6 p-4 bg-amber-50/50 rounded-xl border border-amber-100">
+                                        <div className="flex items-start gap-3">
+                                            <AlertCircle size={18} className="text-amber-600 mt-0.5" />
+                                            <div>
+                                                <p className="text-sm font-medium text-amber-800">Document Verification</p>
+                                                <p className="text-xs text-amber-700">Documents are typically verified within 24-48 hours. Please ensure all uploaded documents are clear and legible.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Bank Tab */}
+                            {activeTab === 'bank' && (
+                                <div className="space-y-6">
+                                    <div className="flex justify-between items-center">
+                                        <h3 className="text-lg font-semibold text-gray-800">Bank Accounts</h3>
+                                        <button onClick={() => setShowBankModal(true)} className="px-4 py-2 bg-[#0D614E] text-white rounded-xl hover:bg-[#0D614E]/90 transition">
+                                            + Add Bank Account
+                                        </button>
+                                    </div>
+                                    <div className="grid md:grid-cols-3 gap-6">
+                                        {doctorData.bank_details.map((data, index) => (
+                                            <BankCard
+                                                key={index}
+                                                data={data}
+                                                index={index}
+                                                isEditing={isEditing}
+                                                editIndex={editIndex}
+                                                onPrimaryChange={updateBankDetails}
+                                                onEdit={setEditIndex}
+                                                onInputChange={updateBankDetails}
+                                                onSave={updateBankDetailsByApi}
+                                                onCancel={() => setEditIndex(null)}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Settings Tab */}
+                            {activeTab === 'settings' && (
+                                <div className="space-y-6">
+                                    <div className="border border-rose-200 rounded-xl p-5 bg-rose-50/30">
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <AlertTriangle size={18} className="text-rose-600" />
+                                            <h4 className="font-medium text-rose-800">Delete Account</h4>
+                                        </div>
+                                        <p className="text-sm text-gray-600 mb-4">Permanently delete your account and all associated data. This action cannot be undone.</p>
+                                        <button onClick={() => setShowDeleteModal(true)} className="px-4 py-2 bg-rose-600 text-white rounded-lg text-sm hover:bg-rose-700 transition">Delete Account</button>
                                     </div>
                                 </div>
                             )}
                         </div>
                     </div>
-
-                    <div className="pt-16 pl-8 pr-8 pb-6">
-                        <div className="flex flex-wrap justify-between items-start gap-4">
-                            <div>
-                                <div className="flex items-center gap-3 flex-wrap">
-                                    <h2 className="text-2xl font-bold text-gray-800">
-                                        {doctorData.title} {doctorData.first_name} {doctorData.last_name}
-                                    </h2>
-                                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusBadge}`}>{statusText}</span>
-                                </div>
-                                <div className="flex items-center gap-4 mt-2 text-gray-500 flex-wrap">
-                                    <InfoRow icon={Stethoscope} value={doctorData.qualification || 'Ayurvedic Doctor'} />
-                                    <InfoRow icon={Award} value={`${doctorData.experience_years}+ Years Experience`} />
-                                    <InfoRow icon={MapPin} value={doctorData.city || 'Location not set'} />
-                                </div>
-                            </div>
-                            <div className="flex gap-3">
-                                {!isEditing ? (
-                                    <button onClick={() => setIsEditing(true)} className="flex items-center px-5 py-2.5 bg-[#0D614E] text-white rounded-xl hover:bg-[#0D614E]/90 transition-all shadow-md hover:shadow-lg">
-                                        <Edit size={18} /><span>Edit Profile</span>
-                                    </button>
-                                ) : (
-                                    <>
-                                        <button onClick={() => {
-                                            setIsEditing(false)
-                                            fetchDoctorProfile()
-                                        }} className="flex items-center px-5 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all">
-                                            <X size={18} /><span>Cancel</span>
-                                        </button>
-                                        <button onClick={handleSaveProfile} disabled={isSaving} className="flex items-center px-5 py-2.5 bg-[#0D614E] text-white rounded-xl hover:bg-emerald-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50">
-                                            {isSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Save size={18} />}
-                                            <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
-                                        </button>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mt-6 pt-6 border-t border-gray-100">
-                            <StatCard value={doctorData.stats.totalPatients} label="Total Patients" icon={null} />
-                            <StatCard value={doctorData.stats.totalConsultations} label="Consultations" icon={null} />
-                            <StatCard value={doctorData.stats.averageRating} label={`(${doctorData.stats.totalReviews} reviews)`} icon={Star} />
-                            <StatCard value={`${doctorData.stats.completionRate}%`} label="Completion" icon={null} />
-                            <StatCard value={doctorData.stats.responseTime} label="Response (min)" icon={null} />
-                            <StatCard value={`₹${doctorData.stats.thisMonthEarnings?.toLocaleString()}`} label="This Month" icon={null} />
-                            <StatCard value={doctorData.stats.upcomingAppointments} label="Upcoming" icon={null} />
-                        </div>
-                    </div>
                 </div>
 
-                {/* Tabs */}
-                <div className="mt-6">
-                    <div className="border-b border-gray-200 bg-white rounded-t-xl">
-                        <nav className="flex flex-wrap gap-1 px-4">
-                            {STATUS_TABS.map(tab => (
-                                <button key={tab} onClick={() => setActiveTab(tab)}
-                                    className={`flex items-center py-3 px-5 text-sm font-medium border-b-2 transition-all capitalize ${activeTab === tab
-                                        ? 'border-[#0D614E] text-[#0D614E]'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                        }`}>
-                                    {tab === 'profile' && <User size={16} />}
-                                    {tab === 'documents' && <FileText size={16} />}
-                                    {tab === 'bank' && <CreditCard size={16} />}
-                                    {tab === 'settings' && <Settings size={16} />}
-                                    <span>{tab === 'profile' ? 'Profile Information' : tab === 'bank' ? 'Bank Details' : tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
-                                </button>
-                            ))}
-                        </nav>
-                    </div>
-
-                    <div className="bg-white rounded-b-xl shadow-sm p-6">
-                        {/* Profile Tab */}
-                        {activeTab === 'profile' && (
-                            <div className="space-y-6">
-                                <SectionHeader title="Personal Information" />
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    <FormSelect label="Title" value={doctorData.title} onChange={(e) => handleInputChange('title', e.target.value)} disabled={!isEditing} options={TITLES} />
-                                    <FormInput label="First Name" value={doctorData.first_name} onChange={(e) => handleInputChange('first_name', e.target.value)} disabled={!isEditing} required />
-                                    <FormInput label="Last Name" value={doctorData.last_name} onChange={(e) => handleInputChange('last_name', e.target.value)} disabled={!isEditing} required />
-                                    <FormInput label="Date of Birth" value={doctorData.dob?.split('T')[0] || doctorData.dob} onChange={(e) => handleInputChange('dob', e.target.value)} disabled={!isEditing} type="date" />
-                                    <FormSelect label="Gender" value={doctorData.gender} onChange={(e) => handleInputChange('gender', e.target.value)} disabled={!isEditing} options={GENDERS} icon={BsGenderNeuter} />
-                                    <FormInput label="Nationality" value={doctorData.nationality} onChange={(e) => handleInputChange('nationality', e.target.value)} disabled={!isEditing} />
-                                    <ChipInput items={doctorData.languages_spoken || []} onAdd={(val) => handleArrayAdd('languages_spoken', val)}
-                                        onRemove={(idx) => handleArrayRemove('languages_spoken', idx)} options={LANGUAGES_LIST} disabled={!isEditing} />
-                                </div>
-
-                                <SectionHeader title="Contact Information" />
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    <FormInput label="Email Address" value={doctorData.email} onChange={(e) => handleInputChange('email', e.target.value)} disabled={!isEditing} type="email" icon={Mail} />
-                                    <FormInput label="Phone Number" value={doctorData.secondary_number} onChange={(e) => handleInputChange('secondary_number', e.target.value)} disabled={!isEditing} type="tel" icon={Phone} />
-                                    <div className="md:col-span-2">
-                                        <FormInput label="Street Address" value={doctorData.address_line} onChange={(e) => handleInputChange('address_line', e.target.value)} disabled={!isEditing} icon={MapPin} />
-                                    </div>
-                                    <FormInput label="City" value={doctorData.city} onChange={(e) => handleInputChange('city', e.target.value)} disabled={!isEditing} />
-                                    <FormInput label="State" value={doctorData.state} onChange={(e) => handleInputChange('state', e.target.value)} disabled={!isEditing} />
-                                    <FormInput label="Pincode" value={doctorData.pincode} onChange={(e) => handleInputChange('pincode', e.target.value)} disabled={!isEditing} />
-                                    <FormInput label="Country" value={doctorData.country} onChange={(e) => handleInputChange('country', e.target.value)} disabled={!isEditing} />
-                                </div>
-
-                                <SectionHeader title="Emergency Contact" />
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    <FormInput label="Contact Name" value={doctorData.emergency_contact_name} onChange={(e) => handleInputChange('emergency_contact_name', e.target.value)} disabled={!isEditing} />
-                                    <FormInput label="Relationship" value={doctorData.emergency_contact_relation} onChange={(e) => handleInputChange('emergency_contact_relation', e.target.value)} disabled={!isEditing} />
-                                    <FormInput label="Phone Number" value={doctorData.emergency_contact_phone} onChange={(e) => handleInputChange('emergency_contact_phone', e.target.value)} disabled={!isEditing} type="tel" />
-                                </div>
-
-                                <SectionHeader title="Professional Details" />
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    <FormInput label="Qualifications" value={doctorData.qualification} onChange={(e) => handleInputChange('qualification', e.target.value)} disabled={!isEditing} />
-                                    <FormInput label="Registration Number" value={doctorData.registration_number} onChange={(e) => handleInputChange('registration_number', e.target.value)} disabled={!isEditing} />
-                                    <FormInput label="Registration Council" value={doctorData.registration_council} onChange={(e) => handleInputChange('registration_council', e.target.value)} disabled={!isEditing} />
-                                    <FormInput label="Registration Year" value={doctorData.registration_year} onChange={(e) => handleInputChange('registration_year', e.target.value)} disabled={!isEditing} type="number" />
-                                    <FormInput label="Experience (Years)" value={doctorData.experience_years} onChange={(e) => handleInputChange('experience_years', e.target.value)} disabled={!isEditing} type="number" />
-                                    <FormInput label="Consultation Fee (₹)" value={doctorData.consultation_fee} onChange={(e) => handleInputChange('consultation_fee', e.target.value)} disabled={!isEditing} type="number" />
-                                    <FormInput label="Follow-up Fee (₹)" value={doctorData.followup_fee} onChange={(e) => handleInputChange('followup_fee', e.target.value)} disabled={!isEditing} type="number" />
-                                    <FormInput label="Average Consultation Time (min)" value={doctorData.average_consultation_time} onChange={(e) => handleInputChange('average_consultation_time', e.target.value)} disabled={!isEditing} type="number" />
-                                    <FormInput label="Max Patients Per Day" value={doctorData.max_patients_per_day} onChange={(e) => handleInputChange('max_patients_per_day', e.target.value)} disabled={!isEditing} type="number" />
-                                    <div className="md:col-span-2">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Consultation Modes</label>
-                                        <div className="flex flex-wrap gap-4">
-                                            {CONSULTATION_MODES_LIST.map(mode => (
-                                                <label key={mode} className="flex items-center">
-                                                    <input type="checkbox" checked={doctorData.consultation_modes?.includes(mode)}
-                                                        onChange={(e) => {
-                                                            const current = doctorData.consultation_modes || [];
-                                                            handleInputChange('consultation_modes', e.target.checked ? [...current, mode] : current.filter(m => m !== mode));
-                                                        }} disabled={!isEditing} className="rounded border-gray-300 text-[#0D614E] focus:ring-[#0D614E]" />
-                                                    <span className="text-sm text-gray-700 capitalize">{mode}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <SectionHeader title="Ayurvedic Information" />
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    {/* <FormInput label="Primary Dosha Expertise" value={doctorData.primary_dosha_expertise} onChange={(e) => handleInputChange('primary_dosha_expertise', e.target.value)} disabled={!isEditing} placeholder="Vata/Pitta/Kapha" /> */}
-                                    {/* <FormInput label="Primary Dosha Expertise" value={doctorData.health_diseases} onChange={(e) => handleInputChange('health_diseases', e.target.value)} disabled={!isEditing} placeholder="Vata/Pitta/Kapha" /> */}
-                                    {
-                                        prakritiAndDiseases?.diseases?.data &&
-                                        <ChipInput name="primaryDisease" items={doctorData.health_diseases || []} onAdd={(val) => handleInputChange('health_diseases', [...(doctorData.health_diseases || []), val])}
-                                            onRemove={(idx) => handleInputChange('health_diseases', doctorData.health_diseases.filter((_, i) => i !== idx))}
-                                            options={prakritiAndDiseases?.diseases?.data} disabled={!isEditing} colorClass="bg-purple-100 text-purple-700" />
-                                    }
-
-                                    <FormSelect name="primaryDosha" label="Primary Dosha Expertise" value={doctorData.primary_dosha_expertise} onChange={(e) => handleInputChange('primary_dosha_expertise', e.target.value)} disabled={!isEditing} options={prakritiAndDiseases?.prakriti?.data} />
-
-
-                                    <FormInput label="Years in Ayurveda" value={doctorData.ayurveda_practice_years} onChange={(e) => handleInputChange('ayurveda_practice_years', e.target.value)} disabled={!isEditing} type="number" />
-                                    <FormInput label="Ayurvedic Council ID" value={doctorData.ayurvedic_council_id} onChange={(e) => handleInputChange('ayurvedic_council_id', e.target.value)} disabled={!isEditing} />
-                                    <FormInput label="Practicing Since" value={doctorData.practicing_since?.split('T')[0] || doctorData.practicing_since} onChange={(e) => handleInputChange('practicing_since', e.target.value)} disabled={!isEditing} type="date" />
-                                    <div className="md:col-span-2">
-                                        <CheckboxOption label="Panchakarma Certified" checked={doctorData.is_panchakarma_certified} onChange={(e) => handleInputChange('is_panchakarma_certified', e.target.checked)} disabled={!isEditing} />
-                                    </div>
-                                    <ChipInput items={doctorData.specialized_therapies || []} onAdd={(val) => handleInputChange('specialized_therapies', [...(doctorData.specialized_therapies || []), val])}
-                                        onRemove={(idx) => handleInputChange('specialized_therapies', doctorData.specialized_therapies.filter((_, i) => i !== idx))}
-                                        options={THERAPIES_LIST} disabled={!isEditing} colorClass="bg-purple-100 text-purple-700" />
-                                </div>
-
-                                <SectionHeader title="Professional Bio" />
-                                <FormTextArea value={doctorData.bio} onChange={(e) => handleInputChange('bio', e.target.value)} disabled={!isEditing} placeholder="Tell us about your professional journey, expertise, and philosophy..." />
-
-                                <SectionHeader title="Social Media Profiles" />
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    <FormInput label="LinkedIn" value={doctorData.linkedin_url} onChange={(e) => handleInputChange('linkedin_url', e.target.value)} disabled={!isEditing} placeholder="https://linkedin.com/in/username" icon={LiaLinkedin} />
-                                    <FormInput label="Twitter" value={doctorData.twitter_url} onChange={(e) => handleInputChange('twitter_url', e.target.value)} disabled={!isEditing} placeholder="https://twitter.com/username" icon={BsTwitter} />
-                                    <FormInput label="Facebook" value={doctorData.facebook_url} onChange={(e) => handleInputChange('facebook_url', e.target.value)} disabled={!isEditing} placeholder="https://facebook.com/username" icon={FaFacebook} />
-                                    <FormInput label="Instagram" value={doctorData.instagram_url} onChange={(e) => handleInputChange('instagram_url', e.target.value)} disabled={!isEditing} placeholder="https://instagram.com/username" icon={BsInstagram} />
-                                </div>
-                            </div>
+                {/* Modals */}
+                <Modal show={showDocumentModal} onClose={() => { setShowDocumentModal(false); setSelectedFile(null); }} title={`Upload ${selectedDocument?.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}`}>
+                    <p className="text-gray-500 text-sm mb-4">Upload clear document (PDF, JPG, PNG, max 5MB)</p>
+                    <div className="w-full border border-gray-200 rounded-lg relative">
+                        {selectedFile ? (
+                            <div className="flex items-center gap-3 p-4"><FileText size={20} className="text-gray-500" /><span className="text-sm text-gray-700">{selectedFile.name}</span></div>
+                        ) : (
+                            <>
+                                <input ref={docInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => setSelectedFile(e.target.files[0])} />
+                                <div className="flex items-center justify-center gap-2 p-6 text-gray-500 hover:text-[#0D614E] transition cursor-pointer"><Upload size={20} /><span className="text-sm">Click to select file</span></div>
+                            </>
                         )}
-
-                        {/* Documents Tab */}
-                        {activeTab === 'documents' && (
-                            <div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {Object.entries(DOCUMENT_REQUIREMENTS).map(([key, req]) => {
-                                        const docUrl = doctorData.documents?.[key];
-                                        return (
-                                            <DocumentCard
-                                                key={key}
-                                                docKey={key}
-                                                docUrl={docUrl}
-                                                req={req}
-                                                onView={(url) => window.open(url, '_blank')}
-                                                onUpload={(docKey) => { setSelectedDocument(docKey); setShowDocumentModal(true); }}
-                                            />
-                                        );
-                                    })}
-                                </div>
-                                <div className="mt-6 p-4 bg-amber-50/50 rounded-xl border border-amber-100">
-                                    <div className="flex items-start gap-3">
-                                        <AlertCircle size={18} className="text-amber-600 mt-0.5" />
-                                        <div>
-                                            <p className="text-sm font-medium text-amber-800">Document Verification</p>
-                                            <p className="text-xs text-amber-700">Documents are typically verified within 24-48 hours. Please ensure all uploaded documents are clear and legible.</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Bank Tab */}
-                        {activeTab === 'bank' && (
-                            <div className="space-y-6">
-                                <div className="flex justify-between items-center">
-                                    <h3 className="text-lg font-semibold text-gray-800">Bank Accounts</h3>
-                                    <button onClick={() => setShowBankModal(true)} className="px-4 py-2 bg-[#0D614E] text-white rounded-xl hover:bg-[#0D614E]/90 transition">
-                                        + Add Bank Account
-                                    </button>
-                                </div>
-                                <div className="grid md:grid-cols-3 gap-6">
-                                    {doctorData.bank_details.map((data, index) => (
-                                        <BankCard
-                                            key={index}
-                                            data={data}
-                                            index={index}
-                                            isEditing={isEditing}
-                                            editIndex={editIndex}
-                                            onPrimaryChange={updateBankDetails}
-                                            onEdit={setEditIndex}
-                                            onInputChange={updateBankDetails}
-                                            onSave={updateBankDetailsByApi}
-                                            onCancel={() => setEditIndex(null)}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Settings Tab */}
-                        {activeTab === 'settings' && (
-                            <div className="space-y-6">
-                                <div className="border border-rose-200 rounded-xl p-5 bg-rose-50/30">
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <AlertTriangle size={18} className="text-rose-600" />
-                                        <h4 className="font-medium text-rose-800">Delete Account</h4>
-                                    </div>
-                                    <p className="text-sm text-gray-600 mb-4">Permanently delete your account and all associated data. This action cannot be undone.</p>
-                                    <button onClick={() => setShowDeleteModal(true)} className="px-4 py-2 bg-rose-600 text-white rounded-lg text-sm hover:bg-rose-700 transition">Delete Account</button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            {/* Modals */}
-            <Modal show={showDocumentModal} onClose={() => { setShowDocumentModal(false); setSelectedFile(null); }} title={`Upload ${selectedDocument?.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}`}>
-                <p className="text-gray-500 text-sm mb-4">Upload clear document (PDF, JPG, PNG, max 5MB)</p>
-                <div className="w-full border border-gray-200 rounded-lg relative">
-                    {selectedFile ? (
-                        <div className="flex items-center gap-3 p-4"><FileText size={20} className="text-gray-500" /><span className="text-sm text-gray-700">{selectedFile.name}</span></div>
-                    ) : (
-                        <>
-                            <input ref={docInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => setSelectedFile(e.target.files[0])} />
-                            <div className="flex items-center justify-center gap-2 p-6 text-gray-500 hover:text-[#0D614E] transition cursor-pointer"><Upload size={20} /><span className="text-sm">Click to select file</span></div>
-                        </>
-                    )}
-                </div>
-                <div className="flex gap-3 mt-6">
-                    <button onClick={() => { setShowDocumentModal(false); setSelectedFile(null); }} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">Cancel</button>
-                    <button onClick={handleDocumentUpload} disabled={!selectedFile || loadingdoc} className="flex-1 px-4 py-2 bg-[#0D614E] text-white rounded-lg hover:bg-emerald-700 disabled:bg-gray-300">{loadingdoc ? "Upload..." : "Upload"}</button>
-                </div>
-            </Modal>
-
-            <Modal show={showBankModal} onClose={() => setShowBankModal(false)} title="Add New Bank Account">
-                <p className="text-gray-500 text-sm mb-4">Enter your bank account details for payment settlements</p>
-                <div className="space-y-4">
-                    <FormInput label="Account Holder Name" value={newBank.account_holder_name} onChange={(e) => setNewBank({ ...newBank, account_holder_name: e.target.value })} required />
-                    <FormInput label="Account Number" value={newBank.account_number} onChange={(e) => setNewBank({ ...newBank, account_number: e.target.value })} required />
-                    <FormInput label="IFSC Code" value={newBank.ifsc_code} onChange={(e) => setNewBank({ ...newBank, ifsc_code: e.target.value.toUpperCase() })} required />
-                    <FormInput label="Bank Name" value={newBank.bank_name} onChange={(e) => setNewBank({ ...newBank, bank_name: e.target.value })} />
-                    <FormInput label="Branch Name" value={newBank.branch_name} onChange={(e) => setNewBank({ ...newBank, branch_name: e.target.value })} />
-                    <FormInput label="UPI ID" value={newBank.upi_id} onChange={(e) => setNewBank({ ...newBank, upi_id: e.target.value })} />
-                </div>
-                <div className="flex gap-3 mt-6">
-                    <button onClick={() => setShowBankModal(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">Cancel</button>
-                    <button onClick={handleAddBank} className="flex-1 px-4 py-2 bg-[#0D614E] text-white rounded-lg hover:bg-emerald-700">Save</button>
-                </div>
-            </Modal>
-
-            <Modal show={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Account">
-                <div className="flex items-center justify-center w-12 h-12 bg-rose-100 rounded-full mx-auto mb-4"><AlertTriangle size={24} className="text-rose-600" /></div>
-                <p className="text-gray-500 text-center mb-6">Are you sure? All your data will be permanently removed.</p>
-                <div className="flex gap-3">
-                    <button onClick={() => setShowDeleteModal(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">Cancel</button>
-                    <button onClick={handleDeleteAccount} className="flex-1 px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700">Delete</button>
-                </div>
-            </Modal>
-
-            <Modal show={showPasswordModal} onClose={() => setShowPasswordModal(false)} title="Change Password">
-                <form onSubmit={handlePasswordChange}>
-                    <div className="space-y-4">
-                        <FormInput label="Current Password" type="password" name="currentPassword" required />
-                        <FormInput label="New Password" type="password" name="newPassword" required />
-                        <FormInput label="Confirm Password" type="password" name="confirmPassword" required />
                     </div>
                     <div className="flex gap-3 mt-6">
-                        <button type="button" onClick={() => setShowPasswordModal(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">Cancel</button>
-                        <button type="submit" className="flex-1 px-4 py-2 bg-[#0D614E] text-white rounded-lg hover:bg-emerald-700">Update</button>
+                        <button onClick={() => { setShowDocumentModal(false); setSelectedFile(null); }} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">Cancel</button>
+                        <button onClick={handleDocumentUpload} disabled={!selectedFile || loadingdoc} className="flex-1 px-4 py-2 bg-[#0D614E] text-white rounded-lg hover:bg-emerald-700 disabled:bg-gray-300">{loadingdoc ? "Upload..." : "Upload"}</button>
                     </div>
-                </form>
-            </Modal>
+                </Modal>
 
-            <style jsx>{`
+                <Modal show={showBankModal} onClose={() => setShowBankModal(false)} title="Add New Bank Account">
+                    <p className="text-gray-500 text-sm mb-4">Enter your bank account details for payment settlements</p>
+                    <div className="space-y-4">
+                        <FormInput label="Account Holder Name" value={newBank.account_holder_name} onChange={(e) => setNewBank({ ...newBank, account_holder_name: e.target.value })} required />
+                        <FormInput label="Account Number" value={newBank.account_number} onChange={(e) => setNewBank({ ...newBank, account_number: e.target.value })} required />
+                        <FormInput label="IFSC Code" value={newBank.ifsc_code} onChange={(e) => setNewBank({ ...newBank, ifsc_code: e.target.value.toUpperCase() })} required />
+                        <FormInput label="Bank Name" value={newBank.bank_name} onChange={(e) => setNewBank({ ...newBank, bank_name: e.target.value })} />
+                        <FormInput label="Branch Name" value={newBank.branch_name} onChange={(e) => setNewBank({ ...newBank, branch_name: e.target.value })} />
+                        <FormInput label="UPI ID" value={newBank.upi_id} onChange={(e) => setNewBank({ ...newBank, upi_id: e.target.value })} />
+                    </div>
+                    <div className="flex gap-3 mt-6">
+                        <button onClick={() => setShowBankModal(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">Cancel</button>
+                        <button onClick={handleAddBank} className="flex-1 px-4 py-2 bg-[#0D614E] text-white rounded-lg hover:bg-emerald-700">Save</button>
+                    </div>
+                </Modal>
+
+                <Modal show={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Account">
+                    <div className="flex items-center justify-center w-12 h-12 bg-rose-100 rounded-full mx-auto mb-4"><AlertTriangle size={24} className="text-rose-600" /></div>
+                    <p className="text-gray-500 text-center mb-6">Are you sure? All your data will be permanently removed.</p>
+                    <div className="flex gap-3">
+                        <button onClick={() => setShowDeleteModal(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">Cancel</button>
+                        <button onClick={handleDeleteAccount} className="flex-1 px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700">Delete</button>
+                    </div>
+                </Modal>
+
+                <Modal show={showPasswordModal} onClose={() => setShowPasswordModal(false)} title="Change Password">
+                    <form onSubmit={handlePasswordChange}>
+                        <div className="space-y-4">
+                            <FormInput label="Current Password" type="password" name="currentPassword" required />
+                            <FormInput label="New Password" type="password" name="newPassword" required />
+                            <FormInput label="Confirm Password" type="password" name="confirmPassword" required />
+                        </div>
+                        <div className="flex gap-3 mt-6">
+                            <button type="button" onClick={() => setShowPasswordModal(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">Cancel</button>
+                            <button type="submit" className="flex-1 px-4 py-2 bg-[#0D614E] text-white rounded-lg hover:bg-emerald-700">Update</button>
+                        </div>
+                    </form>
+                </Modal>
+
+                <style jsx>{`
                 .animate-spin { animation: spin 1s linear infinite; }
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
             `}</style>
-        </div>
+            </div>
+        </>
     );
 };
 
