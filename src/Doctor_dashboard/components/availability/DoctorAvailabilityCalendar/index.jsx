@@ -10,7 +10,7 @@ import BookingDetailsModal from '../components/BookingDetailsModal';
 import AvailabilityStats from '../components/AvailabilityStats';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 import { useCalendarData } from '../hooks/useCalendarData';
- 
+
 const DoctorAvailabilityCalendar2 = () => {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -23,6 +23,11 @@ const DoctorAvailabilityCalendar2 = () => {
     useEffect(() => {
         fetchMonthData(currentMonth);
     }, [currentMonth, fetchMonthData]);
+
+    // const modelclose = () => {
+    //     setEditingSlot(null)
+    //     setIsDrawerOpen(false)
+    // }
 
     const handlePreviousMonth = useCallback(() => setCurrentMonth(prev => subMonths(prev, 1)), []);
     const handleNextMonth = useCallback(() => setCurrentMonth(prev => addMonths(prev, 1)), []);
@@ -115,8 +120,9 @@ const DoctorAvailabilityCalendar2 = () => {
                     selectedDate={selectedDate}
                     editingSlot={editingSlot}
                     onClose={() => {
-                        setIsDrawerOpen(false);
+                        console.log(editingSlot);
                         setEditingSlot(null);
+                        setIsDrawerOpen(false);
                     }}
                     onSave={handleAddSlot}
                     onUpdate={handleUpdateSlot}

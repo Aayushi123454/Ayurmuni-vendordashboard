@@ -6,6 +6,9 @@ export const doctorService = {
     dashboardget: () => {
         return API.get("/doctors/dashboard/");
     },
+    dashboardfolloupadata: () => {
+        return API.get("/doctors/followup-patients/");
+    },
     financedashboard: () => {
         return API.get("/doctors/dashboard/financial-metrics/");
     },
@@ -54,7 +57,6 @@ export const doctorService = {
     uploadDocuments: (data) => {
         const formData = new FormData();
         for (const key in data) {
-            console.log(data[key]);
             let file = data[key];
             if (file == null || file == undefined) continue; // Skip if no file provided
             formData.append(key, file);
@@ -163,6 +165,18 @@ export const doctorService = {
         return API.put("/doctors/availabilities/" + slotId + "/", slotData);
     },
 
+    // 🔹 Delete Slot
+    deleteTimeSlot: (slotId) => {
+        return API.delete(`/doctors/availabilities/${slotId}/`);
+    },
+
+    // 🔹 Change password
+    changePassword: (data) => {
+        return API.post("/auth/change-password/", {
+            old_password: data.currentPassword,
+            new_password: data.newPassword,
+        });
+    },
 
     // 🔹 Get appointments List
     getAppointment: (type) => {
@@ -178,10 +192,33 @@ export const doctorService = {
     getAppointmentprec: (pid, id) => {
         return API.get(`/doctors/prescription/?patient_id=${pid || ''}&appointment_id=${id || ''}`);
     },
+    getAppointmentDoc: (type, id) => {
+        return API.get(
+            `/doctors/appointments/documents/?${type !== "patient"
+                ? `appointment_id=${id}`
+                : `patient_id=${id}`
+            }`
+        );
+    },
+    getUpcomingAppointment: () => {
+        return API.get(`/doctors/appointments/upcoming/`);
+    },
 
-    // 🔹 Get Patient List
-    getPatient: (type) => {
-        return API.get(`/doctors/?type=${type}`);
+
+    // 🔹 Get Patient List (supports pagination & filters)
+    getPatient: (type, page = 1, pageSize = 10, search = "", prakriti = "", gender = "") => {
+        const params = new URLSearchParams({ type });
+        if (page) params.append("page", String(page));
+        if (pageSize) params.append("page_size", String(pageSize));
+        if (search?.trim()) params.append("search", search.trim());
+        if (prakriti && prakriti !== "all") params.append("prakriti", prakriti);
+        if (gender && gender !== "all") params.append("gender", gender);
+        return API.get(`/doctors/?${params.toString()}`);
+    },
+
+    // 🔹 Get single patient details
+    getPatientDetails: (patientId) => {
+        return API.get(`/doctors/?type=patient&id=${patientId}`);
     },
 
     // 🔹 Get search product List

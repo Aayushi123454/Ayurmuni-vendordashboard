@@ -14,7 +14,7 @@ import VideoControls from "./VideoControls";
 import WaitingScreen from "./WaitingScreen";
 import VideoPip from "./VideoPip";
 
-const API_BASE = process.env.REACT_APP_API_BASE || "https://aghast-cognition-earflap.ngrok-free.dev";
+const API_BASE = process.env.REACT_APP_API_BASE ;
 
 // Utility functions
 const getAccessToken = () => sessionStorage.getItem("accessToken") || localStorage.getItem("accessToken") || "";
@@ -74,8 +74,9 @@ const markEnded = async (consultationId) => {
   await axios.post(`${API_BASE}/doctors/appointments/${consultationId}/call/end/`, {}, { headers: authHeaders() });
 };
 
-export default function DoctorVideoCall({ consultationId, patientDetails, onCallEnd }) {
-  // const { consultationId } = useParams();
+export default function DoctorVideoCall({ consultationId: consultationIdProp, patientDetails, onCallEnd }) {
+  const { consultationId: consultationIdParam } = useParams();
+  const consultationId = consultationIdProp || consultationIdParam;
 
   // State
   const [callState, setCallState] = useState("idle");
