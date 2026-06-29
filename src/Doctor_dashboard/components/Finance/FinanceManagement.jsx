@@ -511,7 +511,7 @@ const FinanceDashboard = () => {
                         <div className="flex justify-between items-center">
                             <div>
                                 <p className="text-xs text-gray-500">Patient Satisfaction</p>
-                                <p className="text-lg font-bold text-gray-800">{stats.patientSatisfaction || 'N/A'} ★</p>
+                                <p className="text-lg font-bold text-gray-800">{stats.patientSatisfaction || 'N/A'}<span>★</span> </p>
                             </div>
                             <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center">
                                 <Star size={14} className="text-yellow-600" />

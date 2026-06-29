@@ -22,7 +22,7 @@ const CalendarHeader = ({ currentMonth, onPrevious, onNext }) => {
                 <div className="flex items-center gap-2">
                     <button
                         onClick={onPrevious}
-                        className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-all duration-200 text-white"
+                        className="p-2 hover:bg-white/20 rounded-xl transition-all duration-200 text-white"
                     >
                         <ChevronLeft className="w-5 h-5" />
                     </button>
@@ -31,7 +31,7 @@ const CalendarHeader = ({ currentMonth, onPrevious, onNext }) => {
                     </span>
                     <button
                         onClick={onNext}
-                        className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-all duration-200 text-white"
+                        className="p-2 hover:bg-white/20 rounded-xl transition-all duration-200 text-white"
                     >
                         <ChevronRight className="w-5 h-5" />
                     </button>

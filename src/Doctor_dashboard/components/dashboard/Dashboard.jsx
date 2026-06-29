@@ -534,7 +534,7 @@ const DoctorDashboard = () => {
                                                         <div className="flex space-x-2">
                                                             <Link
                                                                 to={"/doctor/appointments/appointment/" + appointment.id}
-                                                                className="w-9 h-9 rounded-full bg-[#0D614E]/10 hover:bg-[#0D614E]/20 flex items-center justify-center transition-all duration-200 hover:scale-105"
+                                                                className="w-9 h-9 rounded-full  hover:bg-[#0D614E]/20 flex items-center justify-center transition-all duration-200 hover:scale-105"
                                                             >
                                                                 <Eye size={16} className="text-gray-600" />
                                                             </Link>
@@ -688,7 +688,7 @@ const DoctorDashboard = () => {
                                                             to={"/doctor/patients/patient/" + patient.id}
                                                             className="w-9 h-9 rounded-full bg-[#0D614E]/10 hover:bg-[#0D614E]/20 flex items-center justify-center transition-all duration-200 hover:scale-105"
                                                         >
-                                                            <Eye size={16} className="text-gray-600" />
+                                                            <Eye size={16} className="text-[#0D614E]"/>
                                                         </Link>
                                                     </td>
                                                 </tr>
@@ -869,7 +869,7 @@ const DoctorDashboard = () => {
                             </div>
                             <div className="space-y-4">
                                 {Object.entries(doshaTips).map(([dosha, tips]) => (
-                                    <div key={dosha} className="border-l-4 pl-3" style={{ borderColor: '#0D614E' }}>
+                                    <div key={dosha} className="pl-3" >
                                         <div className="flex items-center space-x-2 mb-2">
                                             {dosha === 'Vata' && <Wind size={16} className="text-purple-600" />}
                                             {dosha === 'Pitta' && <Sun size={16} className="text-orange-600" />}

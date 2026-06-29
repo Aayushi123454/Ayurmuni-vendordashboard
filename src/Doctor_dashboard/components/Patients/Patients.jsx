@@ -26,6 +26,7 @@ import {
     UserCheck,
     Clock,
     CalendarDays,
+    CalendarCheck,
     DollarSign,
     BarChart3,
     PieChart,
@@ -262,8 +263,8 @@ const PatientManagement = () => {
                                     <p className="text-2xl font-bold text-gray-800">{stats.active}</p>
                                     <p className="text-xs text-gray-500 mt-2">with appointments</p>
                                 </div>
-                                <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
-                                    <UserCheck size={20} className="text-green-600" />
+                                <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
+                                    <UserCheck size={20} style={{color:'#0D614E'}} />
                                 </div>
                             </div>
                         </div>
@@ -276,7 +277,7 @@ const PatientManagement = () => {
                                     <p className="text-xs text-gray-500 mt-2">across all patients</p>
                                 </div>
                                 <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                                    <CalendarDays size={20} className="text-blue-600" />
+                                    <CalendarCheck size={20} className="text-blue-600" />
                                 </div>
                             </div>
                         </div>
