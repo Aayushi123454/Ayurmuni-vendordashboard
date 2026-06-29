@@ -109,6 +109,14 @@ const STATUS_CONFIG = {
         icon: RefreshCw
     },
 
+    reschedule: {
+        color: '#EA580C',
+        bg: '#FFEDD5',
+        border: '#FDBA74',
+        label: "Waiting for Patient Response",
+        icon: RefreshCw
+    },
+
     cancelled: {
         color: '#DC2626',
         bg: '#FEE2E2',
@@ -516,6 +524,7 @@ const PrescriptionTemplate = React.forwardRef(({ appointment, formData, doctor, 
                 )}
 
             </div>
+            
 
             {/* ─────────────────────────────────────────────────────────────────────────────── */}
             {/* PROFESSIONAL FOOTER WITH SIGNATURE AREA */}
@@ -701,7 +710,9 @@ const AppointmentDetail = () => {
         clinical_notes: '',
         diagnosis: '',
         prescriptions: [],
-        follow_up: { schedule: false, date: '', reason: '' }
+        follow_up: { schedule: false, date: '', reason: '' },
+        dos: "",
+        donts: ""
     });
 
     const [newMed, setNewMed] = useState({
@@ -870,7 +881,7 @@ const AppointmentDetail = () => {
         }, 1000);
     };
 
-    
+
     const validateProductInfo = () => {
         const newErrors = {};
 
@@ -883,6 +894,13 @@ const AppointmentDetail = () => {
             return false;
         }
         return true;
+    };
+
+    const convertBulletTextToArray = (text) => {
+        return text
+            .split("\n")
+            .map(line => line.replace(/^•\s*/, "").trim())
+            .filter(Boolean);
     };
     // Save prescription to history
     const handleSavePrescription = async () => {
@@ -902,6 +920,8 @@ const AppointmentDetail = () => {
             diagnosis_advice: formData.diagnosis,
             prescription_items: formData.prescriptions,
             follow_up: formData.follow_up,
+            dos: convertBulletTextToArray(formData?.dos),
+            donts: convertBulletTextToArray(formData?.donts)
         };
 
         try {
@@ -919,7 +939,9 @@ const AppointmentDetail = () => {
                     clinical_notes: '',
                     diagnosis: '',
                     prescriptions: [],
-                    follow_up: { schedule: false, date: '', reason: '' }
+                    follow_up: { schedule: false, date: '', reason: '' },
+                    dos: "",
+                    donts: ""
                 })
                 setUpdating(false)
             } else {
@@ -1022,6 +1044,33 @@ const AppointmentDetail = () => {
         }
     };
 
+    const handleBulletList = (e, field) => {
+        if (e.key !== "Enter") return;
+
+        e.preventDefault();
+
+        const textarea = e.target;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+
+        const value = formData[field];
+
+        const newValue =
+            value.substring(0, start) +
+            "\n• " +
+            value.substring(end);
+
+        handleInputChange(field, newValue);
+
+        setTimeout(() => {
+            textarea.selectionStart = textarea.selectionEnd = start + 3;
+        }, 0);
+    };
+    const handleFocus = (field) => {
+        if (!formData[field]) {
+            handleInputChange(field, "• ");
+        }
+    };
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -1094,19 +1143,21 @@ const AppointmentDetail = () => {
                                 <StatusBadge status={appointment?.status} />
                             }
                             {
-                                type != "patient" &&
+                                type != "patient" && (appointment?.status == "confirmed" || appointment?.status == "completed") &&
                                 <button onClick={() => setShowPreview(true)}
                                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-600 text-[#0D614E] text-sm font-semibold hover:bg-emerald-50 transition-all">
                                     <Eye className="w-4 h-4" />
                                     Preview Prescription
                                 </button>
                             }
-                            <button onClick={handleSavePrescription} disabled={updating}
-                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:shadow-lg disabled:opacity-50"
-                                style={{ background: 'linear-gradient(135deg, #0D614E 0%, #0a4a3d 100%)' }}>
-                                <Save className="w-4 h-4" />
-                                {updating ? 'Saving...' : 'Save Changes'}
-                            </button>
+                            {(appointment?.status == "confirmed" || appointment?.status == "completed") &&
+                                <button onClick={handleSavePrescription} disabled={updating}
+                                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:shadow-lg disabled:opacity-50"
+                                    style={{ background: 'linear-gradient(135deg, #0D614E 0%, #0a4a3d 100%)' }}>
+                                    <Save className="w-4 h-4" />
+                                    {updating ? 'Saving...' : 'Save Changes'}
+                                </button>
+                            }
                         </div>
                     </div>
                 </div>
@@ -1136,14 +1187,17 @@ const AppointmentDetail = () => {
                                     appointment?.status &&
                                     <StatusBadge status={appointment?.status} />
                                 } */}
-                                <div className="grid grid-cols-2 gap-2 w-full mt-2">
-                                    <button className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 bg-emerald-50 text-[#0D614E]">
-                                        <MessageCircle className="w-3.5 h-3.5" /> Message
-                                    </button>
-                                    <button onClick={e => setshowCall(!showCall)} className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 bg-emerald-50 text-[#0D614E]">
-                                        <Video className="w-3.5 h-3.5" />Join Call
-                                    </button>
-                                </div>
+                                {
+                                    appointment?.status == "confirmed" &&
+                                    <div className="grid grid-cols-2 gap-2 w-full mt-2">
+                                        <button className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 bg-emerald-50 text-[#0D614E]">
+                                            <MessageCircle className="w-3.5 h-3.5" /> Message
+                                        </button>
+                                        <button onClick={e => setshowCall(!showCall)} className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 bg-emerald-50 text-[#0D614E]">
+                                            <Video className="w-3.5 h-3.5" />Join Call
+                                        </button>
+                                    </div>
+                                }
                             </div>
                         </SectionCard>
 
@@ -1635,6 +1689,65 @@ const AppointmentDetail = () => {
                                                     className="w-full px-4 py-3 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none transition-all"
                                                 />
                                             </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+                                                {/* DO's */}
+                                                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+                                                    <div className="flex items-center gap-3 mb-4">
+                                                        <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                                                            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                                                        </div>
+
+                                                        <div>
+                                                            <h3 className="font-semibold text-emerald-700">
+                                                                Do's
+                                                            </h3>
+                                                            <p className="text-xs text-emerald-600">
+                                                                Advise the patient what they should follow.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <textarea
+                                                        rows={6}
+                                                        value={formData.dos}
+                                                        onChange={(e) => handleInputChange("dos", e.target.value)}
+                                                        onKeyDown={(e) => handleBulletList(e, "dos")}
+                                                        onFocus={() => handleFocus("dos")}
+                                                        placeholder={`• Drink 2-3 liters of water daily`}
+                                                        className="w-full rounded-xl border border-emerald-200 bg-white p-4 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+                                                    />
+                                                </div>
+
+                                                {/* DON'Ts */}
+                                                <div className="bg-red-50 border border-red-200 rounded-2xl p-5">
+                                                    <div className="flex items-center gap-3 mb-4">
+                                                        <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+                                                            <XCircle className="w-5 h-5 text-red-600" />
+                                                        </div>
+
+                                                        <div>
+                                                            <h3 className="font-semibold text-red-700">
+                                                                Don'ts
+                                                            </h3>
+                                                            <p className="text-xs text-red-600">
+                                                                Mention activities or foods to avoid.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <textarea
+                                                        rows={6}
+                                                        value={formData.donts}
+                                                        onKeyDown={(e) => handleBulletList(e, "donts")}
+                                                        onChange={(e) => handleInputChange("donts", e.target.value)}
+                                                        onFocus={() => handleFocus("donts")}
+                                                        placeholder={`• Avoid oily and spicy food`}
+                                                        className="w-full rounded-xl border border-red-200 bg-white p-4 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                                                    />
+                                                </div>
+
+                                            </div>
 
                                             {/* Follow-up */}
                                             <div className="p-5 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl border border-emerald-100">
@@ -1705,14 +1818,14 @@ const AppointmentDetail = () => {
                                                 </h3>
 
                                                 <p className="text-slate-600 mt-2 max-w-lg">
-                                                    This consultation was cancelled before completion. Prescription
-                                                    generation is disabled for cancelled appointments to maintain
+                                                    This consultation was {appointment?.status} before completion. Prescription
+                                                    generation is disabled for {appointment?.status} appointments to maintain
                                                     accurate medical records.
                                                 </p>
 
                                                 <div className="mt-6 flex items-center gap-2 px-4 py-2 rounded-full bg-red-100 text-red-700">
                                                     <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                                                    Appointment Status: Cancelled
+                                                    Appointment Status: {appointment?.status}
                                                 </div>
                                             </div>
                                         </div>
@@ -1918,6 +2031,60 @@ const AppointmentDetail = () => {
                                                                             )}
                                                                         </div>
 
+                                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+                                                                            {/* DO's */}
+                                                                            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+                                                                                <div className="flex items-center gap-3 mb-4">
+                                                                                    <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                                                                                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                                                                                    </div>
+
+                                                                                    <div>
+                                                                                        <h3 className="font-semibold text-emerald-700">
+                                                                                            Do's
+                                                                                        </h3>
+                                                                                        <p className="text-xs text-emerald-600">
+                                                                                            Advise the patient what they should follow.
+                                                                                        </p>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <textarea
+                                                                                    rows={6}
+                                                                                    value={record.dos?.map(item => `• ${item}`).join("\n")}
+                                                                                    placeholder={`• Drink 2-3 liters of water daily`}
+                                                                                    className="w-full rounded-xl border border-emerald-200 bg-white p-4 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+                                                                                />
+                                                                            </div>
+
+                                                                            {/* DON'Ts */}
+                                                                            <div className="bg-red-50 border border-red-200 rounded-2xl p-5">
+                                                                                <div className="flex items-center gap-3 mb-4">
+                                                                                    <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+                                                                                        <XCircle className="w-5 h-5 text-red-600" />
+                                                                                    </div>
+
+                                                                                    <div>
+                                                                                        <h3 className="font-semibold text-red-700">
+                                                                                            Don'ts
+                                                                                        </h3>
+                                                                                        <p className="text-xs text-red-600">
+                                                                                            Mention activities or foods to avoid.
+                                                                                        </p>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <textarea
+                                                                                    rows={6}
+                                                                                    value={record?.donts?.map(item => `• ${item}`).join("\n")}
+                                                                                    placeholder={`• Avoid oily and spicy food`}
+                                                                                    className="w-full rounded-xl border border-red-200 bg-white p-4 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                                                                                />
+                                                                            </div>
+
+                                                                        </div>
+
                                                                         {/* Follow-up Information */}
                                                                         {record.follow_up?.schedule && record.follow_up?.date && (
                                                                             <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-300 rounded-xl p-4">
@@ -2016,8 +2183,8 @@ const AppointmentDetail = () => {
                                                                         </span>
                                                                         <span className="hidden sm:inline">•</span>
                                                                         <span className="flex items-center gap-1 font-medium text-slate-700">
-                                                                            <IndianRupee className="w-3.5 h-3.5" />
-                                                                            ₹{item.amount.toLocaleString('en-IN')}
+                                                                            {/* <IndianRupee className="w-3.5 h-3.5" /> */}
+                                                                            ₹{item?.amount?.toLocaleString('en-IN')}
                                                                         </span>
                                                                     </div>
 

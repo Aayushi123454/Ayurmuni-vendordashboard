@@ -31,11 +31,11 @@ const DOCUMENT_REQUIREMENTS = {
     medical_degree_certificate: { label: 'Medical Degree Certificate', required: true, accepted: ['PDF', 'JPG', 'PNG'], maxSize: 5 },
     registration_certificate: { label: 'Registration Certificate', required: true, accepted: ['PDF', 'JPG', 'PNG'], maxSize: 5 },
     identity_proof: { label: 'Identity Proof (Aadhar/PAN)', required: true, accepted: ['PDF', 'JPG', 'PNG'], maxSize: 2 },
-    address_proof: { label: 'Address Proof', required: false, accepted: ['PDF', 'JPG', 'PNG'], maxSize: 2 },
-    passport_photo: { label: 'Passport Size Photo', required: true, accepted: ['JPG', 'PNG'], maxSize: 1 },
+    // address_proof: { label: 'Address Proof', required: false, accepted: ['PDF', 'JPG', 'PNG'], maxSize: 2 },
+    passport_photo: { label: 'Others', required: true, accepted: ['JPG', 'PNG'], maxSize: 1 },
     signature: { label: 'Signature', required: true, accepted: ['JPG', 'PNG'], maxSize: 1 },
     experience_certificate: { label: 'Experience Certificate', required: true, accepted: ['PDF'], maxSize: 5 },
-    pan_card: { label: 'PAN Card', required: false, accepted: ['PDF', 'JPG', 'PNG'], maxSize: 2 },
+    // pan_card: { label: 'PAN Card', required: false, accepted: ['PDF', 'JPG', 'PNG'], maxSize: 2 },
     gst_certificate: { label: 'GST Certificate', required: false, accepted: ['PDF'], maxSize: 5 },
     cancelled_cheque_or_bank_statement: { label: 'Cancelled Cheque/Bank Statement', required: false, accepted: ['PDF', 'JPG', 'PNG'], maxSize: 2 }
 };
@@ -81,7 +81,7 @@ const InfoRow = ({ icon: Icon, value, className = "" }) => (
     </div>
 );
 
-const FormInput = ({ label, value, onChange, disabled, type = "text", placeholder = "", required = false, icon: Icon }) => (
+const FormInput = ({ label, value, onChange, disabled, type = "text", placeholder = "", max, required = false, icon: Icon }) => (
     <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
             {label} {required && <span className="text-red-500">*</span>}
@@ -91,6 +91,7 @@ const FormInput = ({ label, value, onChange, disabled, type = "text", placeholde
             <input
                 type={type}
                 value={value}
+                max={max}
                 onChange={onChange}
                 disabled={disabled}
                 placeholder={placeholder}
@@ -301,7 +302,7 @@ const BankCard = ({ data, index, isEditing, editIndex, onPrimaryChange, onEdit, 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <input value={data.account_holder_name} onChange={(e) => onInputChange(index, "account_holder_name", e.target.value)}
                             className="input px-3 py-2 border rounded" placeholder="Account Holder Name" />
-                        <input value={data.account_number} onChange={(e) => onInputChange(index, "account_number", e.target.value)}
+                        <input type='number' value={data.account_number} onChange={(e) => onInputChange(index, "account_number", e.target.value)}
                             className="input px-3 py-2 border rounded" placeholder="Account Number" />
                         <input value={data.ifsc_code} onChange={(e) => onInputChange(index, "ifsc_code", e.target.value.toUpperCase())}
                             className="input px-3 py-2 border rounded" placeholder="IFSC" />
@@ -309,8 +310,8 @@ const BankCard = ({ data, index, isEditing, editIndex, onPrimaryChange, onEdit, 
                             className="input px-3 py-2 border rounded" placeholder="Bank Name" />
                         <input value={data.branch_name} onChange={(e) => onInputChange(index, "branch_name", e.target.value)}
                             className="input px-3 py-2 border rounded" placeholder="Branch" />
-                        <input value={data.upi_id} onChange={(e) => onInputChange(index, "upi_id", e.target.value)}
-                            className="input px-3 py-2 border rounded" placeholder="UPI ID" />
+                        {/* <input value={data.upi_id} onChange={(e) => onInputChange(index, "upi_id", e.target.value)}
+                            className="input px-3 py-2 border rounded" placeholder="UPI ID" /> */}
                     </div>
                     <div className="flex justify-end gap-3 mt-4">
                         <button onClick={onCancel} className="px-3 py-1 border rounded">Cancel</button>
@@ -354,6 +355,8 @@ const DoctorProfile = () => {
     const [activeTab, setActiveTab] = useState(
         STATUS_TABS.includes(tabFromUrl) ? tabFromUrl : 'profile'
     );
+
+
     useEffect(() => {
         if (tabFromUrl && STATUS_TABS.includes(tabFromUrl)) {
             setActiveTab(tabFromUrl);
@@ -404,9 +407,11 @@ const DoctorProfile = () => {
         try {
             const response = await doctorService.getProfile();
             const profile = response?.data?.data;
+            let data = sessionStorage.getItem('profile');
             if (profile?.approval_status === 'approved') {
-                let data = sessionStorage.getItem('profile');
                 sessionStorage.setItem('profile', JSON.stringify({ ...JSON.parse(data), verify: true })); // Store the entire profile data in sessionStorage
+            } else {
+                sessionStorage.setItem('profile', JSON.stringify({ ...JSON.parse(data), verify: false })); // Store the entire profile data in sessionStorage
             }
             setDoctorData(prev => ({
                 ...prev,
@@ -486,8 +491,9 @@ const DoctorProfile = () => {
             };
             await doctorService.updateProfile(updateData);
             toast.success('Profile updated successfully!');
-            setIsEditing(false);
-            await fetchDoctorProfile();
+            let data = sessionStorage.getItem('profile');
+            sessionStorage.setItem('profile', JSON.stringify({ ...JSON.parse(data), first_name: doctorData.first_name, last_name: doctorData.last_name, })); // Store the entire profile data in sessionStorage
+            window.location.reload()
         } catch (error) {
             toast.error(error.response?.data?.message || 'Failed to update profile');
         } finally {
@@ -731,26 +737,29 @@ const DoctorProfile = () => {
                                         <InfoRow icon={MapPin} value={doctorData.city || 'Location not set'} />
                                     </div>
                                 </div>
-                                <div className="flex gap-3">
-                                    {!isEditing ? (
-                                        <button onClick={() => setIsEditing(true)} className="flex items-center px-5 py-2.5 bg-[#0D614E] text-white rounded-xl hover:bg-[#0D614E]/90 transition-all shadow-md hover:shadow-lg">
-                                            <Edit size={18} /><span>Edit Profile</span>
-                                        </button>
-                                    ) : (
-                                        <>
-                                            <button onClick={() => {
-                                                setIsEditing(false)
-                                                fetchDoctorProfile()
-                                            }} className="flex items-center px-5 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all">
-                                                <X size={18} /><span>Cancel</span>
+                                {
+                                    JSON.parse(sessionStorage.getItem('profile'))?.verify &&
+                                    <div className="flex gap-3">
+                                        {!isEditing ? (
+                                            <button onClick={() => setIsEditing(true)} className="flex items-center px-5 py-2.5 bg-[#0D614E] text-white rounded-xl hover:bg-[#0D614E]/90 transition-all shadow-md hover:shadow-lg">
+                                                <Edit size={18} /><span>Edit Profile</span>
                                             </button>
-                                            <button onClick={handleSaveProfile} disabled={isSaving} className="flex items-center px-5 py-2.5 bg-[#0D614E] text-white rounded-xl hover:bg-emerald-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50">
-                                                {isSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Save size={18} />}
-                                                <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
-                                            </button>
-                                        </>
-                                    )}
-                                </div>
+                                        ) : (
+                                            <>
+                                                <button onClick={() => {
+                                                    setIsEditing(false)
+                                                    fetchDoctorProfile()
+                                                }} className="flex items-center px-5 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all">
+                                                    <X size={18} /><span>Cancel</span>
+                                                </button>
+                                                <button onClick={handleSaveProfile} disabled={isSaving} className="flex items-center px-5 py-2.5 bg-[#0D614E] text-white rounded-xl hover:bg-emerald-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50">
+                                                    {isSaving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> : <Save size={18} />}
+                                                    <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                }
                             </div>
 
                             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mt-6 pt-6 border-t border-gray-100">
@@ -794,7 +803,7 @@ const DoctorProfile = () => {
                                         <FormInput label="Title" value={doctorData.title} onChange={(e) => handleInputChange('title', e.target.value)} disabled={true} options={TITLES} />
                                         <FormInput label="First Name" value={doctorData.first_name} onChange={(e) => handleInputChange('first_name', e.target.value)} disabled={!isEditing} required />
                                         <FormInput label="Last Name" value={doctorData.last_name} onChange={(e) => handleInputChange('last_name', e.target.value)} disabled={!isEditing} required />
-                                        <FormInput label="Date of Birth" value={doctorData.dob?.split('T')[0] || doctorData.dob} onChange={(e) => handleInputChange('dob', e.target.value)} disabled={!isEditing} type="date" />
+                                        <FormInput label="Date of Birth" value={doctorData.dob?.split('T')[0] || doctorData.dob} onChange={(e) => handleInputChange('dob', e.target.value)} disabled={!isEditing} type="date" max={new Date(new Date().setFullYear(new Date().getFullYear() - 25)).toISOString().split("T")[0]} />
                                         <FormSelect label="Gender" value={doctorData.gender} onChange={(e) => handleInputChange('gender', e.target.value)} disabled={!isEditing} options={GENDERS} icon={BsGenderNeuter} />
                                         <FormInput label="Nationality" value={doctorData.nationality} onChange={(e) => handleInputChange('nationality', e.target.value)} disabled={!isEditing} />
                                         <label className='-mb-3'>Selected Languages</label>
@@ -833,7 +842,7 @@ const DoctorProfile = () => {
                                         <FormInput label="Follow-up Fee (₹)" value={doctorData.followup_fee} onChange={(e) => handleInputChange('followup_fee', e.target.value)} disabled={!isEditing} type="number" />
                                         <FormInput label="Average Consultation Time (min)" value={doctorData.average_consultation_time} onChange={(e) => handleInputChange('average_consultation_time', e.target.value)} disabled={!isEditing} type="number" />
                                         <FormInput label="Max Patients Per Day" value={doctorData.max_patients_per_day} onChange={(e) => handleInputChange('max_patients_per_day', e.target.value)} disabled={!isEditing} type="number" />
-                                        <div className="md:col-span-2">
+                                        {/* <div className="md:col-span-2">
                                             <label className="block text-sm font-medium text-gray-700 mb-1">Consultation Modes</label>
                                             <div className="flex flex-wrap gap-4">
                                                 {CONSULTATION_MODES_LIST.map(mode => (
@@ -847,7 +856,7 @@ const DoctorProfile = () => {
                                                     </label>
                                                 ))}
                                             </div>
-                                        </div>
+                                        </div> */}
                                     </div>
 
                                     <SectionHeader title="Ayurvedic Information" />
@@ -861,18 +870,18 @@ const DoctorProfile = () => {
                                                 options={prakritiAndDiseases?.diseases?.data} disabled={!isEditing} colorClass="bg-purple-100 text-purple-700" />
                                         }
 
-                                        <FormSelect name="primaryDosha" label="Primary Dosha Expertise" value={doctorData.primary_dosha_expertise} onChange={(e) => handleInputChange('primary_dosha_expertise', e.target.value)} disabled={!isEditing} options={prakritiAndDiseases?.prakriti?.data} />
+                                        {/* <FormSelect name="primaryDosha" label="Primary Dosha Expertise" value={doctorData.primary_dosha_expertise} onChange={(e) => handleInputChange('primary_dosha_expertise', e.target.value)} disabled={!isEditing} options={prakritiAndDiseases?.prakriti?.data} /> */}
 
 
                                         <FormInput label="Years in Ayurveda" value={doctorData.ayurveda_practice_years} onChange={(e) => handleInputChange('ayurveda_practice_years', e.target.value)} disabled={!isEditing} type="number" />
                                         <FormInput label="Ayurvedic Council ID" value={doctorData.ayurvedic_council_id} onChange={(e) => handleInputChange('ayurvedic_council_id', e.target.value)} disabled={!isEditing} />
                                         <FormInput label="Practicing Since" value={doctorData.practicing_since?.split('T')[0] || doctorData.practicing_since} onChange={(e) => handleInputChange('practicing_since', e.target.value)} disabled={!isEditing} type="date" />
-                                        <div className="md:col-span-2">
+                                        {/* <div className="md:col-span-2">
                                             <CheckboxOption label="Panchakarma Certified" checked={doctorData.is_panchakarma_certified} onChange={(e) => handleInputChange('is_panchakarma_certified', e.target.checked)} disabled={!isEditing} />
                                         </div>
                                         <ChipInput items={doctorData.specialized_therapies || []} onAdd={(val) => handleInputChange('specialized_therapies', [...(doctorData.specialized_therapies || []), val])}
                                             onRemove={(idx) => handleInputChange('specialized_therapies', doctorData.specialized_therapies.filter((_, i) => i !== idx))}
-                                            options={THERAPIES_LIST} disabled={!isEditing} colorClass="bg-purple-100 text-purple-700" />
+                                            options={THERAPIES_LIST} disabled={!isEditing} colorClass="bg-purple-100 text-purple-700" /> */}
                                     </div>
 
                                     <SectionHeader title="Professional Bio" />
@@ -921,12 +930,15 @@ const DoctorProfile = () => {
                             {/* Bank Tab */}
                             {activeTab === 'bank' && (
                                 <div className="space-y-6">
-                                    <div className="flex justify-between items-center">
-                                        <h3 className="text-lg font-semibold text-gray-800">Bank Accounts</h3>
-                                        <button onClick={() => setShowBankModal(true)} className="px-4 py-2 bg-[#0D614E] text-white rounded-xl hover:bg-[#0D614E]/90 transition">
-                                            + Add Bank Account
-                                        </button>
-                                    </div>
+                                    {
+                                        JSON.parse(sessionStorage.getItem('profile'))?.verify &&
+                                        <div className="flex justify-between items-center">
+                                            <h3 className="text-lg font-semibold text-gray-800">Bank Accounts</h3>
+                                            <button onClick={() => setShowBankModal(true)} className="px-4 py-2 bg-[#0D614E] text-white rounded-xl hover:bg-[#0D614E]/90 transition">
+                                                + Add Bank Account
+                                            </button>
+                                        </div>
+                                    }
                                     <div className="grid md:grid-cols-3 gap-6">
                                         {doctorData.bank_details.map((data, index) => (
                                             <BankCard
@@ -986,11 +998,11 @@ const DoctorProfile = () => {
                     <p className="text-gray-500 text-sm mb-4">Enter your bank account details for payment settlements</p>
                     <div className="space-y-4">
                         <FormInput label="Account Holder Name" value={newBank.account_holder_name} onChange={(e) => setNewBank({ ...newBank, account_holder_name: e.target.value })} required />
-                        <FormInput label="Account Number" value={newBank.account_number} onChange={(e) => setNewBank({ ...newBank, account_number: e.target.value })} required />
+                        <FormInput type='number' label="Account Number" value={newBank.account_number} onChange={(e) => setNewBank({ ...newBank, account_number: e.target.value })} required />
                         <FormInput label="IFSC Code" value={newBank.ifsc_code} onChange={(e) => setNewBank({ ...newBank, ifsc_code: e.target.value.toUpperCase() })} required />
                         <FormInput label="Bank Name" value={newBank.bank_name} onChange={(e) => setNewBank({ ...newBank, bank_name: e.target.value })} />
                         <FormInput label="Branch Name" value={newBank.branch_name} onChange={(e) => setNewBank({ ...newBank, branch_name: e.target.value })} />
-                        <FormInput label="UPI ID" value={newBank.upi_id} onChange={(e) => setNewBank({ ...newBank, upi_id: e.target.value })} />
+                        {/* <FormInput label="UPI ID" value={newBank.upi_id} onChange={(e) => setNewBank({ ...newBank, upi_id: e.target.value })} /> */}
                     </div>
                     <div className="flex gap-3 mt-6">
                         <button onClick={() => setShowBankModal(false)} className="flex-1 px-4 py-2 border border-gray-300 rounded-lg">Cancel</button>

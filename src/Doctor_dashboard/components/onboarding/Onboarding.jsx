@@ -13,10 +13,10 @@ import { Link } from 'react-router-dom';
 
 // ==================== CONSTANTS ====================
 const TITLES = ['Dr.', 'Prof.', 'Dr. (Prof.)'];
-const GENDERS = ['male', 'female', 'other'];
+const GENDERS = ['Male', 'Female', 'Other'];
 const LANGUAGES = ['English', 'Hindi', 'Sanskrit', 'Tamil', 'Telugu', 'Kannada', 'Malayalam', 'Gujarati', 'Marathi', 'Bengali'];
 const DOSHA_OPTIONS = ['Vata', 'Pitta', 'Kapha', 'Vata-Pitta', 'Pitta-Kapha', 'Vata-Kapha'];
-const CONSULTATION_MODES = ['video', 'chat'];
+const CONSULTATION_MODES = ['Video', 'Chat'];
 const PAYMENT_TERMS = [
     { value: 'weekly', label: 'Weekly Settlement' },
     { value: 'bi-weekly', label: 'Bi-Weekly Settlement' },
@@ -38,13 +38,13 @@ const DOCUMENT_REQUIREMENTS = {
     medicalDegree: { label: 'Medical Degree Certificate', required: true, accepted: ['PDF', 'JPG', 'PNG'], maxSize: 5 },
     registrationCertificate: { label: 'Registration Certificate', required: true, accepted: ['PDF', 'JPG', 'PNG'], maxSize: 5 },
     identityProof: { label: 'Identity Proof (Aadhar/PAN)', required: true, accepted: ['PDF', 'JPG', 'PNG'], maxSize: 2 },
-    addressProof: { label: 'Address Proof', required: false, accepted: ['PDF', 'JPG', 'PNG'], maxSize: 2 },
-    passportPhoto: { label: 'Passport Size Photo', required: true, accepted: ['JPG', 'PNG'], maxSize: 1 },
+    // addressProof: { label: 'Address Proof', required: false, accepted: ['PDF', 'JPG', 'PNG'], maxSize: 2 },
     signature: { label: 'Signature', required: true, accepted: ['JPG', 'PNG'], maxSize: 1 },
     experienceCertificate: { label: 'Experience Certificate', required: true, accepted: ['PDF'], maxSize: 5 },
-    panCard: { label: 'PAN Card', required: false, accepted: ['PDF', 'JPG', 'PNG'], maxSize: 2 },
+    // panCard: { label: 'PAN Card', required: false, accepted: ['PDF', 'JPG', 'PNG'], maxSize: 2 },
     gstCertificate: { label: 'GST Certificate', required: false, accepted: ['PDF'], maxSize: 5 },
-    bankDetails: { label: 'Cancelled Cheque/Bank Statement', required: false, accepted: ['PDF', 'JPG', 'PNG'], maxSize: 2 }
+    bankDetails: { label: 'Cancelled Cheque/Bank Statement', required: false, accepted: ['PDF', 'JPG', 'PNG'], maxSize: 2 },
+    passportPhoto: { label: 'Others', required: false, accepted: ['JPG', 'PNG'], maxSize: 1 },
 };
 
 const VALIDATION_PATTERNS = {
@@ -53,7 +53,7 @@ const VALIDATION_PATTERNS = {
     pincode: /^[1-9][0-9]{5}$/,
     ifsc: /^[A-Z]{4}0[A-Z0-9]{6}$/i,
     linkedin: /^https?:\/\/(www\.)?linkedin\.com\/.*$/,
-    twitter: /^https?:\/\/(www\.)?twitter\.com\/.*$/,
+    twitter: /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/.*$/,
     facebook: /^https?:\/\/(www\.)?facebook\.com\/.*$/,
     instagram: /^https?:\/\/(www\.)?instagram\.com\/.*$/
 };
@@ -106,7 +106,13 @@ const formatFileSize = (bytes) => {
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 };
-
+const removePreview = (obj) => {
+    if (obj === null || obj === undefined) {
+        return null; // or {}
+    }
+    const { preview, ...rest } = obj;
+    return rest;
+};
 const transformToApiFormat = (formData) => ({
     title: formData.personalInfo.title,
     first_name: formData.personalInfo.firstName,
@@ -159,16 +165,18 @@ const transformToApiFormat = (formData) => ({
     upi_id: formData.bankInfo.upiId,
     payment_terms: formData.bankInfo.paymentTerms,
     is_selected: true,
-    medical_degree_certificate: formData.documents.medicalDegree,
-    registration_certificate: formData.documents.registrationCertificate,
-    identity_proof: formData.documents.identityProof,
-    address_proof: formData.documents.addressProof,
-    passport_photo: formData.documents.passportPhoto,
-    signature: formData.documents.signature,
-    experience_certificate: formData.documents.experienceCertificate,
-    pan_card: formData.documents.panCard,
-    gst_certificate: formData.documents.gstCertificate,
-    cancelled_cheque_or_bank_statement: formData.documents.bankDetails,
+
+
+    medical_degree_certificate: removePreview(formData.documents.medicalDegree),
+    registration_certificate: removePreview(formData.documents.registrationCertificate),
+    identity_proof: removePreview(formData.documents.identityProof),
+    address_proof: removePreview(formData.documents.addressProof),
+    passport_photo: removePreview(formData.documents.passportPhoto),
+    signature: removePreview(formData.documents.signature),
+    experience_certificate: removePreview(formData.documents.experienceCertificate),
+    pan_card: removePreview(formData.documents.panCard),
+    gst_certificate: removePreview(formData.documents.gstCertificate),
+    cancelled_cheque_or_bank_statement: removePreview(formData.documents.bankDetails),
 });
 
 
@@ -220,6 +228,7 @@ const FormInput = ({ label, name, value, onChange, error, required, placeholder,
             value={value}
             onChange={onChange}
             placeholder={placeholder}
+            maxLength={max}
             max={max}
             disabled={disabled}
             className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 transition-all ${error ? 'border-rose-500 focus:ring-rose-500 bg-rose-50' : 'border-gray-200 focus:ring-[#0D614E]'
@@ -403,9 +412,10 @@ const DocumentUploadCard = ({ documentKey, document, error, onUpload, onDelete, 
                         </div>
                     </div>
                     <div className="flex space-x-2">
-                        <button type="button" onClick={() => onView(document.preview)} className="p-1 hover:bg-emerald-200 rounded">
+                        {/* <a href={document.preview} target='_blank' type="button" className="p-1 hover:bg-emerald-200 rounded">
                             <Eye size={16} />
-                        </button>
+                        </a> */}
+                        {/* onClick={() => onView(document.preview)} */}
                         <button type="button" onClick={() => onDelete(documentKey)} className="p-1 hover:bg-emerald-200 rounded">
                             <Trash2 size={16} className="text-rose-600" />
                         </button>
@@ -619,7 +629,7 @@ const DoctorOnboarding = () => {
                 if (!formData.professionalInfo.qualifications?.trim()) newErrors.qualifications = "Qualifications are required";
                 if (!formData.professionalInfo.registrationNumber?.trim()) newErrors.registrationNumber = "Registration number is required";
                 if (!formData.professionalInfo.experience?.toString().trim()) newErrors.experience = "Experience is required";
-                if (!formData.ayurvedicInfo.primaryDosha) newErrors.primaryDosha = "Primary dosha is required";
+                // if (!formData.ayurvedicInfo.primaryDosha) newErrors.primaryDosha = "Primary dosha is required";
                 if (!formData.ayurvedicInfo.primaryDisease) newErrors.primaryDisease = "Primary disease is required";
                 if (!formData.professionalInfo.consultationFee) newErrors.consultationFee = "Consultation fee is required";
                 else if (Number(formData.professionalInfo.consultationFee) <= 0) newErrors.consultationFee = "Enter valid fee";
@@ -795,9 +805,9 @@ const DoctorOnboarding = () => {
                                             onChange={(e) => handleNestedInputChange('socialMedia', 'socialMedia', 'linkedin', e.target.value)}
                                             error={errors.linkedin} placeholder="https://www.linkedin.com/in/username..." type="url" />
 
-                                        <FormInput label="Twitter" name="twitter" value={formData.socialMedia.socialMedia.twitter}
+                                        <FormInput label="Twitter / X" name="twitter" value={formData.socialMedia.socialMedia.twitter}
                                             onChange={(e) => handleNestedInputChange('socialMedia', 'socialMedia', 'twitter', e.target.value)}
-                                            error={errors.twitter} placeholder="https://www.twitter.com/username..." type="url" />
+                                            error={errors.twitter} placeholder="https://x.com/username..." type="url" />
 
                                         <FormInput label="Facebook" name="facebook" value={formData.socialMedia.socialMedia.facebook}
                                             onChange={(e) => handleNestedInputChange('socialMedia', 'socialMedia', 'facebook', e.target.value)}
@@ -823,7 +833,7 @@ const DoctorOnboarding = () => {
                                             onChange={(e) => handleInputChange('contactInfo', 'phone', e.target.value)}
                                             error={errors.phone} required placeholder="+91 XXXXXXXXXX" type="tel" /> */}
 
-                                        <FormInput label="Alternate Number" name="alternatePhone" value={formData.contactInfo.alternatePhone}
+                                        <FormInput label="Alternate Number" max={10} name="alternatePhone" value={formData.contactInfo.alternatePhone}
                                             onChange={(e) => handleInputChange('contactInfo', 'alternatePhone', e.target.value)}
                                             error={errors.alternatePhone} placeholder="Optional" type="tel" />
 
@@ -841,7 +851,7 @@ const DoctorOnboarding = () => {
                                             onChange={(e) => handleNestedInputChange('contactInfo', 'address', 'state', e.target.value)}
                                             error={errors.state} required placeholder="Enter state" />
 
-                                        <FormInput label="Pincode" name="pincode" value={formData.contactInfo.address.pincode}
+                                        <FormInput label="Pincode" name="pincode" max={6} value={formData.contactInfo.address.pincode}
                                             onChange={(e) => handleNestedInputChange('contactInfo', 'address', 'pincode', e.target.value)}
                                             error={errors.pincode} required placeholder="Enter pincode" />
 
@@ -851,7 +861,7 @@ const DoctorOnboarding = () => {
 
                                         <SectionDivider title="Emergency Contact" />
 
-                                        <FormInput label="Emergency Contact Name" name="emergencyName" value={formData.contactInfo.emergencyContact.name}
+                                        <FormInput label="Emergency Contact Name" max={10} name="emergencyName" value={formData.contactInfo.emergencyContact.name}
                                             onChange={(e) => handleNestedInputChange('contactInfo', 'emergencyContact', 'name', e.target.value)}
                                             placeholder="Enter emergency contact name" />
 
@@ -887,9 +897,9 @@ const DoctorOnboarding = () => {
                                             onChange={(e) => handleInputChange('professionalInfo', 'registrationYear', e.target.value)}
                                             type="number" placeholder="Year of registration" />
 
-                                        <FormSelect label="Primary Dosha Expertise" name="primaryDosha" value={formData.ayurvedicInfo.primaryDosha}
+                                        {/* <FormSelect label="Primary Dosha Expertise" name="primaryDosha" value={formData.ayurvedicInfo.primaryDosha}
                                             onChange={(e) => handleInputChange('ayurvedicInfo', 'primaryDosha', e.target.value)}
-                                            error={errors.primaryDosha} required options={prakritiAndDiseases?.prakriti?.data} />
+                                            error={errors.primaryDosha} required options={prakritiAndDiseases?.prakriti?.data} /> */}
 
                                         <ChipInput name=" " label="Primary Disease Expertise" items={formData.ayurvedicInfo.primaryDisease}
                                             onAdd={(val) => handleArrayAdd('ayurvedicInfo', 'primaryDisease', val)}
@@ -923,7 +933,7 @@ const DoctorOnboarding = () => {
                                             onChange={(e) => handleInputChange('professionalInfo', 'maxPatientsPerDay', e.target.value)}
                                             type="number" placeholder="Maximum number of patients per day" />
 
-                                        <CheckboxGroup label="Consultation Mode" options={CONSULTATION_MODES}
+                                        {/* <CheckboxGroup label="Consultation Mode" options={CONSULTATION_MODES}
                                             selectedValues={formData.professionalInfo.consultationMode}
                                             onChange={(mode, checked) => handleCheckboxToggle('professionalInfo', 'consultationMode', mode, checked)} />
 
@@ -939,7 +949,7 @@ const DoctorOnboarding = () => {
                                         <ChipInput label="Specialized Therapies" items={formData.ayurvedicInfo.therapies}
                                             onAdd={(val) => handleInputChange('ayurvedicInfo', 'therapies', [...formData.ayurvedicInfo.therapies, val])}
                                             onRemove={(idx) => handleInputChange('ayurvedicInfo', 'therapies', formData.ayurvedicInfo.therapies.filter((_, i) => i !== idx))}
-                                            options={THERAPIES} placeholder="Add Therapy" />
+                                            options={THERAPIES} placeholder="Add Therapy" /> */}
                                     </div>
                                 </div>
                             )}
@@ -976,11 +986,11 @@ const DoctorOnboarding = () => {
                                                 error={errors.accountHolderName} required placeholder="Name as per bank records" />
                                         </div>
 
-                                        <FormInput label="Account Number" name="accountNumber" value={formData.bankInfo.accountNumber}
+                                        <FormInput  label="Account Number" max={18} name="accountNumber" value={formData.bankInfo.accountNumber}
                                             onChange={(e) => handleInputChange('bankInfo', 'accountNumber', e.target.value)}
                                             error={errors.accountNumber} required placeholder="Bank account number" />
 
-                                        <FormInput label="Confirm Account Number" name="confirmAccountNumber" value={formData.bankInfo.confirmAccountNumber}
+                                        <FormInput  label="Confirm Account Number" max={18} name="confirmAccountNumber" value={formData.bankInfo.confirmAccountNumber}
                                             onChange={(e) => handleInputChange('bankInfo', 'confirmAccountNumber', e.target.value)}
                                             error={errors.confirmAccountNumber} required placeholder="Confirm your bank account number" />
 
@@ -1083,7 +1093,7 @@ const DoctorOnboarding = () => {
                                     <span>Next</span><ChevronRight size={18} />
                                 </button>
                             ) : (
-                                <button type="submit" disabled={isSubmitting}
+                                <button type="submit" disabled={isSubmitting || !formData.agreements.termsAccepted || !formData.agreements.privacyAccepted || !formData.agreements.communicationAccepted}
                                     className="flex items-center space-x-2 px-8 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all disabled:opacity-50">
                                     {isSubmitting ? (
                                         <><RefreshCw size={18} className="animate-spin" /><span>Submitting...</span></>

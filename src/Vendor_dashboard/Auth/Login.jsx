@@ -133,11 +133,12 @@ const OtpInput = ({ onVerify, onBack, mobile, loading, onResendOtp, resendLoadin
             >
               <option value="">Select Role</option>
 
-              {otpData?.data?.user_roles?.map((role, index) => (
-                <option key={index} value={role}>
-                  {role.charAt(0).toUpperCase() + role.slice(1)}
-                </option>
-              ))}
+              {otpData?.data?.user_roles?.map((role, index) =>
+                role != "customer" && (
+                  <option key={index} value={role}>
+                    {role.charAt(0).toUpperCase() + role.slice(1)}
+                  </option>
+                ))}
             </select>
 
             {/* {errors?.role && (
@@ -179,10 +180,11 @@ const OtpInput = ({ onVerify, onBack, mobile, loading, onResendOtp, resendLoadin
 // ==============================
 // Login Form Component
 // ==============================
-const LoginForm = ({ onSubmit, loading }) => {
+const LoginForm = ({ onSubmit }) => {
   const [mobile, setMobile] = useState("");
   const [keepSigned, setKeepSigned] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setloading] = useState(false)
 
   const validateMobile = (value) => {
     if (!value.trim()) return "Please enter your mobile number";
@@ -191,6 +193,7 @@ const LoginForm = ({ onSubmit, loading }) => {
   };
 
   const handleSubmit = () => {
+    setloading(true)
     const validationError = validateMobile(mobile);
     if (validationError) {
       setError(validationError);
@@ -198,6 +201,9 @@ const LoginForm = ({ onSubmit, loading }) => {
     }
     setError("");
     onSubmit(mobile, keepSigned);
+    setTimeout(() => {
+      setloading(false)
+    }, 2000);
   };
 
   return (
@@ -495,7 +501,10 @@ export default function AuthPage() {
   const handleSendOtp = async (userMobile, keepSigned = false) => {
     setSendOtpLoading(true);
     try {
-      const response = await authService.SendOtp({ phone_number: `+91${userMobile}` });
+      const response = await authService.SendOtp({
+        phone_number: `+91${userMobile}`,
+        login: true
+      });
 
       if (response?.data?.success) {
         const userRoles = response?.data?.data?.user_roles || [];
@@ -585,15 +594,12 @@ export default function AuthPage() {
 
       if (response?.data?.success) {
         const data = response?.data?.data;
-        // Store Tokens
         if (data?.access && !data?.is_deleted) {
           sessionStorage.setItem("accessToken", data.access);
         }
-
         if (data?.refresh) {
           sessionStorage.setItem("refreshToken", data.refresh);
         }
-
         // Role
         const userRole =
           activeTab === "register"
@@ -611,7 +617,6 @@ export default function AuthPage() {
             verify: data?.is_verified,
           })
         );
-        console.log(data);
 
         if (data?.is_deleted) {
           setdeleteAccountActive(true);
@@ -664,7 +669,7 @@ export default function AuthPage() {
         error?.response?.data?.message ||
         "Verification failed. Please try again.";
 
-      toast.error(errorMessage);
+      // toast.error(errorMessage);
     } finally {
       setVerifyOtpLoading(false);
     }

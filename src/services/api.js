@@ -74,7 +74,33 @@ API.interceptors.response.use(
 
         /**
          * ==========================
-         * Handle Token Refresh
+         * Handle 404 Not Found
+         * ==========================
+         */
+        if (error.response?.status === 404) {
+            const message =
+                error?.response?.data?.message ||
+                error?.response?.data?.detail ||
+                "The requested resource was not found";
+
+            // Show specific 404 toast
+            toast.error(`404: ${message}`);
+
+            // You can also handle 404 globally here
+            // For example, redirect to a 404 page
+            // window.location.href = "/404";
+
+            // Reject with custom error
+            const notFoundError = new Error(message);
+            notFoundError.status = 404;
+            notFoundError.response = error.response;
+            
+            return Promise.reject(notFoundError);
+        }
+
+        /**
+         * ==========================
+         * Handle Token Refresh (401)
          * ==========================
          */
         if (

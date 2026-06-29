@@ -48,11 +48,17 @@ const STATUS_CONFIG = {
     confirmed: { color: 'bg-blue-100 text-blue-700', icon: CheckCheck, label: 'Confirmed', bg: 'blue' },
     cancelled: { color: 'bg-rose-100 text-rose-700', icon: XCircle, label: 'Cancelled', bg: 'rose' },
     pending: { color: 'bg-purple-100 text-purple-700', icon: AlertCircle, label: 'Pending', bg: 'purple' },
-    rescheduled: { color: 'bg-orange-100 text-orange-700', icon: RefreshCw, label: 'Rescheduled', bg: 'orange' }
+    rescheduled: { color: 'bg-orange-100 text-orange-700', icon: RefreshCw, label: 'Rescheduled', bg: 'orange' },
+    reschedule: {
+        color: "bg-orange-100 text-orange-700",
+        icon: RefreshCw,
+        label: "Waiting for Patient Response",
+        bg: "orange",
+    },
 };
 
 const CONSULTATION_TYPES = ['video', 'chat', 'in-person'];
-const STATUS_OPTIONS = ['confirmed', 'pending', 'completed', 'cancelled', 'rescheduled'];
+const STATUS_OPTIONS = ['confirmed', 'pending', 'completed', 'cancelled', 'rescheduled', 'reschedule'];
 const ITEMS_PER_PAGE_OPTIONS = [5, 10, 15, 25, 50];
 
 // ==================== HELPER FUNCTIONS ====================
@@ -328,7 +334,7 @@ const ActionModal = ({ show, type, upcomming, appointment, onClose, onConfirm, i
 
                 {isReschedule && (
                     <div className="space-y-4 mb-4">
-                        <div className="space-y-3">
+                        {/* <div className="space-y-3">
                             <label className="block text-sm font-semibold text-gray-700">
                                 Select Appointment Slot
                             </label>
@@ -406,7 +412,7 @@ const ActionModal = ({ show, type, upcomming, appointment, onClose, onConfirm, i
                                     </div>
                                 </div>
                             )}
-                        </div>
+                        </div> */}
                         {/* <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">New Date *</label>
                             <input
@@ -461,10 +467,10 @@ const ActionModal = ({ show, type, upcomming, appointment, onClose, onConfirm, i
                     </button>
                     <button
                         onClick={() => {
-                            onConfirm({ reason, selectedSlot, reschedule: (isReschedule ? "reschedule" : "cancel") })
+                            onConfirm({ reason, selectedSlot, reschedule: (isReschedule ? "request_reschedule" : "request_cancellation") })
                             setReason("")
                         }}
-                        disabled={isLoading || (isReschedule && (!selectedSlot)) || !reason
+                        disabled={isLoading || !reason
                         }
                         className={`flex-1 px-4 py-2 rounded-lg text-white transition-colors disabled:opacity-50 ${isReschedule ? 'bg-orange-600 hover:bg-orange-700' : 'bg-rose-600 hover:bg-rose-700'
                             }`}
@@ -525,8 +531,6 @@ const AppointmentsPage = () => {
         setIsLoading(true);
         try {
             const response = await doctorService?.getAppointment("appointment");
-            const upcomingresponse = await doctorService?.getUpcomingAppointment();
-            setUpComming(upcomingresponse?.data?.data)
             if (response?.data?.success && response?.data?.data?.results) {
                 const appointmentsData = response.data.data.results.map(apt => ({
                     id: apt.id,
@@ -563,6 +567,13 @@ const AppointmentsPage = () => {
         } finally {
             setIsLoading(false);
         }
+
+        // try {
+        //     const upcomingresponse = await doctorService?.getUpcomingAppointment();
+        //     setUpComming(upcomingresponse?.data?.data)
+        // } catch (error) {
+        //     toast.error('Failed to load appointments');
+        // }
     }, []);
 
     useEffect(() => {
@@ -659,7 +670,7 @@ const AppointmentsPage = () => {
         setIsActionLoading(true);
         try {
             const response = await doctorService?.updateAppointmentstatus(selectedAppointment.id, actionType === 'reschedule' ? {
-                availability: selectedSlot?.id,
+                // availability: selectedSlot?.id,
                 // appointment_date: newDate,
                 // start_time: newTime,
                 // end_time: `${parseInt(newTime.split(':')[0]) + 1}:${newTime.split(':')[1]}:00`,
@@ -1010,7 +1021,7 @@ const AppointmentsPage = () => {
                                                         {console.log(new Date(appointment.appointment_date).getDate(), new Date()?.getDate())}
 
                                                         {new Date(appointment.appointment_date).getDate() > new Date()?.getDate() ?
-                                                            appointment.status !== 'cancelled' && appointment.status !== 'completed' && appointment.status !== 'rescheduled' && (
+                                                            appointment.status !== 'cancelled' && appointment.status !== 'completed' && appointment.status !== 'rescheduled' && appointment.status !== 'reschedule' && (
                                                                 <>
                                                                     <button
                                                                         onClick={() => { setSelectedAppointment(appointment); setActionType('reschedule'); setShowActionModal(true); }}

@@ -27,7 +27,7 @@ const DoctorSidebar = () => {
     { name: "Availability", icon: <AVAILABILITY_ICON />, path: "/doctor/availability" },
     { name: "Appointment", icon: <Appointment />, path: "/doctor/appointments" },
     { name: "Patients", icon: <Patients />, path: "/doctor/patients" },
-    { name: "Message", icon: <Message />, path: "/doctor/messages" },
+    // { name: "Messanger", icon: <Message />, path: "/doctor/messages" },
     // { name: "Assessments", icon: <Assessments />, path: "/doctor/assessments" },
     { name: "Earnings", icon: <FinanceIcon />, path: "/doctor/earnings" },
     {
