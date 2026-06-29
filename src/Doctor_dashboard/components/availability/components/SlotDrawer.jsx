@@ -100,7 +100,7 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
         const updatedSlots = [...slots];
         const oldSlot = updatedSlots[index];
         // Auto-set end time to 30 minutes after start time
-        const [hours, minutes] = value.split(":").map(Number);
+        const [hours, minutes] = value?.split(":")?.map(Number);
         const date = new Date();
         date.setHours(hours, minutes + 30, 0, 0);
         const endTime = date.toTimeString().slice(0, 5);
@@ -609,7 +609,7 @@ const SlotEditorCard = ({ slot, index, selectedDate, isEditing, onEdit, onSave, 
                                 />
                             </div>
                         </div>
-                        <div>
+                        {/* <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">Break (mins)</label>
                             <input
                                 type="number"
@@ -620,7 +620,7 @@ const SlotEditorCard = ({ slot, index, selectedDate, isEditing, onEdit, onSave, 
                                 max="60"
                                 step="5"
                             />
-                        </div>
+                        </div> */}
                     </div>
 
                     <div className="flex gap-2 pt-2">

@@ -139,7 +139,7 @@ const DoctorDashboard = () => {
                         totalReviews: data.ratings?.total_reviews || 0
                     },
                     todayAppointments: data.today_appointments?.results || [],
-                    upcomingConsultations: data.upcoming_consultations?.results || [],
+                    upcomingConsultations: data.upcoming_consultations?.results?.filter((data) => data.status == "confirmed") || [],
                     recentPatients: data.recent_patients || [],
                     follouppatients: folloup?.data.data?.results,
                     ratings: data.ratings || { average_rating: null, total_reviews: 0, recent_reviews: [] }
@@ -204,14 +204,29 @@ const DoctorDashboard = () => {
     // Get status color
     const getStatusColor = (status) => {
         switch (status?.toLowerCase()) {
-            case 'confirmed': return 'bg-emerald-100 text-emerald-700';
-            case 'waiting': return 'bg-amber-100 text-amber-700';
-            case 'completed': return 'bg-blue-100 text-blue-700';
-            case 'cancelled': return 'bg-rose-100 text-rose-700';
-            default: return 'bg-gray-100 text-gray-700';
+            case "completed":
+                return "bg-emerald-100 text-emerald-700";
+
+            case "waiting":
+                return "bg-amber-100 text-amber-700";
+
+            case "confirmed":
+                return "bg-blue-100 text-blue-700";
+
+            case "pending":
+                return "bg-purple-100 text-purple-700";
+
+            case "cancelled":
+                return "bg-rose-100 text-rose-700";
+
+            case "rescheduled":
+            case "reschedule":
+                return "bg-orange-100 text-orange-700";
+
+            default:
+                return "bg-gray-100 text-gray-700";
         }
     };
-
     // Get status icon
     const getStatusIcon = (status) => {
         switch (status?.toLowerCase()) {
@@ -741,11 +756,11 @@ const DoctorDashboard = () => {
                         <div className="bg-gradient-to-br text-white rounded-xl p-6 shadow-sm" style={{ background: 'linear-gradient(135deg, #0D614E 0%, #0a4d3e 100%)' }}>
                             <h3 className="text-lg font-semibold mb-4 text-white">Quick Actions</h3>
                             <div className="space-y-3">
-                                <Link to={"/doctor/appointments"} className="w-full flex items-center justify-between px-4 py-3 bg-white bg-opacity-20 rounded-lg hover:bg-opacity-30 transition-all group">
+                                <Link to={"/doctor/appointments"} className="w-full !text-white flex items-center justify-between px-4 py-3 bg-white bg-opacity-20 rounded-lg hover:bg-opacity-30 transition-all group">
                                     <span>New Appointments</span>
                                     <Calendar size={18} className="group-hover:rotate-12 transition-transform" />
                                 </Link>
-                                <Link to={"/doctor/patients"} className="w-full flex items-center justify-between px-4 py-3 bg-white bg-opacity-20 rounded-lg hover:bg-opacity-30 transition-all group">
+                                <Link to={"/doctor/patients"} className="w-full !text-white flex items-center justify-between px-4 py-3 bg-white bg-opacity-20 rounded-lg hover:bg-opacity-30 transition-all group">
                                     <span>New Patients</span>
                                     <Users size={18} className="group-hover:scale-110 transition-transform" />
                                 </Link>
@@ -832,30 +847,105 @@ const DoctorDashboard = () => {
                         </div> */}
 
                         {/* Ratings Summary */}
-                        <div className="bg-white rounded-xl shadow-sm p-6">
-                            <h3 className="text-lg font-semibold text-gray-800 mb-4">Patient Ratings</h3>
-                            <div className="text-center mb-4">
-                                <div className="flex items-center justify-center space-x-2">
-                                    <Star size={32} className="text-yellow-400 fill-current" />
-                                    <span className="text-3xl font-bold text-gray-800">{dashboardData.ratings.average_rating || 'N/A'}</span>
-                                    <span className="text-gray-500">/5.0</span>
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-lg font-semibold text-gray-800">
+                                    Patient Reviews
+                                </h3>
+
+                                <div className="text-right">
+                                    <div className="flex items-center justify-end gap-1">
+                                        <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+                                        <span className="text-2xl font-bold text-gray-900">
+                                            {dashboardData.ratings.average_rating || "0"}
+                                        </span>
+                                        <span className="text-gray-400">/5</span>
+                                    </div>
+
+                                    <p className="text-xs text-gray-500">
+                                        {dashboardData.ratings.total_reviews} Reviews
+                                    </p>
                                 </div>
-                                <p className="text-sm text-gray-500 mt-1">Based on {dashboardData.ratings.total_reviews || 0} reviews</p>
                             </div>
-                            {dashboardData.ratings.recent_reviews?.length > 0 && (
-                                <div className="space-y-3">
-                                    {dashboardData.ratings.recent_reviews.slice(0, 2).map((review, idx) => (
-                                        <div key={idx} className="border-t border-gray-100 pt-3">
-                                            <div className="flex items-center space-x-1">
-                                                {[...Array(5)].map((_, i) => (
-                                                    <Star key={i} size={12} className={i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'} />
-                                                ))}
+
+                            <div className="space-y-5">
+                                {dashboardData.ratings.recent_reviews
+                                    ?.slice(0, 3)
+                                    .map((review) => (
+                                        <div
+                                            key={review.id}
+                                            className="border rounded-xl p-4 hover:shadow-sm transition"
+                                        >
+                                            <div className="flex items-start gap-3">
+                                                <img
+                                                    src={review.reviewer_profile_image}
+                                                    alt={review.reviewer_name}
+                                                    className="w-11 h-11 rounded-full object-cover border"
+                                                />
+                                                <div className="flex-1">
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <h4 className="font-semibold text-gray-900">
+                                                                {review.reviewer_name}
+                                                            </h4>
+                                                            <div className="flex items-center gap-1 mt-1">
+                                                                {[1, 2, 3, 4, 5].map((star) => (
+                                                                    <Star
+                                                                        key={star}
+                                                                        size={14}
+                                                                        className={
+                                                                            star <= review.rating
+                                                                                ? "fill-yellow-400 text-yellow-400"
+                                                                                : "text-gray-300"
+                                                                        }
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                        <span className="text-xs text-gray-400">
+                                                            {formatDate(review.created_at)}
+                                                        </span>
+                                                    </div>
+                                                    {review.review && (
+                                                        <p className="mt-3 text-sm text-gray-600 leading-6">
+                                                            {review.review}
+                                                        </p>
+                                                    )}
+                                                    {review.image_urls?.length > 0 && (
+                                                        <div className="flex gap-2 mt-3">
+                                                            {review.image_urls.map((img, index) => (
+                                                                <img
+                                                                    key={index}
+                                                                    src={img}
+                                                                    alt=""
+                                                                    className="w-16 h-16 rounded-lg object-cover border cursor-pointer hover:scale-105 transition"
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    {review.doctor_reply && (
+                                                        <div className="mt-4 rounded-xl bg-[#0D614E]/5 border border-[#0D614E]/20 p-3">
+                                                            <p className="text-xs font-semibold text-[#0D614E] mb-1">
+                                                                Doctor Reply
+                                                            </p>
+
+                                                            <p className="text-sm text-gray-700">
+                                                                {review.doctor_reply}
+                                                            </p>
+                                                        </div>
+                                                    )}
+
+                                                </div>
                                             </div>
-                                            <p className="text-xs text-gray-600 mt-1">{review.comment}</p>
-                                            <p className="text-xs text-gray-400 mt-1">{formatDate(review.created_at)}</p>
                                         </div>
                                     ))}
-                                </div>
+                            </div>
+
+                            {dashboardData.ratings.total_reviews > 3 && (
+                                <Link to="/doctor/reviews" className="block items-center text-center w-full mt-5 py-2 rounded-xl border border-[#0D614E] text-[#0D614E] hover:bg-[#0D614E] hover:text-white transition">
+                                    View All Reviews
+                                </Link>
                             )}
                         </div>
 
