@@ -838,8 +838,10 @@ const DoctorProfile = () => {
                                         <FormInput label="Registration Council" value={doctorData.registration_council} onChange={(e) => handleInputChange('registration_council', e.target.value)} disabled={!isEditing} />
                                         <FormInput label="Registration Year" value={doctorData.registration_year} onChange={(e) => handleInputChange('registration_year', e.target.value)} disabled={!isEditing} type="number" />
                                         <FormInput label="Experience (Years)" value={doctorData.experience_years} onChange={(e) => handleInputChange('experience_years', e.target.value)} disabled={!isEditing} type="number" />
-                                        <FormInput label="Consultation Fee (₹)" value={doctorData.consultation_fee} onChange={(e) => handleInputChange('consultation_fee', e.target.value)} disabled={!isEditing} type="number" />
-                                        <FormInput label="Follow-up Fee (₹)" value={doctorData.followup_fee} onChange={(e) => handleInputChange('followup_fee', e.target.value)} disabled={!isEditing} type="number" />
+                                        <FormInput label="Consultation Fee (₹)" value={doctorData.consultation_fee}
+                                            onChange={(e) => handleInputChange('consultation_fee', e.target.value)}
+                                            disabled={true} type="number" />
+                                        <FormInput label="Follow-up Fee (₹)" disabled={true} value={doctorData.followup_fee} onChange={(e) => handleInputChange('followup_fee', e.target.value)} disabled={!isEditing} type="number" />
                                         <FormInput label="Average Consultation Time (min)" value={doctorData.average_consultation_time} onChange={(e) => handleInputChange('average_consultation_time', e.target.value)} disabled={!isEditing} type="number" />
                                         <FormInput label="Max Patients Per Day" value={doctorData.max_patients_per_day} onChange={(e) => handleInputChange('max_patients_per_day', e.target.value)} disabled={!isEditing} type="number" />
                                         {/* <div className="md:col-span-2">
