@@ -706,8 +706,8 @@ const AppointmentsPage = () => {
         if (!selectedAppointment) return;
         setIsActionLoading(true);
         try {
-            const response = await doctorService?.updateAppointment(selectedAppointment.id, {
-                status: 'cancelled',
+            const response = await doctorService?.updateAppointmentstatus(selectedAppointment.id, {
+                action: 'request_cancellation',
                 cancellation_reason: reason,
                 cancelled_by: 'doctor'
             });
@@ -718,9 +718,7 @@ const AppointmentsPage = () => {
                 setSelectedAppointment(null);
                 setActionType(null);
                 fetchAppointments();
-            } else {
-                toast.error(response?.data?.message || 'Failed to cancel appointment');
-            }
+            } 
         } catch (error) {
             console.error('Cancel error:', error);
             toast.error('Failed to cancel appointment');
@@ -1020,7 +1018,7 @@ const AppointmentsPage = () => {
                                                         </Link>
                                                         {console.log(new Date(appointment.appointment_date).getDate(), new Date()?.getDate())}
 
-                                                        {new Date(appointment.appointment_date).getDate() > new Date()?.getDate() ?
+                                                        {(new Date(appointment.appointment_date).getMonth() > new Date()?.getMonth() ? true : new Date(appointment.appointment_date).getDate() >= new Date()?.getDate()) ?
                                                             appointment.status !== 'cancelled' && appointment.status !== 'completed' && appointment.status !== 'rescheduled' && appointment.status !== 'reschedule' && (
                                                                 <>
                                                                     <button

@@ -13,7 +13,7 @@ import { Link } from 'react-router-dom';
 
 // ==================== CONSTANTS ====================
 const TITLES = ['Dr.', 'Prof.', 'Dr. (Prof.)'];
-const GENDERS = ['Male', 'Female', 'Other'];
+const GENDERS = ['male', 'female', 'other'];
 const LANGUAGES = ['English', 'Hindi', 'Sanskrit', 'Tamil', 'Telugu', 'Kannada', 'Malayalam', 'Gujarati', 'Marathi', 'Bengali'];
 const DOSHA_OPTIONS = ['Vata', 'Pitta', 'Kapha', 'Vata-Pitta', 'Pitta-Kapha', 'Vata-Kapha'];
 const CONSULTATION_MODES = ['Video', 'Chat'];
@@ -74,7 +74,7 @@ const INITIAL_FORM_STATE = {
     },
     professionalInfo: {
         experience: '', qualifications: '', registrationNumber: '', registrationCouncil: '',
-        registrationYear: '', consultationFee: '', followUpFee: '', consultationMode: ['video', 'chat'],
+        registrationYear: '', consultationFee: '499', followUpFee: '', consultationMode: ['video', 'chat'],
         averageConsultationTime: 30, maxPatientsPerDay: 10, yearsOfPractice: ''
     },
     ayurvedicInfo: {
@@ -248,7 +248,7 @@ const FormSelect = ({ label, name, value, onChange, error, required, options, pl
             name={name}
             value={value}
             onChange={onChange}
-            className={`w-full px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 transition-all ${error ? 'border-rose-500 focus:ring-rose-500 bg-rose-50' : 'border-gray-200 focus:ring-[#0D614E]'
+            className={`w-full px-4 py-2.5 border rounded-xl capitalize focus:outline-none focus:ring-2 transition-all ${error ? 'border-rose-500 focus:ring-rose-500 bg-rose-50' : 'border-gray-200 focus:ring-[#0D614E]'
                 }`}
         >
             <option value="">{placeholder || `Select ${label}`}</option>
@@ -885,7 +885,7 @@ const DoctorOnboarding = () => {
                                             onChange={(e) => handleInputChange('professionalInfo', 'qualifications', e.target.value)}
                                             error={errors.qualifications} required placeholder="Qualifications (e.g. BAMS, MD Ayurveda, etc.)" />
 
-                                        <FormInput label="Years of Experience" name="experience" value={formData.professionalInfo.experience}
+                                        <FormInput label="Total Experience" name="experience" value={formData.professionalInfo.experience}
                                             onChange={(e) => handleInputChange('professionalInfo', 'experience', e.target.value)}
                                             error={errors.experience} required type="number" placeholder="Years" />
 
@@ -918,7 +918,8 @@ const DoctorOnboarding = () => {
                                             type="date" placeholder="Date you started practicing" />
 
                                         <FormInput label="Consultation Fee (₹)" name="consultationFee" value={formData.professionalInfo.consultationFee}
-                                            onChange={(e) => handleInputChange('professionalInfo', 'consultationFee', e.target.value)}
+                                            // onChange={(e) => handleInputChange('professionalInfo', 'consultationFee', e.target.value)}
+                                            disabled={true}
                                             error={errors.consultationFee} required type="number" placeholder="Amount in INR" />
 
                                         <FormInput label="Follow-up Fee (₹)" name="followUpFee" value={formData.professionalInfo.followUpFee}
@@ -986,11 +987,11 @@ const DoctorOnboarding = () => {
                                                 error={errors.accountHolderName} required placeholder="Name as per bank records" />
                                         </div>
 
-                                        <FormInput  label="Account Number" max={18} name="accountNumber" value={formData.bankInfo.accountNumber}
+                                        <FormInput label="Account Number" max={18} name="accountNumber" value={formData.bankInfo.accountNumber}
                                             onChange={(e) => handleInputChange('bankInfo', 'accountNumber', e.target.value)}
                                             error={errors.accountNumber} required placeholder="Bank account number" />
 
-                                        <FormInput  label="Confirm Account Number" max={18} name="confirmAccountNumber" value={formData.bankInfo.confirmAccountNumber}
+                                        <FormInput label="Confirm Account Number" max={18} name="confirmAccountNumber" value={formData.bankInfo.confirmAccountNumber}
                                             onChange={(e) => handleInputChange('bankInfo', 'confirmAccountNumber', e.target.value)}
                                             error={errors.confirmAccountNumber} required placeholder="Confirm your bank account number" />
 
