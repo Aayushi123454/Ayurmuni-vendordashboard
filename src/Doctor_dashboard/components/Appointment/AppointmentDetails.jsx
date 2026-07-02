@@ -76,6 +76,12 @@ const STATUS_CONFIG = {
         label: 'Pending',
         icon: Clock
     },
+    missed: {
+        color: 'Gray',
+        border: 'Gray',
+        label: 'Missed',
+        icon: Clock
+    },
 
     confirmed: {
         color: '#2563EB',
@@ -124,7 +130,13 @@ const STATUS_CONFIG = {
         label: 'Cancelled',
         icon: XCircle
     },
-
+    cancellation_requested: {
+        color: '#DC2626',
+        bg: '#FEE2E2',
+        border: '#FCA5A5',
+        label: 'Cancellation Requested',
+        icon: XCircle
+    },
     'no-show': {
         color: '#6B7280',
         bg: '#F3F4F6',
@@ -524,7 +536,7 @@ const PrescriptionTemplate = React.forwardRef(({ appointment, formData, doctor, 
                 )}
 
             </div>
-            
+
 
             {/* ─────────────────────────────────────────────────────────────────────────────── */}
             {/* PROFESSIONAL FOOTER WITH SIGNATURE AREA */}
@@ -1823,8 +1835,8 @@ const AppointmentDetail = () => {
                                                     accurate medical records.
                                                 </p>
 
-                                                <div className="mt-6 flex items-center gap-2 px-4 py-2 rounded-full bg-red-100 text-red-700">
-                                                    <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                                                <div className="mt-6 flex capitalize items-center gap-2 px-4 py-2 rounded-full bg-red-100 text-red-700">
+                                                    <span className="w-2 h-2 rounded-full bg-red-500 "></span>
                                                     Appointment Status: {appointment?.status}
                                                 </div>
                                             </div>

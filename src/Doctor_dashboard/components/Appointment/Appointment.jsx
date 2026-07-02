@@ -44,9 +44,10 @@ import { Link } from 'react-router-dom';
 // ==================== CONSTANTS ====================
 const STATUS_CONFIG = {
     completed: { color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle, label: 'Completed', bg: 'emerald' },
-    waiting: { color: 'bg-amber-100 text-amber-700', icon: ClockIcon, label: 'Waiting', bg: 'amber' },
+    missed: { color: 'bg-gray-100 text-gray-700', icon: ClockIcon, label: 'Missed', bg: 'gray' },
     confirmed: { color: 'bg-blue-100 text-blue-700', icon: CheckCheck, label: 'Confirmed', bg: 'blue' },
     cancelled: { color: 'bg-rose-100 text-rose-700', icon: XCircle, label: 'Cancelled', bg: 'rose' },
+    cancellation_requested: { color: 'bg-rose-100 text-rose-700', icon: XCircle, label: 'Cancellation Requested', bg: 'rose' },
     pending: { color: 'bg-purple-100 text-purple-700', icon: AlertCircle, label: 'Pending', bg: 'purple' },
     rescheduled: { color: 'bg-orange-100 text-orange-700', icon: RefreshCw, label: 'Rescheduled', bg: 'orange' },
     reschedule: {
@@ -718,7 +719,7 @@ const AppointmentsPage = () => {
                 setSelectedAppointment(null);
                 setActionType(null);
                 fetchAppointments();
-            } 
+            }
         } catch (error) {
             console.error('Cancel error:', error);
             toast.error('Failed to cancel appointment');
@@ -1019,7 +1020,7 @@ const AppointmentsPage = () => {
                                                         {console.log(new Date(appointment.appointment_date).getDate(), new Date()?.getDate())}
 
                                                         {(new Date(appointment.appointment_date).getMonth() > new Date()?.getMonth() ? true : new Date(appointment.appointment_date).getDate() >= new Date()?.getDate()) ?
-                                                            appointment.status !== 'cancelled' && appointment.status !== 'completed' && appointment.status !== 'rescheduled' && appointment.status !== 'reschedule' && (
+                                                            appointment.status == "confirmed" && (
                                                                 <>
                                                                     <button
                                                                         onClick={() => { setSelectedAppointment(appointment); setActionType('reschedule'); setShowActionModal(true); }}

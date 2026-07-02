@@ -42,10 +42,11 @@ const CalendarGrid = ({ days, onDateClick, onSlotClick }) => {
                 <LegendItem color="bg-[#0D614E]/20 border border-[#0D614E]/30" text="Available" />
                 <LegendItem color="bg-blue-100 border border-blue-200" text="Booked / Confirmed" />
                 <LegendItem color="bg-purple-100 border border-purple-200" text="In Progress" />
+                <LegendItem color="bg-yellow-100 border border-yellow-200" text="Shifted" />
                 <LegendItem color="bg-emerald-100 border border-emerald-200" text="Completed" />
                 <LegendItem color="bg-orange-100 border border-orange-200" text="Rescheduled" />
                 <LegendItem color="bg-red-100 border border-red-200" text="Cancelled" />
-                <LegendItem color="bg-gray-100 border border-gray-200" text="Past Date" />
+                <LegendItem color="bg-gray-100 border border-gray-200" text="Expired" />
             </div>
         </div>
     );

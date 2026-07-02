@@ -6,6 +6,8 @@ import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
 
 const BookingDetailsModal = ({ slot, onClose, onEdit, onDelete, onUpdateStatus }) => {
+    console.log(slot);
+
     const [updatingStatus, setUpdatingStatus] = useState(false);
 
     if (!slot) return null;
@@ -117,7 +119,7 @@ const BookingDetailsModal = ({ slot, onClose, onEdit, onDelete, onUpdateStatus }
                                 <div className="flex items-center gap-1.5">
                                     <div className={`w-2 h-2 rounded-full ${isBooked ? 'bg-red-400' : 'bg-emerald-400'}`} />
                                     <p className="font-semibold capitalize text-white">
-                                        {isBooked ? 'Booked' : 'Available'}
+                                        {isBooked ? slot?.booked_by?.appointment_status : slot?.status}
                                     </p>
                                 </div>
                             </div>

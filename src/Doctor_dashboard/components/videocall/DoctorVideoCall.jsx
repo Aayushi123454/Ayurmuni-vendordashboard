@@ -14,7 +14,7 @@ import VideoControls from "./VideoControls";
 import WaitingScreen from "./WaitingScreen";
 import VideoPip from "./VideoPip";
 
-const API_BASE = process.env.REACT_APP_API_BASE ;
+const API_BASE = process.env.REACT_APP_API_BASE;
 
 // Utility functions
 const getAccessToken = () => sessionStorage.getItem("accessToken") || localStorage.getItem("accessToken") || "";
@@ -71,7 +71,13 @@ const fetchAgoraToken = async (consultationId) => {
 };
 
 const markEnded = async (consultationId) => {
-  await axios.post(`${API_BASE}/doctors/appointments/${consultationId}/call/end/`, {}, { headers: authHeaders() });
+  await axios.post(`${API_BASE}/doctors/appointments/${consultationId}/call/events/`, {
+    "event_type": "left",
+    "metadata": {
+      "reason": "user_hangup"
+    }
+  }, { headers: authHeaders() });
+  // await axios.post(`${API_BASE}/doctors/appointments/${consultationId}/call/end/`, {}, { headers: authHeaders() });
 };
 
 export default function DoctorVideoCall({ consultationId: consultationIdProp, patientDetails, onCallEnd }) {
@@ -382,9 +388,9 @@ export default function DoctorVideoCall({ consultationId: consultationIdProp, pa
           {!patientJoined && callState === "active" && (
             <WaitingScreen
               patientName={patientDetails?.first_name}
-              // appointmentDate={patientDetails?.appointmentDate}
-              // appointmentTime={patientDetails?.appointmentTime}
-              // concern={patientDetails?.concern}
+            // appointmentDate={patientDetails?.appointmentDate}
+            // appointmentTime={patientDetails?.appointmentTime}
+            // concern={patientDetails?.concern}
             />
           )}
 
@@ -442,22 +448,22 @@ export default function DoctorVideoCall({ consultationId: consultationIdProp, pa
 
       {/* Compact Controls - Fixed bottom */}
       {/* {callState === "active" && */}
-        <VideoControls
-          isMuted={isMuted}
-          isCameraOff={isCameraOff}
-          isRecording={isRecording}
-          isFullscreen={isFullscreen}
-          onToggleMic={toggleMic}
-          onToggleCamera={toggleCamera}
-          onToggleRecording={toggleRecording}
-          onToggleFullscreen={toggleFullscreen}
-          onEndCall={leaveCall}
-          onOpenSettings={() => setShowSettings(!showSettings)}
-          onSwitchCamera={switchCamera}
-          availableCameras={devices.videoInputs}
-          callState={callState}
-          onJoinCall={joinCall}
-        />
+      <VideoControls
+        isMuted={isMuted}
+        isCameraOff={isCameraOff}
+        isRecording={isRecording}
+        isFullscreen={isFullscreen}
+        onToggleMic={toggleMic}
+        onToggleCamera={toggleCamera}
+        onToggleRecording={toggleRecording}
+        onToggleFullscreen={toggleFullscreen}
+        onEndCall={leaveCall}
+        onOpenSettings={() => setShowSettings(!showSettings)}
+        onSwitchCamera={switchCamera}
+        availableCameras={devices.videoInputs}
+        callState={callState}
+        onJoinCall={joinCall}
+      />
       {/* } */}
     </div>
   );
