@@ -33,7 +33,7 @@ All endpoints: `/doctors/appointments/{appointmentId}/call/...`
 | Start / Join | `POST .../start/` if `not_started` | Treat `already_started` as success |
 | Agora credentials | `POST .../token/` | Cached until near `expires_at`; refresh on join failure |
 | Channel join success | `POST .../events/` `{ "event_type": "joined" }` | Retry with exponential backoff on network/5xx |
-| During call | Agora SDK only | `user-published` / `user-left` for UI; no backend presence APIs |
+| During call | Agora SDK + one-shot status on `user-left` | `user-published` for remote video; on `user-left`, `GET .../status/` once — if `ended`, leave channel and show summary; if `in_progress`, show waiting UI (temporary disconnect) |
 | End call | `POST .../end/` then `leaveChannel()` | Do **not** send `left` event |
 | Resume / reconnect | `GET .../status/` | If `ended`, leave channel; if `in_progress` and `presence_sync.should_report_joined`, re-send `joined` |
 

@@ -181,6 +181,27 @@ export default function DoctorVideoCall({ consultationId: consultationIdProp, pa
     }
   }, [applyStatus, cleanupAgora, consultationId]);
 
+  const handleRemoteUserLeft = useCallback(async () => {
+    if (!consultationId) {
+      setPatientJoined(false);
+      return;
+    }
+
+    try {
+      const status = await fetchCallStatus(consultationId);
+      if (status.call_status === "ended") {
+        await cleanupAgora();
+        applyStatus(status);
+        toast("Consultation ended");
+        return;
+      }
+    } catch (err) {
+      console.warn("Call status check after remote user left failed:", err);
+    }
+
+    setPatientJoined(false);
+  }, [applyStatus, cleanupAgora, consultationId]);
+
   useEffect(() => {
     const checkPermissions = async () => {
       try {
@@ -321,7 +342,9 @@ export default function DoctorVideoCall({ consultationId: consultationIdProp, pa
       });
 
       client.on("user-unpublished", (user) => user.videoTrack?.stop());
-      client.on("user-left", () => setPatientJoined(false));
+      client.on("user-left", () => {
+        handleRemoteUserLeft();
+      });
       client.on("network-quality", (stats) =>
         setNetworkQuality(Math.max(stats.uplinkNetworkQuality, stats.downlinkNetworkQuality))
       );
@@ -362,6 +385,7 @@ export default function DoctorVideoCall({ consultationId: consultationIdProp, pa
     consultationId,
     loadCallStatus,
     permissions,
+    handleRemoteUserLeft,
     reconcilePresence,
   ]);
 
