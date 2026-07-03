@@ -546,7 +546,7 @@ export default function DoctorVideoCall({ consultationId: consultationIdProp, pa
           )}
           <button
             onClick={e => {
-              onCallEnd()
+              // onCallEnd()
               window.location.reload()
             }}
             className="px-6 py-2 bg-[#0a4d3e] text-white rounded-lg hover:bg-[#0d614e] transition-colors"
