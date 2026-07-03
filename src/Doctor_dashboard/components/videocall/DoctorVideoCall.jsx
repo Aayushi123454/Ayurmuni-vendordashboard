@@ -16,6 +16,8 @@ import {
   endCall,
   fetchAgoraToken,
   fetchCallStatus,
+  getCallEndedPresentation,
+  isCallJoinBlocked,
   joinAgoraChannel,
   reportJoinedEvent,
   startCall,
@@ -312,8 +314,17 @@ export default function DoctorVideoCall({ consultationId: consultationIdProp, pa
       toast.loading("Starting consultation...", { id: "call-join" });
 
       const status = await loadCallStatus();
-      if (status?.call_status === "ended") {
-        throw new Error("This video call has already ended.");
+      if (isCallJoinBlocked(status)) {
+        if (status?.call_status === "ended") {
+          throw new Error("This video call has already ended.");
+        }
+        if (status?.status === "cancelled") {
+          throw new Error("This appointment has been cancelled.");
+        }
+        if (status?.status === "missed" || status?.missed_by) {
+          throw new Error("This consultation was marked as missed.");
+        }
+        throw new Error("This video call is no longer available.");
       }
 
       if (status?.call_status === "not_started") {
@@ -524,6 +535,8 @@ export default function DoctorVideoCall({ consultationId: consultationIdProp, pa
   }
 
   if (callState === "ended") {
+    const endedPresentation = getCallEndedPresentation(callStatusData);
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center p-4">
         <motion.div
@@ -534,7 +547,10 @@ export default function DoctorVideoCall({ consultationId: consultationIdProp, pa
           <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle size={40} className="text-emerald-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Consultation Completed</h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">{endedPresentation.title}</h2>
+          {endedPresentation.subtitle && (
+            <p className="text-gray-500 text-sm mb-4">{endedPresentation.subtitle}</p>
+          )}
           <p className="text-gray-500 mb-2 flex items-center justify-center gap-2">
             <Clock size={16} />
             Duration: {formatDuration(duration)}

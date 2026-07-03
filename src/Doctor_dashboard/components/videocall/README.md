@@ -21,7 +21,7 @@ Example (local):
 http://localhost:3000/doctor/videocall/{appointment-uuid}
 ```
 
-Set `REACT_APP_API_BASE` to your backend URL (e.g. ngrok or local Django).
+Set `REACT_APP_API_BASE` in your environment (see project `.env` / deployment config).
 
 ## Backend API flow (Doctor Dashboard)
 
@@ -36,6 +36,7 @@ All endpoints: `/doctors/appointments/{appointmentId}/call/...`
 | During call | Agora SDK + one-shot status on `user-left` | `user-published` for remote video; on `user-left`, `GET .../status/` once — if `ended`, leave channel and show summary; if `in_progress`, show waiting UI (temporary disconnect) |
 | End call | `POST .../end/` then `leaveChannel()` | Do **not** send `left` event |
 | Resume / reconnect | `GET .../status/` | If `ended`, leave channel; if `in_progress` and `presence_sync.should_report_joined`, re-send `joined` |
+| Cancelled / missed / slot expiry | Backend syncs on `GET /status/` | Ended UI uses `status`, `missed_by`, `missed_reason` via `getCallEndedPresentation()` |
 
 Shared API client: `src/services/appointmentCallService.js`
 
