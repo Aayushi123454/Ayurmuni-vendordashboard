@@ -2,35 +2,24 @@
  * Appointment video-call API client for the AyurMuni backend.
  *
  * **Production use in this repo:** Doctor Dashboard (`DoctorVideoCall.jsx`).
- * The patient app is a separate repository; copy or share this module when
- * implementing the same flow there. See `Doctor_dashboard/components/videocall/README.md`.
+ * All call HTTP traffic goes through the shared `API` instance (`REACT_APP_API_BASE`,
+ * auth interceptors). Agora credentials come from POST /call/token/ at runtime.
+ *
+ * See `Doctor_dashboard/components/videocall/README.md`.
  */
-import axios from "axios";
-
-const BASE_URL = process.env.REACT_APP_API_BASE;
+import API from "./api";
 
 const tokenCacheByAppointment = new Map();
 const joinedAttemptStartByAppointment = new Map();
 
-function resolveAccessToken(accessToken) {
-  return (
-    accessToken ||
-    sessionStorage.getItem("accessToken") ||
-    localStorage.getItem("accessToken") ||
-    ""
-  );
+function callPath(appointmentId, suffix) {
+  return `/doctors/appointments/${appointmentId}/call/${suffix}`;
 }
 
-function authHeaders(accessToken) {
-  return {
-    Authorization: `Bearer ${resolveAccessToken(accessToken)}`,
-    "ngrok-skip-browser-warning": "true",
-    "Content-Type": "application/json",
-  };
-}
-
-function callUrl(appointmentId, suffix) {
-  return `${BASE_URL}/doctors/appointments/${appointmentId}/call/${suffix}`;
+/** Optional bearer override (e.g. reference patient prototype with URL token). */
+function requestConfig(accessToken) {
+  if (!accessToken) return undefined;
+  return { headers: { Authorization: `Bearer ${accessToken}` } };
 }
 
 function unwrapData(response) {
@@ -74,18 +63,19 @@ function shouldStopJoinedRetry(status, appointmentId) {
 }
 
 export async function fetchCallStatus(appointmentId, accessToken) {
-  const response = await axios.get(callUrl(appointmentId, "status/"), {
-    headers: authHeaders(accessToken),
-  });
+  const response = await API.get(
+    callPath(appointmentId, "status/"),
+    requestConfig(accessToken)
+  );
   return unwrapData(response);
 }
 
 export async function startCall(appointmentId, accessToken) {
   try {
-    const response = await axios.post(
-      callUrl(appointmentId, "start/"),
+    const response = await API.post(
+      callPath(appointmentId, "start/"),
       {},
-      { headers: authHeaders(accessToken) }
+      requestConfig(accessToken)
     );
     return unwrapData(response);
   } catch (error) {
@@ -126,10 +116,10 @@ export async function fetchAgoraToken(
     if (cached) return cached;
   }
 
-  const response = await axios.post(
-    callUrl(appointmentId, "token/"),
+  const response = await API.post(
+    callPath(appointmentId, "token/"),
     {},
-    { headers: authHeaders(accessToken) }
+    requestConfig(accessToken)
   );
   const data = unwrapData(response);
   tokenCacheByAppointment.set(appointmentId, data);
@@ -137,10 +127,10 @@ export async function fetchAgoraToken(
 }
 
 export async function endCall(appointmentId, accessToken) {
-  const response = await axios.post(
-    callUrl(appointmentId, "end/"),
+  const response = await API.post(
+    callPath(appointmentId, "end/"),
     {},
-    { headers: authHeaders(accessToken) }
+    requestConfig(accessToken)
   );
 
   if (!response.data?.success) {
@@ -173,10 +163,10 @@ export async function reportJoinedEvent(appointmentId, accessToken) {
     }
 
     try {
-      const response = await axios.post(
-        callUrl(appointmentId, "events/"),
+      const response = await API.post(
+        callPath(appointmentId, "events/"),
         { event_type: "joined" },
-        { headers: authHeaders(accessToken) }
+        requestConfig(accessToken)
       );
 
       if (response.data?.success) {
@@ -197,7 +187,11 @@ export async function reportJoinedEvent(appointmentId, accessToken) {
   }
 }
 
-export async function joinAgoraChannel(client, tokenData, { forceRefreshToken, appointmentId, accessToken }) {
+export async function joinAgoraChannel(
+  client,
+  tokenData,
+  { forceRefreshToken, appointmentId, accessToken }
+) {
   const attemptJoin = async (credentials) => {
     await client.join(
       credentials.app_id,
@@ -224,4 +218,42 @@ export async function joinAgoraChannel(client, tokenData, { forceRefreshToken, a
 
 export function apiErrorMessage(error, fallback) {
   return error?.response?.data?.message || error?.message || fallback;
+}
+
+/** Human-readable ended-state copy from GET /call/status/ payload. */
+export function getCallEndedPresentation(status) {
+  if (!status) {
+    return { title: "Consultation Ended", subtitle: null };
+  }
+
+  if (status.status === "cancelled") {
+    return {
+      title: "Consultation Cancelled",
+      subtitle: "This appointment is no longer available for video consultation.",
+    };
+  }
+
+  if (status.status === "missed" || status.missed_by) {
+    return {
+      title: "Consultation Missed",
+      subtitle:
+        status.missed_reason ||
+        (status.missed_by
+          ? `Marked missed by ${status.missed_by.replace(/_/g, " ")}.`
+          : "This consultation was marked as missed."),
+    };
+  }
+
+  if (status.call_status === "ended" && status.status === "completed") {
+    return { title: "Consultation Completed", subtitle: null };
+  }
+
+  return { title: "Consultation Ended", subtitle: null };
+}
+
+export function isCallJoinBlocked(status) {
+  if (!status) return false;
+  if (status.call_status === "ended") return true;
+  if (status.status === "cancelled" || status.status === "missed") return true;
+  return false;
 }
