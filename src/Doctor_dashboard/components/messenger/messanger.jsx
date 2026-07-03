@@ -13,9 +13,12 @@ import {
     Stethoscope,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { doctorService } from '../../../services/doctorService';
 import {
-    fetchChatHistory,
+    fetchConversationList,
+    fetchConversationMessages,
+    mapConversationListItem,
+    notifyChatActivity,
+    notifyConversationListRefresh,
     sendChatMessageRest,
     uploadChatImage,
     mapBackendMessageToUi,
@@ -24,6 +27,7 @@ import {
     mergeMessagesById,
     createConsultationChatConnection,
     disconnectActiveConsultationChat,
+    getChatSyncChannel,
     apiErrorMessage,
 } from '../../../services/consultationChatService';
 
@@ -81,37 +85,6 @@ const Avatar = ({ src, name, className = 'w-12 h-12' }) => {
             {getInitials(name)}
         </div>
     );
-};
-
-const mapAppointmentToConversation = (apt) => {
-    const patient = typeof apt.patient === 'object' ? apt.patient : null;
-    const patientId = patient?.id || apt.patient_id || apt.patient;
-    const patientName = apt.patient_name
-        || (patient
-            ? `${patient.first_name || ''} ${patient.last_name || ''}`.trim()
-            : 'Patient');
-
-    return {
-        id: apt.id,
-        appointmentId: apt.id,
-        patientId,
-        name: patientName || 'Patient',
-        avatar: patient?.profile_picture || patient?.profile_image || null,
-        lastMessage: '',
-        lastMessageTime: null,
-        unreadCount: 0,
-        online: false,
-        phone: patient?.phone_number || patient?.phone || apt.patient_phone || '',
-        email: patient?.email || apt.patient_email || '',
-        age: patient?.age || null,
-        gender: patient?.gender || apt.patient_gender || '',
-        bloodGroup: patient?.blood_group || '',
-        allergies: patient?.allergies || [],
-        medicalHistory: patient?.medical_history || [],
-        appointmentDate: apt.appointment_date,
-        appointmentStatus: apt.status,
-        callStatus: apt.call_status,
-    };
 };
 
 const MessageItem = ({ message }) => {
@@ -190,7 +163,7 @@ const PatientListItem = ({ patient, isSelected, onClick }) => (
             </div>
             <div className="flex items-center justify-between mt-0.5">
                 <p className="text-xs text-gray-500 truncate">
-                    {patient.lastMessage || (patient.appointmentDate ? `Visit: ${patient.appointmentDate}` : '')}
+                    {patient.lastMessage || ''}
                 </p>
                 {patient.unreadCount > 0 && (
                     <span className="flex-shrink-0 w-5 h-5 bg-[#0D614E] text-white text-xs rounded-full flex items-center justify-center font-medium">
@@ -218,11 +191,6 @@ const PatientInfoSidebar = ({ patient, onClose }) => (
             <div className="flex flex-col items-center text-center mb-6">
                 <Avatar src={patient.avatar} name={patient.name} className="w-20 h-20" />
                 <h4 className="text-lg font-semibold text-gray-800 mt-3">{patient.name}</h4>
-                {patient.appointmentDate && (
-                    <p className="text-xs text-gray-500 mt-1">
-                        Appointment: {formatDate(new Date(patient.appointmentDate))}
-                    </p>
-                )}
             </div>
 
             <div className="space-y-3">
@@ -296,12 +264,14 @@ const PatientInfoSidebar = ({ patient, onClose }) => (
                         <Calendar className="w-4 h-4" />
                         <span>Consultation</span>
                     </div>
-                    <p className="text-sm text-gray-700 capitalize">
-                        Status: {patient.appointmentStatus || '—'}
-                    </p>
-                    {patient.callStatus && (
+                    {patient.chatAccess?.active_phase && (
+                        <p className="text-sm text-gray-700 capitalize">
+                            Chat: {patient.chatAccess.active_phase.replace(/_/g, ' ')}
+                        </p>
+                    )}
+                    {patient.chatAccess?.call_status && (
                         <p className="text-sm text-gray-700 capitalize mt-1">
-                            Call: {patient.callStatus.replace(/_/g, ' ')}
+                            Call: {patient.chatAccess.call_status.replace(/_/g, ' ')}
                         </p>
                     )}
                 </div>
@@ -339,64 +309,128 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
     const inputRef = useRef(null);
     const wsConnectionRef = useRef(null);
     const selectedPatientRef = useRef(null);
-    const messagesByAppointmentRef = useRef(new Map());
+    const messagesByPatientRef = useRef(new Map());
     const wsSessionRef = useRef(0);
     const historyRequestRef = useRef(0);
+    const wsAppointmentIdRef = useRef(null);
+    const ensureWebSocketForAccessRef = useRef(() => {});
+    const tabIdRef = useRef(`tab-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    const listRefreshTimerRef = useRef(null);
 
-    const isActiveAppointment = useCallback(
-        (appointmentId) => selectedPatientRef.current?.appointmentId === appointmentId,
+    const isActivePatient = useCallback(
+        (patientId) => selectedPatientRef.current?.patientId === patientId,
         []
     );
 
-    const updateConversationPreview = useCallback((appointmentId, messageList) => {
+    const updateConversationPreview = useCallback((patientId, messageList) => {
         if (!messageList?.length) return;
         const last = messageList[messageList.length - 1];
         const unread = countUnreadPeerMessages(messageList);
 
-        setPatients((prev) => prev.map((p) => (
-            p.appointmentId === appointmentId
-                ? {
-                    ...p,
-                    lastMessage: last.content,
-                    lastMessageTime: last.timestamp,
-                    unreadCount: selectedPatientRef.current?.appointmentId === appointmentId ? 0 : unread,
-                }
-                : p
-        )));
+        setPatients((prev) => {
+            const index = prev.findIndex((p) => p.patientId === patientId);
+            if (index === -1) return prev;
+
+            const updated = {
+                ...prev[index],
+                lastMessage: last.content,
+                lastMessageTime: last.timestamp,
+                unreadCount: isActivePatient(patientId) ? 0 : unread,
+            };
+
+            const remaining = prev.filter((_, i) => i !== index);
+            return [updated, ...remaining].sort(
+                (a, b) => (b.lastMessageTime?.getTime() || 0) - (a.lastMessageTime?.getTime() || 0)
+            );
+        });
+    }, [isActivePatient]);
+
+    const scheduleConversationListRefresh = useCallback(() => {
+        if (listRefreshTimerRef.current) {
+            clearTimeout(listRefreshTimerRef.current);
+        }
+        listRefreshTimerRef.current = setTimeout(() => {
+            listRefreshTimerRef.current = null;
+            notifyConversationListRefresh(tabIdRef.current);
+            fetchConversationsRef.current?.({ silent: true });
+        }, 400);
     }, []);
 
-    const syncMessagesForAppointment = useCallback((appointmentId, nextMessages) => {
-        messagesByAppointmentRef.current.set(appointmentId, nextMessages);
-        if (selectedPatientRef.current?.appointmentId === appointmentId) {
+    const broadcastChatActivity = useCallback((patientId) => {
+        notifyChatActivity(patientId, tabIdRef.current);
+        scheduleConversationListRefresh();
+    }, [scheduleConversationListRefresh]);
+
+    const syncMessagesForPatient = useCallback((patientId, nextMessages, { broadcast = true } = {}) => {
+        messagesByPatientRef.current.set(patientId, nextMessages);
+        if (selectedPatientRef.current?.patientId === patientId) {
             setMessages(nextMessages);
         }
-        updateConversationPreview(appointmentId, nextMessages);
-    }, [updateConversationPreview]);
+        updateConversationPreview(patientId, nextMessages);
+        if (broadcast) {
+            broadcastChatActivity(patientId);
+        }
+    }, [updateConversationPreview, broadcastChatActivity]);
 
-    const loadChatHistory = useCallback(async (appointmentId, patientId, { markRead = true } = {}) => {
+    const applyConversationAccess = useCallback((patientId, access) => {
+        if (!access) return;
+
+        const previousAppointmentId = selectedPatientRef.current?.appointmentId ?? null;
+        const nextAppointmentId = access.active_appointment_id || null;
+
+        setChatAccess(access);
+        setSelectedPatient((prev) => {
+            if (!prev || prev.patientId !== patientId) return prev;
+            return {
+                ...prev,
+                appointmentId: nextAppointmentId,
+                chatAccess: access,
+            };
+        });
+        setPatients((prev) => prev.map((p) => (
+            p.patientId === patientId
+                ? { ...p, appointmentId: nextAppointmentId, chatAccess: access }
+                : p
+        )));
+
+        const appointmentChanged = nextAppointmentId !== previousAppointmentId;
+        const needsSocket = Boolean(nextAppointmentId);
+        const socketMissing = needsSocket && !wsConnectionRef.current?.isConnected();
+        const socketWrongRoom = needsSocket
+            && wsAppointmentIdRef.current
+            && wsAppointmentIdRef.current !== nextAppointmentId;
+
+        if (appointmentChanged || socketMissing || socketWrongRoom || (!needsSocket && wsConnectionRef.current)) {
+            ensureWebSocketForAccessRef.current(access);
+        }
+    }, []);
+
+    const loadConversationHistory = useCallback(async (
+        patientId,
+        { markRead = true, broadcast = true } = {}
+    ) => {
         const requestId = ++historyRequestRef.current;
         setIsLoadingMessages(true);
         try {
-            const data = await fetchChatHistory(appointmentId, { markRead });
+            const data = await fetchConversationMessages(patientId);
             if (requestId !== historyRequestRef.current) return data;
-            if (!isActiveAppointment(appointmentId)) return data;
+            if (!isActivePatient(patientId)) return data;
 
             const uiMessages = (data.messages || []).map((msg) =>
                 mapBackendMessageToUi(msg, patientId)
             );
-            const existing = messagesByAppointmentRef.current.get(appointmentId) || [];
-            syncMessagesForAppointment(
-                appointmentId,
-                mergeMessagesById(existing, uiMessages)
-            );
+            syncMessagesForPatient(patientId, uiMessages, { broadcast });
 
-            if (isActiveAppointment(appointmentId)) {
-                setChatAccess(data.chat_access || null);
+            const access = data.conversation?.chat_access || null;
+            if (access) {
+                applyConversationAccess(patientId, access);
             }
 
+            const activeAppointmentId = access?.active_appointment_id;
             if (
                 markRead
-                && isActiveAppointment(appointmentId)
+                && activeAppointmentId
+                && isActivePatient(patientId)
                 && wsConnectionRef.current?.isConnected()
             ) {
                 wsConnectionRef.current.sendChatRead();
@@ -404,36 +438,39 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
 
             return data;
         } catch (error) {
-            if (requestId === historyRequestRef.current && isActiveAppointment(appointmentId)) {
-                toast.error(apiErrorMessage(error, 'Failed to load chat history'));
+            if (requestId === historyRequestRef.current && isActivePatient(patientId)) {
+                toast.error(apiErrorMessage(error, 'Failed to load conversation'));
             }
             throw error;
         } finally {
-            if (requestId === historyRequestRef.current && isActiveAppointment(appointmentId)) {
+            if (requestId === historyRequestRef.current && isActivePatient(patientId)) {
                 setIsLoadingMessages(false);
             }
         }
-    }, [syncMessagesForAppointment, isActiveAppointment]);
+    }, [syncMessagesForPatient, isActivePatient, applyConversationAccess]);
 
     const handleChatEvent = useCallback((event, appointmentId, patientId, sessionId) => {
         if (wsSessionRef.current !== sessionId) return;
 
         switch (event.type) {
             case 'chat.connected':
-                if (isActiveAppointment(appointmentId)) {
-                    setChatAccess(event.data?.chat_access || null);
+                if (isActivePatient(patientId) && event.data?.chat_access) {
+                    applyConversationAccess(patientId, {
+                        ...event.data.chat_access,
+                        active_appointment_id: appointmentId,
+                    });
                 }
                 break;
 
             case 'chat.message': {
                 const uiMessage = mapBackendMessageToUi(event.message, patientId);
-                const existing = messagesByAppointmentRef.current.get(appointmentId) || [];
+                const existing = messagesByPatientRef.current.get(patientId) || [];
                 const merged = mergeMessagesById(existing, [uiMessage]);
-                syncMessagesForAppointment(appointmentId, merged);
+                syncMessagesForPatient(patientId, merged);
 
                 if (
                     uiMessage.senderRole === CHAT_SENDER_PATIENT
-                    && isActiveAppointment(appointmentId)
+                    && isActivePatient(patientId)
                     && wsSessionRef.current === sessionId
                     && wsConnectionRef.current?.isConnected()
                 ) {
@@ -443,14 +480,15 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
             }
 
             case 'chat.seen': {
-                const existing = messagesByAppointmentRef.current.get(appointmentId) || [];
+                if (!isActivePatient(patientId)) break;
+                const existing = messagesByPatientRef.current.get(patientId) || [];
                 const updated = applySeenReceiptToMessages(existing, event.data);
-                syncMessagesForAppointment(appointmentId, updated);
+                syncMessagesForPatient(patientId, updated);
                 break;
             }
 
             case 'chat.error':
-                if (isActiveAppointment(appointmentId)) {
+                if (isActivePatient(patientId)) {
                     toast.error(event.message || 'Chat error');
                 }
                 break;
@@ -458,25 +496,37 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
             default:
                 break;
         }
-    }, [syncMessagesForAppointment, isActiveAppointment]);
+    }, [syncMessagesForPatient, isActivePatient, applyConversationAccess]);
 
     const connectWebSocket = useCallback((patient) => {
+        const appointmentId = patient?.appointmentId;
+        const { patientId } = patient || {};
+
+        if (!appointmentId || !patientId) {
+            wsSessionRef.current += 1;
+            disconnectActiveConsultationChat();
+            wsConnectionRef.current = null;
+            wsAppointmentIdRef.current = null;
+            return;
+        }
+
         const sessionId = ++wsSessionRef.current;
+        wsAppointmentIdRef.current = appointmentId;
 
         if (wsConnectionRef.current) {
             wsConnectionRef.current.disconnect();
             wsConnectionRef.current = null;
         }
 
-        const appointmentId = patient.appointmentId;
-        const patientId = patient.patientId;
-
         wsConnectionRef.current = createConsultationChatConnection(appointmentId, {
             onOpen: (isReconnect) => {
                 if (wsSessionRef.current !== sessionId) return;
                 toast.dismiss(`chat-reconnect-${appointmentId}`);
+                if (!isActivePatient(patientId)) return;
                 if (isReconnect) {
-                    loadChatHistory(appointmentId, patientId, { markRead: true }).catch(() => {});
+                    loadConversationHistory(patientId, { markRead: true }).catch(() => {});
+                } else {
+                    wsConnectionRef.current?.sendChatRead();
                 }
             },
             onEvent: (event) => handleChatEvent(event, appointmentId, patientId, sessionId),
@@ -492,48 +542,126 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
             },
             onError: (error) => {
                 if (wsSessionRef.current !== sessionId) return;
-                if (error?.message && isActiveAppointment(appointmentId)) {
+                if (error?.message && isActivePatient(patientId)) {
                     toast.error(error.message);
                 }
             },
         });
-    }, [handleChatEvent, loadChatHistory, isActiveAppointment]);
+    }, [handleChatEvent, loadConversationHistory, isActivePatient]);
 
-    const fetchConversations = useCallback(async () => {
-        setIsLoadingConversations(true);
+    const ensureWebSocketForAccess = useCallback((access) => {
+        const patient = selectedPatientRef.current;
+        if (!patient) return;
+
+        const nextAppointmentId = access?.active_appointment_id || null;
+
+        if (!nextAppointmentId) {
+            wsSessionRef.current += 1;
+            disconnectActiveConsultationChat();
+            wsConnectionRef.current = null;
+            wsAppointmentIdRef.current = null;
+            return;
+        }
+
+        const connectedAppointmentId = wsConnectionRef.current?.getAppointmentId?.()
+            ?? wsAppointmentIdRef.current;
+
+        if (
+            connectedAppointmentId === nextAppointmentId
+            && wsConnectionRef.current?.isConnected()
+        ) {
+            return;
+        }
+
+        connectWebSocket({
+            ...patient,
+            patientId: patient.patientId,
+            appointmentId: nextAppointmentId,
+        });
+    }, [connectWebSocket]);
+
+    ensureWebSocketForAccessRef.current = ensureWebSocketForAccess;
+
+    const refreshActiveConversationAccess = useCallback(async (patientId) => {
+        if (!patientId || !isActivePatient(patientId)) return;
+
         try {
-            const response = await doctorService.getAppointment('appointment');
-            const results = response?.data?.data?.results || [];
-            const conversations = results
-                .filter((apt) => apt.status !== 'cancelled')
-                .map((apt) => {
-                    const mapped = mapAppointmentToConversation({
-                        ...apt,
-                        patient_name: apt.patient
-                            ? `${apt.patient.first_name || ''} ${apt.patient.last_name || ''}`.trim()
-                            : 'Patient',
-                        patient_id: apt.patient?.id || apt.patient,
-                    });
-                    return mapped;
-                })
-                .sort((a, b) => {
-                    const aTime = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0;
-                    const bTime = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0;
-                    return bTime - aTime;
-                });
+            const data = await fetchConversationList();
+            const conversation = (data.conversations || []).find(
+                (item) => item.patient_id === patientId
+            );
+            if (!conversation?.chat_access || !isActivePatient(patientId)) return;
 
-            setPatients(conversations);
+            applyConversationAccess(patientId, conversation.chat_access);
+        } catch {
+            // Polling/background refresh should not interrupt the open thread.
+        }
+    }, [applyConversationAccess, isActivePatient]);
+
+    const fetchConversationsRef = useRef(async () => {});
+
+    const fetchConversations = useCallback(async ({ silent = false } = {}) => {
+        if (!silent) setIsLoadingConversations(true);
+        try {
+            const data = await fetchConversationList();
+            const conversations = (data.conversations || []).map(mapConversationListItem);
+            setPatients((prev) => {
+                if (!selectedPatientRef.current?.patientId) return conversations;
+                return conversations.map((conversation) => (
+                    conversation.patientId === selectedPatientRef.current.patientId
+                        ? { ...conversation, unreadCount: 0 }
+                        : conversation
+                ));
+            });
         } catch (error) {
-            toast.error(apiErrorMessage(error, 'Failed to load conversations'));
-            setPatients([]);
+            if (!silent) {
+                toast.error(apiErrorMessage(error, 'Failed to load conversations'));
+                setPatients([]);
+            }
         } finally {
-            setIsLoadingConversations(false);
+            if (!silent) setIsLoadingConversations(false);
         }
     }, []);
+
+    fetchConversationsRef.current = fetchConversations;
 
     useEffect(() => {
         fetchConversations();
     }, [fetchConversations]);
+
+    useEffect(() => {
+        const channel = getChatSyncChannel();
+        if (!channel) return undefined;
+
+        const handleCrossTabSync = (event) => {
+            const { type, patientId, tabId } = event.data || {};
+            if (tabId === tabIdRef.current) return;
+
+            if (type === 'conversations-refresh' || type === 'chat-activity') {
+                fetchConversations({ silent: true });
+            }
+
+            if (
+                type === 'chat-activity'
+                && patientId
+                && selectedPatientRef.current?.patientId === patientId
+            ) {
+                loadConversationHistory(patientId, { markRead: true, broadcast: false }).catch(() => {});
+            }
+        };
+
+        channel.addEventListener('message', handleCrossTabSync);
+        return () => {
+            channel.removeEventListener('message', handleCrossTabSync);
+            channel.close();
+        };
+    }, [fetchConversations, loadConversationHistory]);
+
+    useEffect(() => () => {
+        if (listRefreshTimerRef.current) {
+            clearTimeout(listRefreshTimerRef.current);
+        }
+    }, []);
 
     useEffect(() => () => {
         historyRequestRef.current += 1;
@@ -546,57 +674,66 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
         selectedPatientRef.current = selectedPatient;
     }, [selectedPatient]);
 
+    const selectedPatientId = selectedPatient?.patientId ?? null;
+
     useEffect(() => {
-        if (!selectedPatient) {
+        if (!selectedPatientId) {
             wsSessionRef.current += 1;
             historyRequestRef.current += 1;
             disconnectActiveConsultationChat();
             wsConnectionRef.current = null;
+            wsAppointmentIdRef.current = null;
             setMessages([]);
             setChatAccess(null);
             return undefined;
         }
 
-        const cached = messagesByAppointmentRef.current.get(selectedPatient.appointmentId);
+        const cached = messagesByPatientRef.current.get(selectedPatientId);
         setMessages(cached || []);
         setPatients((prev) => prev.map((p) => (
-            p.appointmentId === selectedPatient.appointmentId ? { ...p, unreadCount: 0 } : p
+            p.patientId === selectedPatientId ? { ...p, unreadCount: 0 } : p
         )));
 
-        loadChatHistory(
-            selectedPatient.appointmentId,
-            selectedPatient.patientId,
-            { markRead: true }
-        ).catch(() => {});
-
-        connectWebSocket(selectedPatient);
+        loadConversationHistory(selectedPatientId, { markRead: true }).catch(() => {});
 
         const handleOnline = () => {
-            wsConnectionRef.current?.reconnect();
+            const current = selectedPatientRef.current;
+            if (!current?.patientId) return;
+            refreshActiveConversationAccess(current.patientId)
+                .then(() => {
+                    if (selectedPatientRef.current?.appointmentId) {
+                        wsConnectionRef.current?.reconnect();
+                    }
+                })
+                .catch(() => {});
         };
 
         const handleVisibility = () => {
-            if (document.visibilityState === 'visible' && selectedPatientRef.current) {
-                loadChatHistory(
-                    selectedPatientRef.current.appointmentId,
-                    selectedPatientRef.current.patientId,
-                    { markRead: true }
-                ).catch(() => {});
-            }
+            if (document.visibilityState !== 'visible' || !selectedPatientRef.current) return;
+            loadConversationHistory(
+                selectedPatientRef.current.patientId,
+                { markRead: true }
+            ).catch(() => {});
         };
+
+        const accessPollId = setInterval(() => {
+            refreshActiveConversationAccess(selectedPatientId);
+        }, 30000);
 
         window.addEventListener('online', handleOnline);
         document.addEventListener('visibilitychange', handleVisibility);
 
         return () => {
+            clearInterval(accessPollId);
             window.removeEventListener('online', handleOnline);
             document.removeEventListener('visibilitychange', handleVisibility);
             wsSessionRef.current += 1;
             historyRequestRef.current += 1;
             disconnectActiveConsultationChat();
             wsConnectionRef.current = null;
+            wsAppointmentIdRef.current = null;
         };
-    }, [selectedPatient, connectWebSocket, loadChatHistory]);
+    }, [selectedPatientId, loadConversationHistory, refreshActiveConversationAccess]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -612,7 +749,14 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
         if (!inputMessage.trim() || !selectedPatient || !canSend || isSending) return;
 
         const text = inputMessage.trim();
-        const appointmentId = selectedPatient.appointmentId;
+        const { patientId } = selectedPatient;
+        const appointmentId = selectedPatientRef.current?.appointmentId
+            || chatAccess?.active_appointment_id;
+        if (!appointmentId) {
+            toast.error('No active consultation to send messages.');
+            return;
+        }
+
         setInputMessage('');
         setIsSending(true);
 
@@ -622,20 +766,23 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
             if (!sentViaWs) {
                 const data = await sendChatMessageRest(appointmentId, { text });
                 if (data.chat_access) {
-                    setChatAccess(data.chat_access);
+                    applyConversationAccess(patientId, {
+                        ...data.chat_access,
+                        active_appointment_id: appointmentId,
+                    });
                 }
                 if (data.message) {
-                    const uiMessage = mapBackendMessageToUi(data.message, selectedPatient.patientId);
-                    const existing = messagesByAppointmentRef.current.get(appointmentId) || [];
-                    syncMessagesForAppointment(
-                        appointmentId,
+                    const uiMessage = mapBackendMessageToUi(data.message, patientId);
+                    const existing = messagesByPatientRef.current.get(patientId) || [];
+                    syncMessagesForPatient(
+                        patientId,
                         mergeMessagesById(existing, [uiMessage])
                     );
                 }
             }
 
             if (onSendMessage) {
-                onSendMessage({ text, appointmentId });
+                onSendMessage({ text, appointmentId, patientId });
             }
         } catch (error) {
             setInputMessage(text);
@@ -662,7 +809,15 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
             return;
         }
 
-        const appointmentId = selectedPatient.appointmentId;
+        const { patientId } = selectedPatient;
+        const appointmentId = selectedPatientRef.current?.appointmentId
+            || chatAccess?.active_appointment_id;
+        if (!appointmentId) {
+            toast.error('No active consultation to send images.');
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            return;
+        }
+
         setIsUploading(true);
 
         try {
@@ -678,13 +833,16 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
                     attachments: [attachment],
                 });
                 if (data.chat_access) {
-                    setChatAccess(data.chat_access);
+                    applyConversationAccess(patientId, {
+                        ...data.chat_access,
+                        active_appointment_id: appointmentId,
+                    });
                 }
                 if (data.message) {
-                    const uiMessage = mapBackendMessageToUi(data.message, selectedPatient.patientId);
-                    const existing = messagesByAppointmentRef.current.get(appointmentId) || [];
-                    syncMessagesForAppointment(
-                        appointmentId,
+                    const uiMessage = mapBackendMessageToUi(data.message, patientId);
+                    const existing = messagesByPatientRef.current.get(patientId) || [];
+                    syncMessagesForPatient(
+                        patientId,
                         mergeMessagesById(existing, [uiMessage])
                     );
                 }
@@ -747,14 +905,14 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
                         </div>
                     ) : filteredPatients.length === 0 ? (
                         <div className="flex items-center justify-center h-32 text-gray-500 text-sm">
-                            No patients found
+                            No conversations yet
                         </div>
                     ) : (
                         filteredPatients.map((patient) => (
                             <PatientListItem
-                                key={patient.id}
+                                key={patient.patientId}
                                 patient={patient}
-                                isSelected={selectedPatient?.id === patient.id}
+                                isSelected={selectedPatient?.patientId === patient.patientId}
                                 onClick={() => handlePatientSelect(patient)}
                             />
                         ))
@@ -802,11 +960,6 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
 
                     <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
                         <div className="flex flex-col">
-                            <div className="text-center mb-4">
-                                <span className="text-xs text-gray-400 bg-gray-200 px-3 py-1 rounded-full">
-                                    {formatDate(messages[0]?.timestamp || new Date())}
-                                </span>
-                            </div>
                             {isLoadingMessages && messages.length === 0 ? (
                                 <div className="text-center text-sm text-gray-500 py-8">
                                     Loading messages…
@@ -816,9 +969,24 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
                                     No messages yet. Start the conversation.
                                 </div>
                             ) : (
-                                messages.map((message) => (
-                                    <MessageItem key={message.id} message={message} />
-                                ))
+                                messages.map((message, index) => {
+                                    const previous = messages[index - 1];
+                                    const showAppointmentSeparator = !previous
+                                        || previous.appointmentId !== message.appointmentId;
+
+                                    return (
+                                        <React.Fragment key={message.id}>
+                                            {showAppointmentSeparator && (
+                                                <div className="text-center my-4">
+                                                    <span className="text-xs text-gray-400 bg-gray-200 px-3 py-1 rounded-full">
+                                                        Consultation · {formatDate(message.timestamp)}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <MessageItem message={message} />
+                                        </React.Fragment>
+                                    );
+                                })
                             )}
                             <div ref={messagesEndRef} />
                         </div>

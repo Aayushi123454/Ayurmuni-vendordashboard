@@ -1,8 +1,10 @@
 /**
  * Consultation chat API + WebSocket client for the AyurMuni backend.
  *
- * REST: GET/POST /communication/appointments/{appointment_id}/messages/
- * WS:   ws(s)://<host>/ws/communication/appointments/{appointment_id}/?token=<jwt>
+ * Conversation: GET /communication/conversation/
+ *               GET /communication/conversation/messages/?patient_id=
+ * Appointment: GET/POST /communication/appointments/{appointment_id}/messages/
+ * WS:           ws(s)://<host>/ws/communication/appointments/{appointment_id}/?token=<jwt>
  */
 import API from "./api";
 
@@ -51,6 +53,72 @@ export function buildChatWebSocketUrl(appointmentId, token = getAccessToken()) {
 
 function chatMessagesPath(appointmentId) {
   return `/communication/appointments/${appointmentId}/messages/`;
+}
+
+export async function fetchConversationList() {
+  const response = await API.get("/communication/conversation/");
+  return unwrapData(response);
+}
+
+export async function fetchConversationMessages(patientId) {
+  const response = await API.get("/communication/conversation/messages/", {
+    params: { patient_id: patientId },
+  });
+  return unwrapData(response);
+}
+
+export function formatLastMessagePreview(lastMessage) {
+  if (!lastMessage) return "";
+  if (lastMessage.text?.trim()) return lastMessage.text.trim();
+  if (lastMessage.attachments?.length) {
+    return lastMessage.attachments.length === 1
+      ? "📷 Image"
+      : `📷 ${lastMessage.attachments.length} images`;
+  }
+  return "";
+}
+
+/** Map GET /communication/conversation/ item for the doctor messenger sidebar. */
+export function mapConversationListItem(item) {
+  const participant = item.participant || {};
+  return {
+    id: item.patient_id,
+    patientId: item.patient_id,
+    doctorId: item.doctor_id,
+    appointmentId: item.chat_access?.active_appointment_id || null,
+    name: participant.name || "Patient",
+    avatar: participant.profile_picture || null,
+    lastMessage: formatLastMessagePreview(item.last_message),
+    lastMessageTime: item.last_message_at ? new Date(item.last_message_at) : null,
+    unreadCount: item.unread_count || 0,
+    online: false,
+    phone: participant.phone_number || "",
+    email: participant.email || "",
+    chatAccess: item.chat_access || null,
+  };
+}
+
+const CHAT_SYNC_CHANNEL_NAME = "ayurmuni-doctor-chat-v1";
+
+function getChatSyncChannel() {
+  if (typeof BroadcastChannel === "undefined") return null;
+  return new BroadcastChannel(CHAT_SYNC_CHANNEL_NAME);
+}
+
+export { getChatSyncChannel };
+
+export function notifyChatActivity(patientId, tabId) {
+  const channel = getChatSyncChannel();
+  if (!channel) return;
+  channel.postMessage({ type: "chat-activity", patientId, tabId });
+  channel.close();
+}
+
+export function notifyConversationListRefresh(tabId) {
+  const channel = getChatSyncChannel();
+  if (!channel) return;
+  channel.postMessage({ type: "conversations-refresh", tabId });
+  channel.close();
 }
 
 export async function fetchChatHistory(appointmentId, { markRead = false } = {}) {
@@ -119,6 +187,7 @@ export function mapBackendMessageToUi(message, patientId) {
 
   return {
     id: message.id,
+    appointmentId: message.appointment_id,
     senderId: isDoctor ? CHAT_SENDER_DOCTOR : String(patientId || CHAT_SENDER_PATIENT),
     receiverId: isDoctor ? String(patientId || CHAT_SENDER_PATIENT) : CHAT_SENDER_DOCTOR,
     content,
