@@ -218,12 +218,12 @@ const PatientInfoSidebar = ({ patient, onClose }) => (
                                 <p className="font-medium text-gray-700">{patient.bloodGroup}</p>
                             </div>
                         )}
-                        {patient.phone && (
+                        {/* {patient.phone && (
                             <div>
                                 <p className="text-gray-400 text-xs">Phone</p>
                                 <p className="font-medium text-gray-700 text-xs">{patient.phone}</p>
                             </div>
-                        )}
+                        )} */}
                     </div>
                 </div>
 
