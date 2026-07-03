@@ -7,6 +7,7 @@
  *
  * See `Doctor_dashboard/components/videocall/README.md`.
  */
+import axios from "axios";
 import API from "./api";
 
 const tokenCacheByAppointment = new Map();
@@ -127,17 +128,28 @@ export async function fetchAgoraToken(
 }
 
 export async function endCall(appointmentId, accessToken) {
-  const response = await axios.post(
-    // callUrl(appointmentId, "end/"),
-    callUrl(appointmentId, "events/"),
+  // const response = await axios.post(
+  //   // callUrl(appointmentId, "end/"),
+  //   callUrl(appointmentId, "events/"),
+  //   {
+  //     "event_type": "left",
+  //     "metadata": {
+  //       "reason": "user_hangup"
+  //     }
+  //   },
+  //   // {},
+  //   { headers: authHeaders(accessToken) }
+  // );
+
+  const response = await API.post(
+    callPath(appointmentId, "events/"),
     {
       "event_type": "left",
       "metadata": {
         "reason": "user_hangup"
       }
     },
-    // {},
-    { headers: authHeaders(accessToken) }
+    requestConfig(accessToken)
   );
 
   if (!response.data?.success) {
