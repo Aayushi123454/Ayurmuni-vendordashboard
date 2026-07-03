@@ -1,4 +1,15 @@
-# Getting Started with Create React App
+# AyurMuni Doctor Dashboard
+
+React app for **doctor** and **vendor** dashboards. This repository includes the **Doctor Dashboard video consultation** integration with the AyurMuni backend (Agora).
+
+> **Patient app:** The patient application is a **separate project**, not in this workspace. Video-call integration for patients is **out of scope here** and must be implemented in the patient app repository using the same backend call APIs. See [`src/Doctor_dashboard/components/videocall/README.md`](src/Doctor_dashboard/components/videocall/README.md).
+
+## Video call (doctor)
+
+- Route: `/doctor/videocall/:consultationId`
+- Requires doctor login and `REACT_APP_API_BASE` pointing at the backend.
+
+---
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 ## Available Scripts

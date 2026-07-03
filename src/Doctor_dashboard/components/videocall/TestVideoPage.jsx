@@ -1,6 +1,5 @@
-// AyurMuni — Quick Test Page
-// Drop this into your React app to test the patient video call immediately
-// Usage: visit /test-video in your app
+// REFERENCE ONLY — local patient-side prototype; not Doctor Dashboard scope.
+// Patient video call must be integrated in the separate patient app repository.
 
 import React from "react";
 import PatientVideoCallWeb from "./PatientVideoCallWeb";
