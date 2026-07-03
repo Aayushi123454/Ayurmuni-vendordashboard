@@ -138,8 +138,15 @@ export async function fetchAgoraToken(
 
 export async function endCall(appointmentId, accessToken) {
   const response = await axios.post(
-    callUrl(appointmentId, "end/"),
-    {},
+    // callUrl(appointmentId, "end/"),
+    callUrl(appointmentId, "events/"),
+    {
+      "event_type": "left",
+      "metadata": {
+        "reason": "user_hangup"
+      }
+    },
+    // {},
     { headers: authHeaders(accessToken) }
   );
 

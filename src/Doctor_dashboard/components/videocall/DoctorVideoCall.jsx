@@ -365,7 +365,23 @@ export default function DoctorVideoCall({ consultationId: consultationIdProp, pa
         console.warn("Joined event delivery failed:", err);
       });
 
-      const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+      // Alternative: Create tracks with more explicit constraints
+      const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
+        {
+          AGC: true,
+          ANS: true,
+        },
+        {
+          encoderConfig: {
+            width: 640,
+            height: 480,
+            frameRate: 30,
+            bitrateMin: 400,
+            bitrateMax: 800,
+          },
+          facingMode: "user",
+        }
+      );
       localTracksRef.current = { audio: audioTrack, video: videoTrack };
       await client.publish([audioTrack, videoTrack]);
 
@@ -529,7 +545,10 @@ export default function DoctorVideoCall({ consultationId: consultationIdProp, pa
             </p>
           )}
           <button
-            onClick={onCallEnd}
+            onClick={e => {
+              onCallEnd()
+              window.location.reload()
+            }}
             className="px-6 py-2 bg-[#0a4d3e] text-white rounded-lg hover:bg-[#0d614e] transition-colors"
           >
             Close
