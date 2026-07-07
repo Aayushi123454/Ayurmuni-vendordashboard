@@ -89,3 +89,25 @@
     padding: 10px;
   }
 }
+
+
+/* Global video fix for all video elements */
+video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+
+/* For the local video PIP */
+.video-pip video {
+  object-fit: cover !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* For the main video container */
+.video-container video {
+  object-fit: cover !important;
+  width: 100% !important;
+  height: 100% !important;
+}

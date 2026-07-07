@@ -480,7 +480,6 @@ const SlotDrawer = ({ isOpen, selectedDate, editingSlot, onClose, onSave, onUpda
 };
 
 const SlotEditorCard = ({ slot, index, selectedDate, isEditing, onEdit, onSave, onUpdate, onDelete, onToggleActive }) => {
-    console.log(slot);
 
     const getCurrentTime = () => {
         const now = new Date();

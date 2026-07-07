@@ -75,6 +75,7 @@ function App() {
       <BrowserRouter>
         <OnboardingRedirect />
         <Routes>
+          {/* Reference route only — patient app integration is a separate repository */}
           <Route path="patvideocall/:token/:consultationId" element={<PatientVideoCallWeb />} />
           {/* PUBLIC ROUTES */}
           <Route path="/login" element={<Login />} />

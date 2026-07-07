@@ -4,52 +4,95 @@ import { Clock, Video, MessageCircle, Users, CheckCircle, XCircle, Calendar, Dol
 
 const SlotCard = ({ slot, onClick, isCompact = false }) => {
     // Get status based on booking status
+    const rescheduledSlot = slot?.status_history?.find(
+        (item) => item.event === "Appointment rescheduled"
+    );
     const getStatusConfig = () => {
-        const status = slot?.booked_by?.appointment_status;
+        const appointmentStatus = slot?.booked_by?.appointment_status;
+        const slotStatus = slot?.status;
 
-        if (status === "completed") {
-            return {
-                bg: "bg-emerald-100",
-                text: "text-emerald-700",
-                label: "Completed",
-                icon: <CheckCircle className="w-3 h-3" />
-            };
+        switch (appointmentStatus) {
+            case "completed":
+                return {
+                    bg: "bg-emerald-100",
+                    text: "text-emerald-700",
+                    label: "Completed",
+                    icon: <CheckCircle className="w-3 h-3" />
+                };
+
+            case "cancelled":
+                return {
+                    bg: "bg-red-100",
+                    text: "text-red-700",
+                    label: "Cancelled",
+                    icon: <XCircle className="w-3 h-3" />
+                };
+
+            case "reschedule":
+            case "rescheduled":
+                return {
+                    bg: "bg-orange-100",
+                    text: "text-orange-700",
+                    label: "Rescheduled",
+                    icon: <RefreshCw className="w-3 h-3" />
+                };
+
+            case "missed":
+                return {
+                    bg: "bg-gray-100",
+                    text: "text-gray-700",
+                    label: "Missed",
+                    icon: <Clock3 className="w-3 h-3" />
+                };
+
+            default:
+                break;
         }
 
-        if (status === "cancelled") {
-            return {
-                bg: "bg-red-100",
-                text: "text-red-700",
-                label: "Cancelled",
-                icon: <XCircle className="w-3 h-3" />
-            };
-        }
+        switch (slotStatus) {
+            case "booked":
+                return {
+                    bg: "bg-blue-100",
+                    text: "text-blue-700",
+                    label: "Booked",
+                    icon: <Clock3 className="w-3 h-3" />
+                };
 
-        if (status === "rescheduled") {
-            return {
-                bg: "bg-orange-100",
-                text: "text-orange-700",
-                label: "Rescheduled",
-                icon: <RefreshCw className="w-3 h-3" />
-            };
-        }
+            case "reserved":
+                return {
+                    bg: "bg-yellow-100",
+                    text: "text-yellow-700",
+                    label: "Reserved",
+                    icon: <Clock3 className="w-3 h-3" />
+                };
 
-        if (slot?.is_booked) {
-            return {
-                bg: "bg-blue-100",
-                text: "text-blue-700",
-                label: "Booked",
-                icon: <Clock3 className="w-3 h-3" />
-            };
-        }
+            case "rescheduled":
+                return {
+                    bg: "bg-yellow-100",
+                    text: "text-yellow-700",
+                    label: "Shifted",
+                    icon: <RefreshCw className="w-3 h-3" />
+                };
 
-        return {
-            bg: "bg-[#0D614E]/10",
-            text: "text-[#0D614E]",
-            label: "Available",
-            icon: <CheckCircle className="w-3 h-3" />
-        };
+            case "expired":
+                return {
+                    bg: "bg-gray-200",
+                    text: "text-gray-700",
+                    label: "Expired",
+                    icon: <Clock3 className="w-3 h-3" />
+                };
+
+            case "available":
+            default:
+                return {
+                    bg: "bg-[#0D614E]/10",
+                    text: "text-[#0D614E]",
+                    label: "Available",
+                    icon: <CheckCircle className="w-3 h-3" />
+                };
+        }
     };
+
 
     const status = getStatusConfig();
 
@@ -76,7 +119,9 @@ const SlotCard = ({ slot, onClick, isCompact = false }) => {
             <div
                 onClick={(e) => {
                     e.stopPropagation();
-                    onClick();
+                    if (status.label != "Shifted") {
+                        onClick();
+                    }
                 }}
                 className={`
                     text-xs p-2 rounded-lg cursor-pointer transition-all duration-200
@@ -91,8 +136,27 @@ const SlotCard = ({ slot, onClick, isCompact = false }) => {
                             {formatTime(slot.start_time)} - {formatTime(slot.end_time)}
                         </span>
                     </div>
-
                 </div>
+                {
+                    (status.label == "Expired" || status.label == "Shifted") &&
+                    <>
+                        <div className="flex items-center gap-1">
+                            {status.icon}
+                            <span className="text-xs font-medium">{status.label == "Shifted" ? "Shifted" : status.label} </span>
+                        </div>
+                        {
+                            rescheduledSlot && (
+                                <div className="mt-1 text-[10px] text-gray-600 flex items-center gap-1">
+                                    <Clock3 className="w-2.5 h-2.5" />
+                                    <span className="truncate">
+                                        {rescheduledSlot.new_slot?.date}{" "}
+                                        {/* <br />
+                                        {formatTime(rescheduledSlot.to_slot?.start_time)} - {formatTime(rescheduledSlot.to_slot?.end_time)} */}
+                                    </span>
+                                </div>
+                            )}
+                    </>
+                }
 
                 {/* Show patient name for booked slots in compact view */}
                 {hasPatient && (

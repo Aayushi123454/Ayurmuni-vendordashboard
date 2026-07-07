@@ -1,175 +1,94 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Search,
     Send,
     Paperclip,
-    MoreVertical,
-    Phone,
-    Video,
     User,
-    Clock,
     Check,
     CheckCheck,
-    Image,
-    File,
-    Mic,
-    Smile,
     X,
-    ArrowLeft,
     Users,
     Calendar,
     Activity,
     Stethoscope,
-    ChevronDown,
-    ChevronUp,
-    Circle,
-    Plus,
-    Menu
 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import {
+    fetchConversationList,
+    fetchConversationMessages,
+    mapConversationListItem,
+    notifyChatActivity,
+    notifyConversationListRefresh,
+    sendChatMessageRest,
+    uploadChatImage,
+    mapBackendMessageToUi,
+    applySeenReceiptToMessages,
+    countUnreadPeerMessages,
+    mergeMessagesById,
+    createConsultationChatConnection,
+    disconnectActiveConsultationChat,
+    getChatSyncChannel,
+    apiErrorMessage,
+} from '../../../services/consultationChatService';
 
-// Mock data
-const mockPatients = [
-    {
-        id: '1',
-        name: 'Sarah Johnson',
-        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
-        lastMessage: 'Thank you doctor, I will follow the prescription.',
-        lastMessageTime: new Date(Date.now() - 1000 * 60 * 5),
-        unreadCount: 2,
-        online: true,
-        phone: '+1 (555) 123-4567',
-        email: 'sarah.j@email.com',
-        age: 34,
-        gender: 'Female',
-        bloodGroup: 'A+',
-        allergies: ['Penicillin', 'Dust'],
-        medicalHistory: ['Hypertension', 'Type 2 Diabetes']
-    },
-    {
-        id: '2',
-        name: 'Robert Chen',
-        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-        lastMessage: 'I have been experiencing chest pain.',
-        lastMessageTime: new Date(Date.now() - 1000 * 60 * 30),
-        unreadCount: 0,
-        online: false,
-        lastSeen: new Date(Date.now() - 1000 * 60 * 15),
-        phone: '+1 (555) 234-5678',
-        email: 'robert.c@email.com',
-        age: 45,
-        gender: 'Male',
-        bloodGroup: 'O-',
-        allergies: ['Sulfa drugs'],
-        medicalHistory: ['Coronary Artery Disease']
-    },
-    {
-        id: '3',
-        name: 'Maria Garcia',
-        avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150',
-        lastMessage: 'When should I come for the next checkup?',
-        lastMessageTime: new Date(Date.now() - 1000 * 60 * 120),
-        unreadCount: 3,
-        online: true,
-        phone: '+1 (555) 345-6789',
-        email: 'maria.g@email.com',
-        age: 28,
-        gender: 'Female',
-        bloodGroup: 'B+',
-        allergies: ['Latex'],
-        medicalHistory: ['Asthma']
-    },
-    {
-        id: '4',
-        name: 'James Wilson',
-        avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
-        lastMessage: 'The medication is working well.',
-        lastMessageTime: new Date(Date.now() - 1000 * 60 * 180),
-        unreadCount: 0,
-        online: false,
-        lastSeen: new Date(Date.now() - 1000 * 60 * 45),
-        phone: '+1 (555) 456-7890',
-        email: 'james.w@email.com',
-        age: 52,
-        gender: 'Male',
-        bloodGroup: 'AB+',
-        allergies: [],
-        medicalHistory: ['Arthritis', 'Gout']
-    }
-];
+const CHAT_SENDER_DOCTOR = 'doctor';
+const CHAT_SENDER_PATIENT = 'patient';
 
-// Initial messages for demo
-const getInitialMessages = (patientId) => {
-    const baseMessages = [
-        {
-            id: '1',
-            senderId: 'doctor',
-            receiverId: patientId,
-            content: 'Hello, how are you feeling today?',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2),
-            type: 'text',
-            status: 'read'
-        },
-        {
-            id: '2',
-            senderId: patientId,
-            receiverId: 'doctor',
-            content: 'I feel much better after taking the medication. The pain has reduced significantly.',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 1.5),
-            type: 'text',
-            status: 'read'
-        },
-        {
-            id: '3',
-            senderId: 'doctor',
-            receiverId: patientId,
-            content: 'That\'s great to hear! Are you experiencing any side effects?',
-            timestamp: new Date(Date.now() - 1000 * 60 * 60 * 1),
-            type: 'text',
-            status: 'read'
-        },
-        {
-            id: '4',
-            senderId: patientId,
-            receiverId: 'doctor',
-            content: 'No side effects so far. Everything seems to be going well.',
-            timestamp: new Date(Date.now() - 1000 * 60 * 30),
-            type: 'text',
-            status: 'delivered'
-        }
-    ];
-    return baseMessages;
+const getInitials = (name) => {
+    if (!name) return '?';
+    return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
 };
 
-// Helper function to format time
 const formatTime = (date) => {
+    if (!date) return '';
+    const value = date instanceof Date ? date : new Date(date);
+    if (Number.isNaN(value.getTime())) return '';
     return new Intl.DateTimeFormat('en-US', {
         hour: '2-digit',
-        minute: '2-digit'
-    }).format(date);
+        minute: '2-digit',
+    }).format(value);
 };
 
-// Helper function to format date
 const formatDate = (date) => {
+    const value = date instanceof Date ? date : new Date(date);
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
-    if (date.toDateString() === today.toDateString()) {
+    if (value.toDateString() === today.toDateString()) {
         return 'Today';
-    } else if (date.toDateString() === yesterday.toDateString()) {
-        return 'Yesterday';
-    } else {
-        return new Intl.DateTimeFormat('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-        }).format(date);
     }
+    if (value.toDateString() === yesterday.toDateString()) {
+        return 'Yesterday';
+    }
+    return new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    }).format(value);
 };
 
-// Message component
-const MessageItem = ({ message, isDoctor }) => {
-    const isOwn = message.senderId === 'doctor';
+const Avatar = ({ src, name, className = 'w-12 h-12' }) => {
+    if (src) {
+        return (
+            <img
+                src={src}
+                alt={name}
+                className={`${className} rounded-full object-cover`}
+            />
+        );
+    }
+    return (
+        <div
+            className={`${className} rounded-full bg-[#0D614E]/15 flex items-center justify-center text-[#0D614E] font-semibold text-sm`}
+        >
+            {getInitials(name)}
+        </div>
+    );
+};
+
+const MessageItem = ({ message }) => {
+    const isOwn = message.senderId === CHAT_SENDER_DOCTOR;
 
     return (
         <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-3`}>
@@ -178,10 +97,29 @@ const MessageItem = ({ message, isDoctor }) => {
                     ? 'bg-[#0D614E] !text-white'
                     : 'bg-white border border-gray-200 text-gray-800'
                     }`}>
-                    <p className={"text-sm whitespace-pre-wrap break-words " + (isOwn
-                        ? '!text-white'
-                        : ''
-                    )}>{message.content}</p>
+                    {message.type === 'image' && message.attachments?.length > 0 && (
+                        <div className="space-y-2 mb-2">
+                            {message.attachments.map((attachment, index) => (
+                                <a
+                                    key={`${message.id}-img-${index}`}
+                                    href={attachment.file_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    <img
+                                        src={attachment.file_url}
+                                        alt={attachment.file_name || 'Attachment'}
+                                        className="max-w-full rounded-lg max-h-48 object-cover"
+                                    />
+                                </a>
+                            ))}
+                        </div>
+                    )}
+                    {message.content && (
+                        <p className={`text-sm whitespace-pre-wrap break-words ${isOwn ? '!text-white' : ''}`}>
+                            {message.content}
+                        </p>
+                    )}
                 </div>
                 <div className={`flex items-center mt-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
                     <span className="text-xs text-gray-400">
@@ -200,288 +138,660 @@ const MessageItem = ({ message, isDoctor }) => {
     );
 };
 
-// Patient list item component
-const PatientListItem = ({ patient, isSelected, onClick }) => {
-    return (
-        <div
-            className={`flex items-center px-4 py-3 cursor-pointer transition-all duration-200 ${isSelected
-                ? 'bg-[#0D614E]/10 border-l-4 border-[#0D614E]'
-                : 'hover:bg-gray-50 border-l-4 border-transparent'
-                }`}
-            onClick={onClick}
-        >
-            <div className="relative flex-shrink-0">
-                <img
-                    src={patient.avatar}
-                    alt={patient.name}
-                    className="w-12 h-12 rounded-full object-cover"
-                />
-                {patient.online && (
-                    <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></span>
+const PatientListItem = ({ patient, isSelected, onClick }) => (
+    <div
+        className={`flex items-center px-4 py-3 cursor-pointer transition-all duration-200 ${isSelected
+            ? 'bg-[#0D614E]/10 border-l-4 border-[#0D614E]'
+            : 'hover:bg-gray-50 border-l-4 border-transparent'
+            }`}
+        onClick={onClick}
+    >
+        <div className="relative flex-shrink-0">
+            <Avatar src={patient.avatar} name={patient.name} />
+            {patient.online && (
+                <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
+            )}
+        </div>
+        <div className="flex-1 min-w-0 ml-3">
+            <div className="flex items-center justify-between">
+                <h4 className="font-medium text-gray-800 text-sm truncate">{patient.name}</h4>
+                {patient.lastMessageTime && (
+                    <span className="text-xs text-gray-400 flex-shrink-0">
+                        {formatTime(patient.lastMessageTime)}
+                    </span>
                 )}
             </div>
-            <div className="flex-1 min-w-0 ml-3">
-                <div className="flex items-center justify-between">
-                    <h4 className="font-medium text-gray-800 text-sm truncate">{patient.name}</h4>
-                    {patient.lastMessageTime && (
-                        <span className="text-xs text-gray-400 flex-shrink-0">
-                            {formatTime(patient.lastMessageTime)}
-                        </span>
-                    )}
-                </div>
-                <div className="flex items-center justify-between mt-0.5">
-                    <p className="text-xs text-gray-500 truncate">
-                        {patient.isTyping ? (
-                            <span className="text-[#0D614E] flex items-center gap-1">
-                                typing...
-                                <span className="inline-flex gap-0.5">
-                                    <span className="w-1 h-1 bg-[#0D614E] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                                    <span className="w-1 h-1 bg-[#0D614E] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                                    <span className="w-1 h-1 bg-[#0D614E] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
-                                </span>
-                            </span>
-                        ) : (
-                            patient.lastMessage || ''
-                        )}
-                    </p>
-                    {patient.unreadCount > 0 && (
-                        <span className="flex-shrink-0 w-5 h-5 bg-[#0D614E] text-white text-xs rounded-full flex items-center justify-center font-medium">
-                            {patient.unreadCount}
-                        </span>
-                    )}
-                </div>
+            <div className="flex items-center justify-between mt-0.5">
+                <p className="text-xs text-gray-500 truncate">
+                    {patient.lastMessage || ''}
+                </p>
+                {patient.unreadCount > 0 && (
+                    <span className="flex-shrink-0 w-5 h-5 bg-[#0D614E] text-white text-xs rounded-full flex items-center justify-center font-medium">
+                        {patient.unreadCount}
+                    </span>
+                )}
             </div>
         </div>
-    );
-};
+    </div>
+);
 
-// Patient info sidebar component
-const PatientInfoSidebar = ({ patient, onClose }) => {
-    return (
-        <div className="w-80 border-l border-gray-200 bg-gray-50 flex flex-col h-full">
-            <div className="p-4 border-b border-gray-200 bg-white flex items-center justify-between">
-                <h3 className="font-semibold text-gray-800">Patient Info</h3>
-                <button
-                    onClick={onClose}
-                    className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                    <X className="w-5 h-5 text-gray-500" />
-                </button>
+const PatientInfoSidebar = ({ patient, onClose }) => (
+    <div className="w-80 border-l border-gray-200 bg-gray-50 flex flex-col h-full">
+        <div className="p-4 border-b border-gray-200 bg-white flex items-center justify-between">
+            <h3 className="font-semibold text-gray-800">Patient Info</h3>
+            <button
+                onClick={onClose}
+                className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+                <X className="w-5 h-5 text-gray-500" />
+            </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex flex-col items-center text-center mb-6">
+                <Avatar src={patient.avatar} name={patient.name} className="w-20 h-20" />
+                <h4 className="text-lg font-semibold text-gray-800 mt-3">{patient.name}</h4>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4">
-                <div className="flex flex-col items-center text-center mb-6">
-                    <img
-                        src={patient.avatar}
-                        alt={patient.name}
-                        className="w-20 h-20 rounded-full object-cover mb-3"
-                    />
-                    <h4 className="text-lg font-semibold text-gray-800">{patient.name}</h4>
-                    <div className="flex items-center gap-2 mt-1">
-                        <span className={`inline-flex items-center gap-1 text-xs ${patient.online ? 'text-green-600' : 'text-gray-400'}`}>
-                            <span className={`w-2 h-2 rounded-full ${patient.online ? 'bg-green-500' : 'bg-gray-300'}`}></span>
-                            {patient.online ? 'Online' : `Last seen ${formatTime(patient.lastSeen)}`}
-                        </span>
+            <div className="space-y-3">
+                <div className="bg-white rounded-lg p-3 shadow-sm">
+                    <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                        <User className="w-4 h-4" />
+                        <span>Personal Details</span>
                     </div>
-                </div>
-
-                <div className="space-y-3">
-                    <div className="bg-white rounded-lg p-3 shadow-sm">
-                        <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
-                            <User className="w-4 h-4" />
-                            <span>Personal Details</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                        {patient.age && (
                             <div>
                                 <p className="text-gray-400 text-xs">Age</p>
                                 <p className="font-medium text-gray-700">{patient.age} years</p>
                             </div>
+                        )}
+                        {patient.gender && (
                             <div>
                                 <p className="text-gray-400 text-xs">Gender</p>
                                 <p className="font-medium text-gray-700">{patient.gender}</p>
                             </div>
+                        )}
+                        {patient.bloodGroup && (
                             <div>
                                 <p className="text-gray-400 text-xs">Blood Group</p>
                                 <p className="font-medium text-gray-700">{patient.bloodGroup}</p>
                             </div>
+                        )}
+                        {/* {patient.phone && (
                             <div>
                                 <p className="text-gray-400 text-xs">Phone</p>
                                 <p className="font-medium text-gray-700 text-xs">{patient.phone}</p>
                             </div>
-                        </div>
+                        )} */}
                     </div>
+                </div>
 
-                    {patient.allergies && patient.allergies.length > 0 && (
-                        <div className="bg-white rounded-lg p-3 shadow-sm">
-                            <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
-                                <Activity className="w-4 h-4" />
-                                <span>Allergies</span>
-                            </div>
-                            <div className="flex flex-wrap gap-1.5">
-                                {patient.allergies.map((allergy, index) => (
-                                    <span key={index} className="px-2 py-0.5 bg-red-50 text-red-600 text-xs rounded-full">
-                                        {allergy}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {patient.medicalHistory && patient.medicalHistory.length > 0 && (
-                        <div className="bg-white rounded-lg p-3 shadow-sm">
-                            <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
-                                <Stethoscope className="w-4 h-4" />
-                                <span>Medical History</span>
-                            </div>
-                            <div className="flex flex-wrap gap-1.5">
-                                {patient.medicalHistory.map((condition, index) => (
-                                    <span key={index} className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded-full">
-                                        {condition}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
+                {patient.allergies?.length > 0 && (
                     <div className="bg-white rounded-lg p-3 shadow-sm">
                         <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
-                            <Calendar className="w-4 h-4" />
-                            <span>Quick Actions</span>
+                            <Activity className="w-4 h-4" />
+                            <span>Allergies</span>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <button className="px-3 py-1.5 bg-[#0D614E] text-white text-xs rounded-lg hover:bg-[#0A4D3E] transition-colors">
-                                Schedule Visit
-                            </button>
-                            <button className="px-3 py-1.5 border border-[#0D614E] text-[#0D614E] text-xs rounded-lg hover:bg-[#0D614E]/5 transition-colors">
-                                View Records
-                            </button>
+                        <div className="flex flex-wrap gap-1.5">
+                            {patient.allergies.map((allergy, index) => (
+                                <span key={index} className="px-2 py-0.5 bg-red-50 text-red-600 text-xs rounded-full">
+                                    {allergy}
+                                </span>
+                            ))}
                         </div>
                     </div>
+                )}
+
+                {patient.medicalHistory?.length > 0 && (
+                    <div className="bg-white rounded-lg p-3 shadow-sm">
+                        <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                            <Stethoscope className="w-4 h-4" />
+                            <span>Medical History</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                            {patient.medicalHistory.map((condition, index) => (
+                                <span key={index} className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs rounded-full">
+                                    {condition}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                <div className="bg-white rounded-lg p-3 shadow-sm">
+                    <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                        <Calendar className="w-4 h-4" />
+                        <span>Consultation</span>
+                    </div>
+                    {patient.chatAccess?.active_phase && (
+                        <p className="text-sm text-gray-700 capitalize">
+                            Chat: {patient.chatAccess.active_phase.replace(/_/g, ' ')}
+                        </p>
+                    )}
+                    {patient.chatAccess?.call_status && (
+                        <p className="text-sm text-gray-700 capitalize mt-1">
+                            Call: {patient.chatAccess.call_status.replace(/_/g, ' ')}
+                        </p>
+                    )}
                 </div>
             </div>
         </div>
-    );
-};
+    </div>
+);
 
-// Main Messenger Component
-const Messenger = ({
-    doctorId,
-    doctorName,
-    initialPatients = mockPatients,
-    onSendMessage,
-    onPatientSelect
-}) => {
-    const [patients, setPatients] = useState(initialPatients);
+const Messenger = ({ onSendMessage, onPatientSelect }) => {
+    const profile = (() => {
+        try {
+            return JSON.parse(sessionStorage.getItem('profile') || '{}');
+        } catch {
+            return {};
+        }
+    })();
+    const doctorName = profile.first_name
+        ? `${profile.first_name} ${profile.last_name || ''}`.trim()
+        : 'Doctor';
+
+    const [patients, setPatients] = useState([]);
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [messages, setMessages] = useState([]);
     const [inputMessage, setInputMessage] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [isPatientInfoOpen, setIsPatientInfoOpen] = useState(false);
-    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [isLoadingConversations, setIsLoadingConversations] = useState(true);
+    const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+    const [chatAccess, setChatAccess] = useState(null);
+    const [isSending, setIsSending] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
 
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
     const inputRef = useRef(null);
+    const wsConnectionRef = useRef(null);
+    const selectedPatientRef = useRef(null);
+    const messagesByPatientRef = useRef(new Map());
+    const wsSessionRef = useRef(0);
+    const historyRequestRef = useRef(0);
+    const wsAppointmentIdRef = useRef(null);
+    const ensureWebSocketForAccessRef = useRef(() => {});
+    const tabIdRef = useRef(`tab-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    const listRefreshTimerRef = useRef(null);
 
-    // Load messages when patient is selected
-    useEffect(() => {
-        if (selectedPatient) {
-            setMessages(getInitialMessages(selectedPatient.id));
-            // Mark messages as read
-            setPatients(prev => prev.map(p =>
-                p.id === selectedPatient.id ? { ...p, unreadCount: 0 } : p
-            ));
+    const isActivePatient = useCallback(
+        (patientId) => selectedPatientRef.current?.patientId === patientId,
+        []
+    );
+
+    const updateConversationPreview = useCallback((patientId, messageList) => {
+        if (!messageList?.length) return;
+        const last = messageList[messageList.length - 1];
+        const unread = countUnreadPeerMessages(messageList);
+
+        setPatients((prev) => {
+            const index = prev.findIndex((p) => p.patientId === patientId);
+            if (index === -1) return prev;
+
+            const updated = {
+                ...prev[index],
+                lastMessage: last.content,
+                lastMessageTime: last.timestamp,
+                unreadCount: isActivePatient(patientId) ? 0 : unread,
+            };
+
+            const remaining = prev.filter((_, i) => i !== index);
+            return [updated, ...remaining].sort(
+                (a, b) => (b.lastMessageTime?.getTime() || 0) - (a.lastMessageTime?.getTime() || 0)
+            );
+        });
+    }, [isActivePatient]);
+
+    const scheduleConversationListRefresh = useCallback(() => {
+        if (listRefreshTimerRef.current) {
+            clearTimeout(listRefreshTimerRef.current);
         }
+        listRefreshTimerRef.current = setTimeout(() => {
+            listRefreshTimerRef.current = null;
+            notifyConversationListRefresh(tabIdRef.current);
+            fetchConversationsRef.current?.({ silent: true });
+        }, 400);
+    }, []);
+
+    const broadcastChatActivity = useCallback((patientId) => {
+        notifyChatActivity(patientId, tabIdRef.current);
+        scheduleConversationListRefresh();
+    }, [scheduleConversationListRefresh]);
+
+    const syncMessagesForPatient = useCallback((patientId, nextMessages, { broadcast = true } = {}) => {
+        messagesByPatientRef.current.set(patientId, nextMessages);
+        if (selectedPatientRef.current?.patientId === patientId) {
+            setMessages(nextMessages);
+        }
+        updateConversationPreview(patientId, nextMessages);
+        if (broadcast) {
+            broadcastChatActivity(patientId);
+        }
+    }, [updateConversationPreview, broadcastChatActivity]);
+
+    const applyConversationAccess = useCallback((patientId, access) => {
+        if (!access) return;
+
+        const previousAppointmentId = selectedPatientRef.current?.appointmentId ?? null;
+        const nextAppointmentId = access.active_appointment_id || null;
+
+        setChatAccess(access);
+        setSelectedPatient((prev) => {
+            if (!prev || prev.patientId !== patientId) return prev;
+            return {
+                ...prev,
+                appointmentId: nextAppointmentId,
+                chatAccess: access,
+            };
+        });
+        setPatients((prev) => prev.map((p) => (
+            p.patientId === patientId
+                ? { ...p, appointmentId: nextAppointmentId, chatAccess: access }
+                : p
+        )));
+
+        const appointmentChanged = nextAppointmentId !== previousAppointmentId;
+        const needsSocket = Boolean(nextAppointmentId);
+        const socketMissing = needsSocket && !wsConnectionRef.current?.isConnected();
+        const socketWrongRoom = needsSocket
+            && wsAppointmentIdRef.current
+            && wsAppointmentIdRef.current !== nextAppointmentId;
+
+        if (appointmentChanged || socketMissing || socketWrongRoom || (!needsSocket && wsConnectionRef.current)) {
+            ensureWebSocketForAccessRef.current(access);
+        }
+    }, []);
+
+    const loadConversationHistory = useCallback(async (
+        patientId,
+        { markRead = true, broadcast = true } = {}
+    ) => {
+        const requestId = ++historyRequestRef.current;
+        setIsLoadingMessages(true);
+        try {
+            const data = await fetchConversationMessages(patientId);
+            if (requestId !== historyRequestRef.current) return data;
+            if (!isActivePatient(patientId)) return data;
+
+            const uiMessages = (data.messages || []).map((msg) =>
+                mapBackendMessageToUi(msg, patientId)
+            );
+            syncMessagesForPatient(patientId, uiMessages, { broadcast });
+
+            const access = data.conversation?.chat_access || null;
+            if (access) {
+                applyConversationAccess(patientId, access);
+            }
+
+            const activeAppointmentId = access?.active_appointment_id;
+            if (
+                markRead
+                && activeAppointmentId
+                && isActivePatient(patientId)
+                && wsConnectionRef.current?.isConnected()
+            ) {
+                wsConnectionRef.current.sendChatRead();
+            }
+
+            return data;
+        } catch (error) {
+            if (requestId === historyRequestRef.current && isActivePatient(patientId)) {
+                toast.error(apiErrorMessage(error, 'Failed to load conversation'));
+            }
+            throw error;
+        } finally {
+            if (requestId === historyRequestRef.current && isActivePatient(patientId)) {
+                setIsLoadingMessages(false);
+            }
+        }
+    }, [syncMessagesForPatient, isActivePatient, applyConversationAccess]);
+
+    const handleChatEvent = useCallback((event, appointmentId, patientId, sessionId) => {
+        if (wsSessionRef.current !== sessionId) return;
+
+        switch (event.type) {
+            case 'chat.connected':
+                if (isActivePatient(patientId) && event.data?.chat_access) {
+                    applyConversationAccess(patientId, {
+                        ...event.data.chat_access,
+                        active_appointment_id: appointmentId,
+                    });
+                }
+                break;
+
+            case 'chat.message': {
+                const uiMessage = mapBackendMessageToUi(event.message, patientId);
+                const existing = messagesByPatientRef.current.get(patientId) || [];
+                const merged = mergeMessagesById(existing, [uiMessage]);
+                syncMessagesForPatient(patientId, merged);
+
+                if (
+                    uiMessage.senderRole === CHAT_SENDER_PATIENT
+                    && isActivePatient(patientId)
+                    && wsSessionRef.current === sessionId
+                    && wsConnectionRef.current?.isConnected()
+                ) {
+                    wsConnectionRef.current.sendChatRead([uiMessage.id]);
+                }
+                break;
+            }
+
+            case 'chat.seen': {
+                if (!isActivePatient(patientId)) break;
+                const existing = messagesByPatientRef.current.get(patientId) || [];
+                const updated = applySeenReceiptToMessages(existing, event.data);
+                syncMessagesForPatient(patientId, updated);
+                break;
+            }
+
+            case 'chat.error':
+                if (isActivePatient(patientId)) {
+                    toast.error(event.message || 'Chat error');
+                }
+                break;
+
+            default:
+                break;
+        }
+    }, [syncMessagesForPatient, isActivePatient, applyConversationAccess]);
+
+    const connectWebSocket = useCallback((patient) => {
+        const appointmentId = patient?.appointmentId;
+        const { patientId } = patient || {};
+
+        if (!appointmentId || !patientId) {
+            wsSessionRef.current += 1;
+            disconnectActiveConsultationChat();
+            wsConnectionRef.current = null;
+            wsAppointmentIdRef.current = null;
+            return;
+        }
+
+        const sessionId = ++wsSessionRef.current;
+        wsAppointmentIdRef.current = appointmentId;
+
+        if (wsConnectionRef.current) {
+            wsConnectionRef.current.disconnect();
+            wsConnectionRef.current = null;
+        }
+
+        wsConnectionRef.current = createConsultationChatConnection(appointmentId, {
+            onOpen: (isReconnect) => {
+                if (wsSessionRef.current !== sessionId) return;
+                toast.dismiss(`chat-reconnect-${appointmentId}`);
+                if (!isActivePatient(patientId)) return;
+                if (isReconnect) {
+                    loadConversationHistory(patientId, { markRead: true }).catch(() => {});
+                } else {
+                    wsConnectionRef.current?.sendChatRead();
+                }
+            },
+            onEvent: (event) => handleChatEvent(event, appointmentId, patientId, sessionId),
+            onReconnecting: () => {
+                if (wsSessionRef.current !== sessionId) return;
+                toast.loading('Reconnecting chat…', { id: `chat-reconnect-${appointmentId}` });
+            },
+            onClose: (event) => {
+                if (wsSessionRef.current !== sessionId) return;
+                if (event.code === 1000) {
+                    toast.dismiss(`chat-reconnect-${appointmentId}`);
+                }
+            },
+            onError: (error) => {
+                if (wsSessionRef.current !== sessionId) return;
+                if (error?.message && isActivePatient(patientId)) {
+                    toast.error(error.message);
+                }
+            },
+        });
+    }, [handleChatEvent, loadConversationHistory, isActivePatient]);
+
+    const ensureWebSocketForAccess = useCallback((access) => {
+        const patient = selectedPatientRef.current;
+        if (!patient) return;
+
+        const nextAppointmentId = access?.active_appointment_id || null;
+
+        if (!nextAppointmentId) {
+            wsSessionRef.current += 1;
+            disconnectActiveConsultationChat();
+            wsConnectionRef.current = null;
+            wsAppointmentIdRef.current = null;
+            return;
+        }
+
+        const connectedAppointmentId = wsConnectionRef.current?.getAppointmentId?.()
+            ?? wsAppointmentIdRef.current;
+
+        if (
+            connectedAppointmentId === nextAppointmentId
+            && wsConnectionRef.current?.isConnected()
+        ) {
+            return;
+        }
+
+        connectWebSocket({
+            ...patient,
+            patientId: patient.patientId,
+            appointmentId: nextAppointmentId,
+        });
+    }, [connectWebSocket]);
+
+    ensureWebSocketForAccessRef.current = ensureWebSocketForAccess;
+
+    const refreshActiveConversationAccess = useCallback(async (patientId) => {
+        if (!patientId || !isActivePatient(patientId)) return;
+
+        try {
+            const data = await fetchConversationList();
+            const conversation = (data.conversations || []).find(
+                (item) => item.patient_id === patientId
+            );
+            if (!conversation?.chat_access || !isActivePatient(patientId)) return;
+
+            applyConversationAccess(patientId, conversation.chat_access);
+        } catch {
+            // Polling/background refresh should not interrupt the open thread.
+        }
+    }, [applyConversationAccess, isActivePatient]);
+
+    const fetchConversationsRef = useRef(async () => {});
+
+    const fetchConversations = useCallback(async ({ silent = false } = {}) => {
+        if (!silent) setIsLoadingConversations(true);
+        try {
+            const data = await fetchConversationList();
+            const conversations = (data.conversations || []).map(mapConversationListItem);
+            setPatients((prev) => {
+                if (!selectedPatientRef.current?.patientId) return conversations;
+                return conversations.map((conversation) => (
+                    conversation.patientId === selectedPatientRef.current.patientId
+                        ? { ...conversation, unreadCount: 0 }
+                        : conversation
+                ));
+            });
+        } catch (error) {
+            if (!silent) {
+                toast.error(apiErrorMessage(error, 'Failed to load conversations'));
+                setPatients([]);
+            }
+        } finally {
+            if (!silent) setIsLoadingConversations(false);
+        }
+    }, []);
+
+    fetchConversationsRef.current = fetchConversations;
+
+    useEffect(() => {
+        fetchConversations();
+    }, [fetchConversations]);
+
+    useEffect(() => {
+        const channel = getChatSyncChannel();
+        if (!channel) return undefined;
+
+        const handleCrossTabSync = (event) => {
+            const { type, patientId, tabId } = event.data || {};
+            if (tabId === tabIdRef.current) return;
+
+            if (type === 'conversations-refresh' || type === 'chat-activity') {
+                fetchConversations({ silent: true });
+            }
+
+            if (
+                type === 'chat-activity'
+                && patientId
+                && selectedPatientRef.current?.patientId === patientId
+            ) {
+                loadConversationHistory(patientId, { markRead: true, broadcast: false }).catch(() => {});
+            }
+        };
+
+        channel.addEventListener('message', handleCrossTabSync);
+        return () => {
+            channel.removeEventListener('message', handleCrossTabSync);
+            channel.close();
+        };
+    }, [fetchConversations, loadConversationHistory]);
+
+    useEffect(() => () => {
+        if (listRefreshTimerRef.current) {
+            clearTimeout(listRefreshTimerRef.current);
+        }
+    }, []);
+
+    useEffect(() => () => {
+        historyRequestRef.current += 1;
+        wsSessionRef.current += 1;
+        disconnectActiveConsultationChat();
+        wsConnectionRef.current = null;
+    }, []);
+
+    useEffect(() => {
+        selectedPatientRef.current = selectedPatient;
     }, [selectedPatient]);
 
-    // Scroll to bottom when messages change
+    const selectedPatientId = selectedPatient?.patientId ?? null;
+
+    useEffect(() => {
+        if (!selectedPatientId) {
+            wsSessionRef.current += 1;
+            historyRequestRef.current += 1;
+            disconnectActiveConsultationChat();
+            wsConnectionRef.current = null;
+            wsAppointmentIdRef.current = null;
+            setMessages([]);
+            setChatAccess(null);
+            return undefined;
+        }
+
+        const cached = messagesByPatientRef.current.get(selectedPatientId);
+        setMessages(cached || []);
+        setPatients((prev) => prev.map((p) => (
+            p.patientId === selectedPatientId ? { ...p, unreadCount: 0 } : p
+        )));
+
+        loadConversationHistory(selectedPatientId, { markRead: true }).catch(() => {});
+
+        const handleOnline = () => {
+            const current = selectedPatientRef.current;
+            if (!current?.patientId) return;
+            refreshActiveConversationAccess(current.patientId)
+                .then(() => {
+                    if (selectedPatientRef.current?.appointmentId) {
+                        wsConnectionRef.current?.reconnect();
+                    }
+                })
+                .catch(() => {});
+        };
+
+        const handleVisibility = () => {
+            if (document.visibilityState !== 'visible' || !selectedPatientRef.current) return;
+            loadConversationHistory(
+                selectedPatientRef.current.patientId,
+                { markRead: true }
+            ).catch(() => {});
+        };
+
+        const accessPollId = setInterval(() => {
+            refreshActiveConversationAccess(selectedPatientId);
+        }, 30000);
+
+        window.addEventListener('online', handleOnline);
+        document.addEventListener('visibilitychange', handleVisibility);
+
+        return () => {
+            clearInterval(accessPollId);
+            window.removeEventListener('online', handleOnline);
+            document.removeEventListener('visibilitychange', handleVisibility);
+            wsSessionRef.current += 1;
+            historyRequestRef.current += 1;
+            disconnectActiveConsultationChat();
+            wsConnectionRef.current = null;
+            wsAppointmentIdRef.current = null;
+        };
+    }, [selectedPatientId, loadConversationHistory, refreshActiveConversationAccess]);
+
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // Filter patients based on search
-    const filteredPatients = patients.filter(patient =>
+    const filteredPatients = patients.filter((patient) =>
         patient.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    // Send message handler
-    const handleSendMessage = () => {
-        if (!inputMessage.trim() || !selectedPatient) return;
+    const canSend = Boolean(chatAccess?.can_send);
 
-        const newMessage = {
-            id: Date.now().toString(),
-            senderId: 'doctor',
-            receiverId: selectedPatient.id,
-            content: inputMessage.trim(),
-            timestamp: new Date(),
-            type: 'text',
-            status: 'sent'
-        };
+    const handleSendMessage = async () => {
+        if (!inputMessage.trim() || !selectedPatient || !canSend || isSending) return;
 
-        setMessages(prev => [...prev, newMessage]);
-        setInputMessage('');
-        setShowEmojiPicker(false);
-
-        // Update last message in patient list
-        setPatients(prev => prev.map(p =>
-            p.id === selectedPatient.id
-                ? { ...p, lastMessage: inputMessage.trim(), lastMessageTime: new Date() }
-                : p
-        ));
-
-        // Simulate delivery and read status
-        setTimeout(() => {
-            setMessages(prev =>
-                prev.map(m =>
-                    m.id === newMessage.id ? { ...m, status: 'delivered' } : m
-                )
-            );
-        }, 1000);
-
-        setTimeout(() => {
-            setMessages(prev =>
-                prev.map(m =>
-                    m.id === newMessage.id ? { ...m, status: 'read' } : m
-                )
-            );
-        }, 2000);
-
-        // Simulate patient typing indicator
-        if (selectedPatient) {
-            setPatients(prev => prev.map(p =>
-                p.id === selectedPatient.id ? { ...p, isTyping: true } : p
-            ));
-
-            setTimeout(() => {
-                setPatients(prev => prev.map(p =>
-                    p.id === selectedPatient.id ? { ...p, isTyping: false } : p
-                ));
-                // Simulate reply
-                const reply = {
-                    id: (Date.now() + 1).toString(),
-                    senderId: selectedPatient.id,
-                    receiverId: 'doctor',
-                    content: 'Thank you doctor. I\'ll follow your advice.',
-                    timestamp: new Date(),
-                    type: 'text',
-                    status: 'read'
-                };
-                setMessages(prev => [...prev, reply]);
-
-                setPatients(prev => prev.map(p =>
-                    p.id === selectedPatient.id
-                        ? { ...p, lastMessage: reply.content, lastMessageTime: new Date() }
-                        : p
-                ));
-            }, 3000);
+        const text = inputMessage.trim();
+        const { patientId } = selectedPatient;
+        const appointmentId = selectedPatientRef.current?.appointmentId
+            || chatAccess?.active_appointment_id;
+        if (!appointmentId) {
+            toast.error('No active consultation to send messages.');
+            return;
         }
 
-        if (onSendMessage) {
-            onSendMessage(newMessage);
+        setInputMessage('');
+        setIsSending(true);
+
+        try {
+            const sentViaWs = wsConnectionRef.current?.sendChatMessage({ text });
+
+            if (!sentViaWs) {
+                const data = await sendChatMessageRest(appointmentId, { text });
+                if (data.chat_access) {
+                    applyConversationAccess(patientId, {
+                        ...data.chat_access,
+                        active_appointment_id: appointmentId,
+                    });
+                }
+                if (data.message) {
+                    const uiMessage = mapBackendMessageToUi(data.message, patientId);
+                    const existing = messagesByPatientRef.current.get(patientId) || [];
+                    syncMessagesForPatient(
+                        patientId,
+                        mergeMessagesById(existing, [uiMessage])
+                    );
+                }
+            }
+
+            if (onSendMessage) {
+                onSendMessage({ text, appointmentId, patientId });
+            }
+        } catch (error) {
+            setInputMessage(text);
+            toast.error(apiErrorMessage(error, 'Failed to send message'));
+        } finally {
+            setIsSending(false);
         }
     };
 
-    // Handle key press (Enter to send)
     const handleKeyPress = (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -489,30 +799,64 @@ const Messenger = ({
         }
     };
 
-    // Handle file upload
-    const handleFileUpload = (e) => {
+    const handleFileUpload = async (e) => {
         const file = e.target.files?.[0];
-        if (file && selectedPatient) {
-            // Simulate file upload
-            const fileMessage = {
-                id: Date.now().toString(),
-                senderId: 'doctor',
-                receiverId: selectedPatient.id,
-                content: `📎 ${file.name}`,
-                timestamp: new Date(),
-                type: 'file',
-                status: 'sent',
-                fileName: file.name,
-                fileSize: file.size
-            };
-            setMessages(prev => [...prev, fileMessage]);
+        if (!file || !selectedPatient || !canSend || isUploading) return;
+
+        if (!file.type.startsWith('image/')) {
+            toast.error('Only image attachments are supported.');
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            return;
         }
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
+
+        const { patientId } = selectedPatient;
+        const appointmentId = selectedPatientRef.current?.appointmentId
+            || chatAccess?.active_appointment_id;
+        if (!appointmentId) {
+            toast.error('No active consultation to send images.');
+            if (fileInputRef.current) fileInputRef.current.value = '';
+            return;
+        }
+
+        setIsUploading(true);
+
+        try {
+            const attachment = await uploadChatImage(file);
+            const sentViaWs = wsConnectionRef.current?.sendChatMessage({
+                text: '',
+                attachments: [attachment],
+            });
+
+            if (!sentViaWs) {
+                const data = await sendChatMessageRest(appointmentId, {
+                    text: '',
+                    attachments: [attachment],
+                });
+                if (data.chat_access) {
+                    applyConversationAccess(patientId, {
+                        ...data.chat_access,
+                        active_appointment_id: appointmentId,
+                    });
+                }
+                if (data.message) {
+                    const uiMessage = mapBackendMessageToUi(data.message, patientId);
+                    const existing = messagesByPatientRef.current.get(patientId) || [];
+                    syncMessagesForPatient(
+                        patientId,
+                        mergeMessagesById(existing, [uiMessage])
+                    );
+                }
+            }
+        } catch (error) {
+            toast.error(apiErrorMessage(error, 'Failed to upload image'));
+        } finally {
+            setIsUploading(false);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
         }
     };
 
-    // Handle patient selection
     const handlePatientSelect = (patient) => {
         setSelectedPatient(patient);
         setIsPatientInfoOpen(false);
@@ -521,7 +865,6 @@ const Messenger = ({
         }
     };
 
-    // Render empty state
     const renderEmptyState = () => (
         <div className="flex-1 flex items-center justify-center bg-gray-50">
             <div className="text-center">
@@ -538,9 +881,7 @@ const Messenger = ({
 
     return (
         <div className="flex h-[calc(84vh)] bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
-            {/* Left Panel - Patient List */}
             <div className="w-80 border-r border-gray-200 flex flex-col bg-gray-50">
-                {/* Header */}
                 <div className="p-4 border-b border-gray-200 bg-white">
                     <div className="flex items-center justify-between mb-3">
                         <h2 className="text-lg font-semibold text-gray-800">Messages</h2>
@@ -557,25 +898,27 @@ const Messenger = ({
                     </div>
                 </div>
 
-                {/* Patient List */}
                 <div className="flex-1 overflow-y-auto">
-                    {filteredPatients.length === 0 ? (
+                    {isLoadingConversations ? (
                         <div className="flex items-center justify-center h-32 text-gray-500 text-sm">
-                            No patients found
+                            Loading conversations…
+                        </div>
+                    ) : filteredPatients.length === 0 ? (
+                        <div className="flex items-center justify-center h-32 text-gray-500 text-sm">
+                            No conversations yet
                         </div>
                     ) : (
-                        filteredPatients.map(patient => (
+                        filteredPatients.map((patient) => (
                             <PatientListItem
-                                key={patient.id}
+                                key={patient.patientId}
                                 patient={patient}
-                                isSelected={selectedPatient?.id === patient.id}
+                                isSelected={selectedPatient?.patientId === patient.patientId}
                                 onClick={() => handlePatientSelect(patient)}
                             />
                         ))
                     )}
                 </div>
 
-                {/* Doctor info */}
                 <div className="p-3 border-t border-gray-200 bg-white">
                     <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-[#0D614E] rounded-full flex items-center justify-center text-white text-sm font-semibold">
@@ -589,36 +932,23 @@ const Messenger = ({
                 </div>
             </div>
 
-            {/* Middle Panel - Chat Area */}
             {selectedPatient ? (
                 <div className="flex-1 flex flex-col">
-                    {/* Chat Header */}
                     <div className="px-4 py-3 border-b border-gray-200 bg-white flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="relative">
-                                <img
-                                    src={selectedPatient.avatar}
-                                    alt={selectedPatient.name}
-                                    className="w-10 h-10 rounded-full object-cover"
-                                />
-                                {selectedPatient.online && (
-                                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></span>
-                                )}
-                            </div>
+                            <Avatar src={selectedPatient.avatar} name={selectedPatient.name} className="w-10 h-10" />
                             <div>
                                 <h3 className="font-medium text-gray-800">{selectedPatient.name}</h3>
                                 <p className="text-xs text-gray-400">
-                                    {selectedPatient.online ? 'Online' : `Last seen ${formatTime(selectedPatient.lastSeen)}`}
+                                    {chatAccess?.active_phase
+                                        ? `${chatAccess.active_phase.replace(/_/g, ' ')} chat`
+                                        : chatAccess?.can_send
+                                            ? 'Chat available'
+                                            : 'Read-only chat'}
                                 </p>
                             </div>
                         </div>
                         <div className="flex items-center gap-1">
-                            {/* <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
-                                <Phone className="w-5 h-5 text-gray-600" />
-                            </button>
-                            <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
-                                <Video className="w-5 h-5 text-gray-600" />
-                            </button> */}
                             <button
                                 className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
                                 onClick={() => setIsPatientInfoOpen(!isPatientInfoOpen)}
@@ -628,38 +958,52 @@ const Messenger = ({
                         </div>
                     </div>
 
-                    {/* Messages Area */}
                     <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
                         <div className="flex flex-col">
-                            <div className="text-center mb-4">
-                                <span className="text-xs text-gray-400 bg-gray-200 px-3 py-1 rounded-full">
-                                    {formatDate(new Date())}
-                                </span>
-                            </div>
-                            {messages.map(message => (
-                                <MessageItem
-                                    key={message.id}
-                                    message={message}
-                                    isDoctor={message.senderId === 'doctor'}
-                                />
-                            ))}
+                            {isLoadingMessages && messages.length === 0 ? (
+                                <div className="text-center text-sm text-gray-500 py-8">
+                                    Loading messages…
+                                </div>
+                            ) : messages.length === 0 ? (
+                                <div className="text-center text-sm text-gray-500 py-8">
+                                    No messages yet. Start the conversation.
+                                </div>
+                            ) : (
+                                messages.map((message, index) => {
+                                    const previous = messages[index - 1];
+                                    const showAppointmentSeparator = !previous
+                                        || previous.appointmentId !== message.appointmentId;
+
+                                    return (
+                                        <React.Fragment key={message.id}>
+                                            {showAppointmentSeparator && (
+                                                <div className="text-center my-4">
+                                                    <span className="text-xs text-gray-400 bg-gray-200 px-3 py-1 rounded-full">
+                                                        Consultation · {formatDate(message.timestamp)}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <MessageItem message={message} />
+                                        </React.Fragment>
+                                    );
+                                })
+                            )}
                             <div ref={messagesEndRef} />
                         </div>
                     </div>
 
-                    {/* Input Area */}
                     <div className="p-3 border-t border-gray-200 bg-white">
+                        {!canSend && (
+                            <p className="text-xs text-amber-600 mb-2">
+                                Messaging is only available during a live consultation or active follow-up period.
+                            </p>
+                        )}
                         <div className="flex items-end gap-2">
                             <div className="flex items-center gap-1">
-                                {/* <button
-                                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500"
-                                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                                >
-                                    <Smile className="w-5 h-5" />
-                                </button> */}
                                 <button
-                                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500"
+                                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500 disabled:opacity-50"
                                     onClick={() => fileInputRef.current?.click()}
+                                    disabled={!canSend || isUploading}
                                 >
                                     <Paperclip className="w-5 h-5" />
                                 </button>
@@ -668,7 +1012,7 @@ const Messenger = ({
                                     ref={fileInputRef}
                                     onChange={handleFileUpload}
                                     className="hidden"
-                                    multiple
+                                    accept="image/*"
                                 />
                             </div>
                             <textarea
@@ -676,14 +1020,15 @@ const Messenger = ({
                                 value={inputMessage}
                                 onChange={(e) => setInputMessage(e.target.value)}
                                 onKeyDown={handleKeyPress}
-                                placeholder="Type a message..."
-                                className="flex-1 resize-none border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0D614E]/50 focus:border-transparent max-h-32 min-h-[34px]"
+                                placeholder={canSend ? 'Type a message...' : 'Chat is read-only'}
+                                disabled={!canSend || isSending}
+                                className="flex-1 resize-none border border-gray-200 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#0D614E]/50 focus:border-transparent max-h-32 min-h-[34px] disabled:bg-gray-50 disabled:text-gray-400"
                                 rows={1}
                             />
                             <button
                                 onClick={handleSendMessage}
-                                disabled={!inputMessage.trim()}
-                                className={`p-2.5 rounded-lg transition-all ${inputMessage.trim()
+                                disabled={!inputMessage.trim() || !canSend || isSending}
+                                className={`p-2.5 rounded-lg transition-all ${inputMessage.trim() && canSend && !isSending
                                     ? 'bg-[#0D614E] hover:bg-[#0A4D3E] text-white shadow-sm'
                                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                     }`}
@@ -691,32 +1036,12 @@ const Messenger = ({
                                 <Send className="w-5 h-5" />
                             </button>
                         </div>
-                        {showEmojiPicker && (
-                            <div className="mt-2 p-2 bg-white border border-gray-200 rounded-lg shadow-lg">
-                                <div className="flex gap-1 flex-wrap">
-                                    {['😊', '❤️', '👍', '👋', '🙏', '😄', '😅', '🤗', '🤔', '😊', '✨', '💪'].map(emoji => (
-                                        <button
-                                            key={emoji}
-                                            onClick={() => {
-                                                setInputMessage(prev => prev + emoji);
-                                                setShowEmojiPicker(false);
-                                                inputRef.current?.focus();
-                                            }}
-                                            className="p-1.5 hover:bg-gray-100 rounded transition-colors text-xl"
-                                        >
-                                            {emoji}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
             ) : (
                 renderEmptyState()
             )}
 
-            {/* Right Panel - Patient Info */}
             {isPatientInfoOpen && selectedPatient && (
                 <PatientInfoSidebar
                     patient={selectedPatient}
