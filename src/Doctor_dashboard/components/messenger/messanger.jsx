@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, use } from 'react';
 import {
     Search,
     Send,
@@ -30,6 +30,7 @@ import {
     getChatSyncChannel,
     apiErrorMessage,
 } from '../../../services/consultationChatService';
+import { useParams } from 'react-router-dom';
 
 const CHAT_SENDER_DOCTOR = 'doctor';
 const CHAT_SENDER_PATIENT = 'patient';
@@ -313,9 +314,21 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
     const wsSessionRef = useRef(0);
     const historyRequestRef = useRef(0);
     const wsAppointmentIdRef = useRef(null);
-    const ensureWebSocketForAccessRef = useRef(() => {});
+    const ensureWebSocketForAccessRef = useRef(() => { });
     const tabIdRef = useRef(`tab-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     const listRefreshTimerRef = useRef(null);
+    const { patientId } = useParams();
+
+
+    useEffect(() => {
+        if (patientId) {
+            console.log(patientId, patients);
+
+            handlePatientSelect(patients.find((p) => p.patientId === patientId));
+        }
+    }, [patientId, patients]);
+
+
 
     const isActivePatient = useCallback(
         (patientId) => selectedPatientRef.current?.patientId === patientId,
@@ -524,7 +537,7 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
                 toast.dismiss(`chat-reconnect-${appointmentId}`);
                 if (!isActivePatient(patientId)) return;
                 if (isReconnect) {
-                    loadConversationHistory(patientId, { markRead: true }).catch(() => {});
+                    loadConversationHistory(patientId, { markRead: true }).catch(() => { });
                 } else {
                     wsConnectionRef.current?.sendChatRead();
                 }
@@ -598,7 +611,7 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
         }
     }, [applyConversationAccess, isActivePatient]);
 
-    const fetchConversationsRef = useRef(async () => {});
+    const fetchConversationsRef = useRef(async () => { });
 
     const fetchConversations = useCallback(async ({ silent = false } = {}) => {
         if (!silent) setIsLoadingConversations(true);
@@ -646,7 +659,7 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
                 && patientId
                 && selectedPatientRef.current?.patientId === patientId
             ) {
-                loadConversationHistory(patientId, { markRead: true, broadcast: false }).catch(() => {});
+                loadConversationHistory(patientId, { markRead: true, broadcast: false }).catch(() => { });
             }
         };
 
@@ -694,7 +707,7 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
             p.patientId === selectedPatientId ? { ...p, unreadCount: 0 } : p
         )));
 
-        loadConversationHistory(selectedPatientId, { markRead: true }).catch(() => {});
+        loadConversationHistory(selectedPatientId, { markRead: true }).catch(() => { });
 
         const handleOnline = () => {
             const current = selectedPatientRef.current;
@@ -705,7 +718,7 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
                         wsConnectionRef.current?.reconnect();
                     }
                 })
-                .catch(() => {});
+                .catch(() => { });
         };
 
         const handleVisibility = () => {
@@ -713,7 +726,7 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
             loadConversationHistory(
                 selectedPatientRef.current.patientId,
                 { markRead: true }
-            ).catch(() => {});
+            ).catch(() => { });
         };
 
         const accessPollId = setInterval(() => {
@@ -913,7 +926,12 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
                                 key={patient.patientId}
                                 patient={patient}
                                 isSelected={selectedPatient?.patientId === patient.patientId}
-                                onClick={() => handlePatientSelect(patient)}
+                                onClick={() => {
+                                    if (patientId) {
+                                        window.location.replace(`/doctor/messenger`)
+                                    }
+                                    handlePatientSelect(patient)
+                                }}
                             />
                         ))
                     )}

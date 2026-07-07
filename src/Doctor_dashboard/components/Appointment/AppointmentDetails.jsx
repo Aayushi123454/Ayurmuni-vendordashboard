@@ -1202,9 +1202,9 @@ const AppointmentDetail = () => {
                                 {
                                     appointment?.status == "confirmed" &&
                                     <div className="grid grid-cols-2 gap-2 w-full mt-2">
-                                        <button className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 bg-emerald-50 text-[#0D614E]">
+                                        <Link to={`/doctor/messenger/${patient?.id}`} className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 bg-emerald-50 text-[#0D614E]">
                                             <MessageCircle className="w-3.5 h-3.5" /> Message
-                                        </button>
+                                        </Link>
                                         <button onClick={e => setshowCall(!showCall)} className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 bg-emerald-50 text-[#0D614E]">
                                             <Video className="w-3.5 h-3.5" />Join Call
                                         </button>
