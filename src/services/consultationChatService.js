@@ -55,8 +55,56 @@ function chatMessagesPath(appointmentId) {
   return `/communication/appointments/${appointmentId}/messages/`;
 }
 
-export async function fetchConversationList() {
-  const response = await API.get("/communication/conversation/");
+export function normalizePatientId(rawId) {
+  if (rawId == null || rawId === "") return "";
+  return String(rawId).trim().toLowerCase();
+}
+
+export function deduplicateConversationsByPatientId(conversations) {
+  const byPatient = new Map();
+
+  for (const item of conversations || []) {
+    const patientKey = normalizePatientId(
+      item?.patient_id ?? item?.patientId ?? item?.participant?.id
+    );
+    if (!patientKey) continue;
+
+    const existing = byPatient.get(patientKey);
+    if (!existing) {
+      byPatient.set(patientKey, item);
+      continue;
+    }
+
+    const existingTime = existing.last_message_at
+      ? new Date(existing.last_message_at).getTime()
+      : 0;
+    const itemTime = item.last_message_at
+      ? new Date(item.last_message_at).getTime()
+      : 0;
+    const primary = itemTime >= existingTime ? item : existing;
+    const secondary = primary === item ? existing : item;
+
+    byPatient.set(patientKey, {
+      ...primary,
+      unread_count: (primary.unread_count || 0) + (secondary.unread_count || 0),
+    });
+  }
+
+  return Array.from(byPatient.values()).sort((a, b) => {
+    const timeA = a.last_message_at ? new Date(a.last_message_at).getTime() : 0;
+    const timeB = b.last_message_at ? new Date(b.last_message_at).getTime() : 0;
+    return timeB - timeA;
+  });
+}
+
+export async function fetchConversationList({ search = "", limit, offset } = {}) {
+  const params = {};
+  const trimmedSearch = String(search || "").trim();
+  if (trimmedSearch) params.search = trimmedSearch;
+  if (limit != null) params.limit = limit;
+  if (offset != null) params.offset = offset;
+
+  const response = await API.get("/communication/conversation/", { params });
   return unwrapData(response);
 }
 
@@ -81,9 +129,12 @@ export function formatLastMessagePreview(lastMessage) {
 /** Map GET /communication/conversation/ item for the doctor messenger sidebar. */
 export function mapConversationListItem(item) {
   const participant = item.participant || {};
+  const patientId = item.patient_id ?? item.patientId ?? participant.id ?? null;
+  const normalizedPatientId = normalizePatientId(patientId);
+
   return {
-    id: item.patient_id,
-    patientId: item.patient_id,
+    id: normalizedPatientId,
+    patientId: normalizedPatientId,
     doctorId: item.doctor_id,
     appointmentId: item.chat_access?.active_appointment_id || null,
     name: participant.name || "Patient",
@@ -96,6 +147,11 @@ export function mapConversationListItem(item) {
     email: participant.email || "",
     chatAccess: item.chat_access || null,
   };
+}
+
+/** Map and collapse duplicate rows to one entry per patient_id. */
+export function mapConversationListItems(conversations) {
+  return deduplicateConversationsByPatientId(conversations).map(mapConversationListItem);
 }
 
 const CHAT_SYNC_CHANNEL_NAME = "ayurmuni-doctor-chat-v1";
