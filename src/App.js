@@ -101,7 +101,9 @@ function App() {
                 {/* <Route path="patients/detail/:patientId" element={<PatientDetailPage />} /> */}
                 <Route path="patients/:type/:appointmentId" element={<AppointmentDetail />} />
                 <Route path="videocall/:consultationId" element={<DoctorVideoCall />} />
-                <Route path="messages" element={<Messenger />} />
+                <Route path="messenger" element={<Messenger />} />
+                <Route path="messenger/:patientId" element={<Messenger />} />
+
                 <Route path="assessments" element={<Navigate to="/doctor/appointments" replace />} />
                 <Route path="earnings" element={<FinanceDashboard />} />
                 <Route path="reviews" element={<DoctorReviewInsights />} />
