@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, use } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Search,
     Send,
@@ -16,7 +16,8 @@ import toast from 'react-hot-toast';
 import {
     fetchConversationList,
     fetchConversationMessages,
-    mapConversationListItem,
+    mapConversationListItems,
+    normalizePatientId,
     notifyChatActivity,
     notifyConversationListRefresh,
     sendChatMessageRest,
@@ -319,19 +320,9 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
     const listRefreshTimerRef = useRef(null);
     const { patientId } = useParams();
 
-
-    useEffect(() => {
-        if (patientId) {
-            console.log(patientId, patients);
-
-            handlePatientSelect(patients.find((p) => p.patientId === patientId));
-        }
-    }, [patientId, patients]);
-
-
-
     const isActivePatient = useCallback(
-        (patientId) => selectedPatientRef.current?.patientId === patientId,
+        (patientId) => normalizePatientId(selectedPatientRef.current?.patientId)
+            === normalizePatientId(patientId),
         []
     );
     const updateConversationPreview = useCallback((patientId, messageList) => {
@@ -340,7 +331,10 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
         const unread = countUnreadPeerMessages(messageList);
 
         setPatients((prev) => {
-            const index = prev.findIndex((p) => p.patientId === patientId);
+            const normalizedId = normalizePatientId(patientId);
+            const index = prev.findIndex(
+                (p) => normalizePatientId(p.patientId) === normalizedId
+            );
             if (index === -1) return prev;
 
             const updated = {
@@ -374,13 +368,14 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
     }, [scheduleConversationListRefresh]);
 
     const syncMessagesForPatient = useCallback((patientId, nextMessages, { broadcast = true } = {}) => {
-        messagesByPatientRef.current.set(patientId, nextMessages);
-        if (selectedPatientRef.current?.patientId === patientId) {
+        const normalizedId = normalizePatientId(patientId);
+        messagesByPatientRef.current.set(normalizedId, nextMessages);
+        if (normalizePatientId(selectedPatientRef.current?.patientId) === normalizedId) {
             setMessages(nextMessages);
         }
-        updateConversationPreview(patientId, nextMessages);
+        updateConversationPreview(normalizedId, nextMessages);
         if (broadcast) {
-            broadcastChatActivity(patientId);
+            broadcastChatActivity(normalizedId);
         }
     }, [updateConversationPreview, broadcastChatActivity]);
 
@@ -392,7 +387,9 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
 
         setChatAccess(access);
         setSelectedPatient((prev) => {
-            if (!prev || prev.patientId !== patientId) return prev;
+            if (!prev || normalizePatientId(prev.patientId) !== normalizePatientId(patientId)) {
+                return prev;
+            }
             return {
                 ...prev,
                 appointmentId: nextAppointmentId,
@@ -400,7 +397,7 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
             };
         });
         setPatients((prev) => prev.map((p) => (
-            p.patientId === patientId
+            normalizePatientId(p.patientId) === normalizePatientId(patientId)
                 ? { ...p, appointmentId: nextAppointmentId, chatAccess: access }
                 : p
         )));
@@ -476,7 +473,7 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
 
             case 'chat.message': {
                 const uiMessage = mapBackendMessageToUi(event.message, patientId);
-                const existing = messagesByPatientRef.current.get(patientId) || [];
+                const existing = messagesByPatientRef.current.get(normalizePatientId(patientId)) || [];
                 const merged = mergeMessagesById(existing, [uiMessage]);
                 syncMessagesForPatient(patientId, merged);
 
@@ -493,7 +490,7 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
 
             case 'chat.seen': {
                 if (!isActivePatient(patientId)) break;
-                const existing = messagesByPatientRef.current.get(patientId) || [];
+                const existing = messagesByPatientRef.current.get(normalizePatientId(patientId)) || [];
                 const updated = applySeenReceiptToMessages(existing, event.data);
                 syncMessagesForPatient(patientId, updated);
                 break;
@@ -600,7 +597,7 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
         try {
             const data = await fetchConversationList();
             const conversation = (data.conversations || []).find(
-                (item) => item.patient_id === patientId
+                (item) => normalizePatientId(item.patient_id) === normalizePatientId(patientId)
             );
             if (!conversation?.chat_access || !isActivePatient(patientId)) return;
 
@@ -612,19 +609,21 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
 
     const fetchConversationsRef = useRef(async () => { });
 
-    const fetchConversations = useCallback(async ({ silent = false } = {}) => {
+    const fetchConversations = useCallback(async ({ silent = false, search = '' } = {}) => {
         if (!silent) setIsLoadingConversations(true);
         try {
-            const data = await fetchConversationList();
-            const conversations = (data.conversations || []).map(mapConversationListItem);
-            setPatients((prev) => {
-                if (!selectedPatientRef.current?.patientId) return conversations;
-                return conversations.map((conversation) => (
-                    conversation.patientId === selectedPatientRef.current.patientId
-                        ? { ...conversation, unreadCount: 0 }
-                        : conversation
-                ));
-            });
+            const data = await fetchConversationList({ search });
+            const conversations = mapConversationListItems(data.conversations);
+            const activePatientId = normalizePatientId(selectedPatientRef.current?.patientId);
+            setPatients(
+                activePatientId
+                    ? conversations.map((conversation) => (
+                        normalizePatientId(conversation.patientId) === activePatientId
+                            ? { ...conversation, unreadCount: 0 }
+                            : conversation
+                    ))
+                    : conversations
+            );
         } catch (error) {
             if (!silent) {
                 toast.error(apiErrorMessage(error, 'Failed to load conversations'));
@@ -638,8 +637,14 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
     fetchConversationsRef.current = fetchConversations;
 
     useEffect(() => {
-        fetchConversations();
-    }, [fetchConversations]);
+        const timer = setTimeout(() => {
+            fetchConversations({
+                silent: Boolean(searchQuery),
+                search: searchQuery,
+            });
+        }, searchQuery ? 300 : 0);
+        return () => clearTimeout(timer);
+    }, [searchQuery, fetchConversations]);
 
     useEffect(() => {
         const channel = getChatSyncChannel();
@@ -700,10 +705,12 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
             return undefined;
         }
 
-        const cached = messagesByPatientRef.current.get(selectedPatientId);
+        const cached = messagesByPatientRef.current.get(normalizePatientId(selectedPatientId));
         setMessages(cached || []);
         setPatients((prev) => prev.map((p) => (
-            p.patientId === selectedPatientId ? { ...p, unreadCount: 0 } : p
+            normalizePatientId(p.patientId) === normalizePatientId(selectedPatientId)
+                ? { ...p, unreadCount: 0 }
+                : p
         )));
 
         loadConversationHistory(selectedPatientId, { markRead: true }).catch(() => { });
@@ -751,9 +758,7 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    const filteredPatients = patients.filter((patient) =>
-        patient.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredPatients = patients;
 
     const canSend = Boolean(chatAccess?.can_send);
 
@@ -785,7 +790,7 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
                 }
                 if (data.message) {
                     const uiMessage = mapBackendMessageToUi(data.message, patientId);
-                    const existing = messagesByPatientRef.current.get(patientId) || [];
+                    const existing = messagesByPatientRef.current.get(normalizePatientId(patientId)) || [];
                     syncMessagesForPatient(
                         patientId,
                         mergeMessagesById(existing, [uiMessage])
@@ -852,7 +857,7 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
                 }
                 if (data.message) {
                     const uiMessage = mapBackendMessageToUi(data.message, patientId);
-                    const existing = messagesByPatientRef.current.get(patientId) || [];
+                    const existing = messagesByPatientRef.current.get(normalizePatientId(patientId)) || [];
                     syncMessagesForPatient(
                         patientId,
                         mergeMessagesById(existing, [uiMessage])
@@ -876,6 +881,16 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
             onPatientSelect(patient);
         }
     };
+
+    useEffect(() => {
+        if (!patientId || patients.length === 0) return;
+        const match = patients.find(
+            (p) => normalizePatientId(p.patientId) === normalizePatientId(patientId)
+        );
+        if (match) {
+            handlePatientSelect(match);
+        }
+    }, [patientId, patients]);
 
     const renderEmptyState = () => (
         <div className="flex-1 flex items-center justify-center bg-gray-50">
@@ -922,9 +937,12 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
                     ) : (
                         filteredPatients.map((patient) => (
                             <PatientListItem
-                                key={patient.patientId}
+                                key={patient.id || patient.patientId}
                                 patient={patient}
-                                isSelected={selectedPatient?.patientId === patient.patientId}
+                                isSelected={
+                                    normalizePatientId(selectedPatient?.patientId)
+                                    === normalizePatientId(patient.patientId)
+                                }
                                 onClick={() => {
                                     if (patientId) {
                                         window.location.replace(`/doctor/messenger`)
