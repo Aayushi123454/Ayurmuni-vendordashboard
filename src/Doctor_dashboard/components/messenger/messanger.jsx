@@ -334,7 +334,6 @@ const Messenger = ({ onSendMessage, onPatientSelect }) => {
         (patientId) => selectedPatientRef.current?.patientId === patientId,
         []
     );
-
     const updateConversationPreview = useCallback((patientId, messageList) => {
         if (!messageList?.length) return;
         const last = messageList[messageList.length - 1];
