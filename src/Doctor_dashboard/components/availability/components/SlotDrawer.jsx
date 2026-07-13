@@ -553,7 +553,29 @@ const SlotEditorCard = ({ slot, index, selectedDate, isEditing, onEdit, onSave, 
     if (isEditing) {
         return (
             <div className="border border-[#0D614E]/60 rounded-xl p-4 bg-[#0D614E]/10">
+                {
+                    console.log(slot)
+                }
                 <div className="space-y-3">
+                    <div className="block text-right gap-2">
+                        {slot.is_new ? (
+                            <button
+                                onClick={!slot.is_new ? onToggleActive : onDelete}
+                                className="p-2 rounded-lg hover:bg-red-50 transition"
+                            >
+                                <Trash2 className="w-4 h-4 text-red-500" />
+                            </button>
+                        ) :
+                            (
+                                <button
+                                    onClick={onSave}
+                                    className="p-2 rounded-lg hover:bg-teal-50 transition"
+                                >
+                                    <X className="w-4 h-4 text-[#0D614E]" />
+                                </button>
+
+                            )}
+                    </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">Start Time</label>
@@ -561,6 +583,8 @@ const SlotEditorCard = ({ slot, index, selectedDate, isEditing, onEdit, onSave, 
                                 type="time"
                                 value={slot.start_time || ''}
                                 min={isToday ? currentTime : undefined}
+                                onKeyDown={(e) => e.preventDefault()}
+                                onPaste={(e) => e.preventDefault()}
                                 onChange={(e) => handleStartTimeChange(e.target.value)}
                                 className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-teal-500 ${isToday && slot.start_time && isTimeInPast(slot.start_time)
                                     ? 'border-red-300 bg-red-50'
@@ -578,6 +602,8 @@ const SlotEditorCard = ({ slot, index, selectedDate, isEditing, onEdit, onSave, 
                                 disabled
                                 value={slot.end_time || ''}
                                 min={slot.start_time || (isToday ? currentTime : undefined)}
+                                onKeyDown={(e) => e.preventDefault()}
+                                onPaste={(e) => e.preventDefault()}
                                 onChange={(e) => handleEndTimeChange(e.target.value)}
                                 className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-teal-500 ${isToday && slot.end_time && isTimeInPast(slot.end_time)
                                     ? 'border-red-300 bg-red-50'
@@ -644,51 +670,60 @@ const SlotEditorCard = ({ slot, index, selectedDate, isEditing, onEdit, onSave, 
     return (
         <div className={`border rounded-xl p-4 transition-all ${slot.is_active && !isIncomplete ? 'border-gray-200 bg-white' : 'border-gray-200 bg-gray-50 opacity-60'
             }`}>
-            <div className="flex justify-between items-start mb-3">
-                <div className="flex items-center gap-3">
-                    {
-                        !slot?.is_booked &&
-                        <button
-                            onClick={onToggleActive}
-                            className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${slot.is_active ? 'bg-[#0D614E]' : 'bg-gray-300'
-                                }`}
-                        >
-                            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${slot.is_active ? 'translate-x-5' : 'translate-x-1'
-                                }`} />
-                        </button>
-                    }
-                    <span className="text-sm font-medium text-gray-500">Slot {index + 1}</span>
-                    {isIncomplete && (
-                        <span className="text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">Incomplete</span>
-                    )}
-                    {slot.is_modified && !slot.is_new && (
-                        <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">Modified</span>
-                    )}
-                </div>
-                {
-                    slot?.is_booked ? (
-                        <div className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-md">
-                            Booked Slot
+            {
+                slot?.status == "available" ? (
+                    <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center gap-3">
+                            {
+                                !slot?.is_booked &&
+                                <button
+                                    onClick={onToggleActive}
+                                    className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors ${slot.is_active ? 'bg-[#0D614E]' : 'bg-gray-300'
+                                        }`}
+                                >
+                                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${slot.is_active ? 'translate-x-5' : 'translate-x-1'
+                                        }`} />
+                                </button>
+                            }
+                            <span className="text-sm font-medium text-gray-500">Slot {index + 1}</span>
+                            {isIncomplete && (
+                                <span className="text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">Incomplete</span>
+                            )}
+                            {slot.is_modified && !slot.is_new && (
+                                <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">Modified</span>
+                            )}
                         </div>
-                    ) : (
-                        <div className="flex gap-2">
-                            <button
-                                onClick={onEdit}
-                                className="p-2 rounded-lg hover:bg-teal-50 transition"
-                            >
-                                <Edit2 className="w-4 h-4 text-[#0D614E]" />
-                            </button>
+                        {
+                            slot?.is_booked ? (
+                                <div className="px-2 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-md">
+                                    Booked Slot
+                                </div>
+                            ) : (
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={onEdit}
+                                        className="p-2 rounded-lg hover:bg-teal-50 transition"
+                                    >
+                                        <Edit2 className="w-4 h-4 text-[#0D614E]" />
+                                    </button>
 
-                            <button
-                                onClick={!slot.is_new ? onToggleActive : onDelete}
-                                className="p-2 rounded-lg hover:bg-red-50 transition"
-                            >
-                                <Trash2 className="w-4 h-4 text-red-500" />
-                            </button>
+                                    <button
+                                        onClick={!slot.is_new ? onToggleActive : onDelete}
+                                        className="p-2 rounded-lg hover:bg-red-50 transition"
+                                    >
+                                        <Trash2 className="w-4 h-4 text-red-500" />
+                                    </button>
+                                </div>
+                            )
+                        }
+                    </div>
+                ) : (
+                    <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center gap-3">
+                            <span className="text-sm font-medium text-gray-500 capitalize">{slot?.status}</span>
                         </div>
-                    )
-                }
-            </div>
+                    </div>
+                )}
 
             {isIncomplete ? (
                 <div className="text-center py-3">

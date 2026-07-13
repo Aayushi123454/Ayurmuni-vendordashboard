@@ -125,8 +125,7 @@ const SlotCard = ({ slot, onClick, isCompact = false }) => {
                 }}
                 className={`
                     text-xs p-2 rounded-lg cursor-pointer transition-all duration-200
-                    ${status.bg} ${status.text} hover:shadow-md hover:scale-[1.02]
-                    ${slot.is_booked ? 'opacity-75' : ''}
+                    ${status.bg} ${status.text} ${!slot.is_active ? 'bg-gray-200 text-gray-700 opacity-50' : ''} hover:shadow-md hover:scale-[1.02]
                 `}
             >
                 <div className="flex items-center justify-between">
@@ -137,6 +136,12 @@ const SlotCard = ({ slot, onClick, isCompact = false }) => {
                         </span>
                     </div>
                 </div>
+                {
+                    !slot.is_active && status.label != "Expired" &&
+                    <div className="flex items-center gap-1">
+                        In Active
+                    </div>
+                }
                 {
                     (status.label == "Expired" || status.label == "Shifted") &&
                     <>
@@ -181,7 +186,7 @@ const SlotCard = ({ slot, onClick, isCompact = false }) => {
             ${slot.is_booked ? 'border-red-200 bg-red-50/30' : 'border-gray-200 hover:border-emerald-200'}
         `}>
             {/* Header */}
-            <div className="flex justify-between items-start mb-3">
+            {/* <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-gray-400" />
                     <span className="font-semibold text-gray-800">
@@ -194,7 +199,6 @@ const SlotCard = ({ slot, onClick, isCompact = false }) => {
                 </div>
             </div>
 
-            {/* Consultation Type & Amount */}
             <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
                 <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1 text-xs text-gray-500">
@@ -208,7 +212,6 @@ const SlotCard = ({ slot, onClick, isCompact = false }) => {
                 </div>
             </div>
 
-            {/* Booked Patient Details */}
             {hasPatient && (
                 <div className="mt-3 pt-2 border-t border-gray-100">
                     <div className="flex items-center gap-1.5 mb-2">
@@ -242,7 +245,6 @@ const SlotCard = ({ slot, onClick, isCompact = false }) => {
                 </div>
             )}
 
-            {/* Action Button */}
             <button
                 onClick={(e) => {
                     e.stopPropagation();
@@ -258,7 +260,7 @@ const SlotCard = ({ slot, onClick, isCompact = false }) => {
                 disabled={slot.is_booked}
             >
                 {slot.is_booked ? 'Already Booked' : 'Book Appointment'}
-            </button>
+            </button> */}
         </div>
     );
 };

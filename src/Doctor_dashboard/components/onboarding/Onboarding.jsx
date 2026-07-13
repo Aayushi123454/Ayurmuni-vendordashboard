@@ -399,7 +399,7 @@ const DocumentUploadCard = ({ documentKey, document, error, onUpload, onDelete, 
                         {req.required ? 'Required' : 'Optional'} • {req.accepted.join(', ')} • Max {req.maxSize}MB
                     </p>
                 </div>
-                {req.required && <span className="text-xs text-rose-500">*</span>}
+                {req.required && <span className="text-sm text-rose-500">*</span>}
             </div>
 
             {document ? (
@@ -926,8 +926,8 @@ const DoctorOnboarding = () => {
                                             onChange={(e) => handleInputChange('professionalInfo', 'followUpFee', e.target.value)}
                                             type="number" placeholder="Amount in INR" />
 
-                                        <FormInput label="Average Consultation Time (minutes)" name="averageConsultationTime" value={formData.professionalInfo.averageConsultationTime}
-                                            onChange={(e) => handleInputChange('professionalInfo', 'averageConsultationTime', e.target.value)}
+                                        <FormInput  label="Average Consultation Time (minutes)" name="averageConsultationTime" value={formData.professionalInfo.averageConsultationTime}
+                                            // onChange={(e) => handleInputChange('professionalInfo', 'averageConsultationTime', e.target.value)}
                                             type="number" placeholder="Average time spent per consultation" />
 
                                         <FormInput label="Max Patients Per Day" name="maxPatientsPerDay" value={formData.professionalInfo.maxPatientsPerDay}
