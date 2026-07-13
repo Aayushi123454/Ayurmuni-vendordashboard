@@ -567,7 +567,7 @@ export const doctorService = {
     },
 
     // 🔹 Get appointments List
-    getAppointment: (type) => {
+    getAppointment: (type, page = 1, pageSize = 10, filters = {}) => {
         if (!type) {
             return Promise.reject({
                 message: "Appointment type is required",
@@ -575,8 +575,25 @@ export const doctorService = {
                 data: null
             });
         }
+
+        const params = new URLSearchParams({
+            type,
+            page: String(page),
+            page_size: String(pageSize),
+        });
+
+        if (filters.search?.trim()) {
+            params.append("search", filters.search.trim());
+        }
+        if (filters.status && filters.status !== "all") {
+            params.append("status", filters.status);
+        }
+        if (filters.appointment_date) {
+            params.append("appointment_date", filters.appointment_date);
+        }
+
         return handleApiCall(
-            () => API.get(`/doctors/?type=${type}`),
+            () => API.get(`/doctors/?${params.toString()}`),
             "Failed to fetch appointments"
         );
     },
