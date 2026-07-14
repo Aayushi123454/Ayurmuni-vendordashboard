@@ -671,8 +671,8 @@ const SlotEditorCard = ({ slot, index, selectedDate, isEditing, onEdit, onSave, 
         <div className={`border rounded-xl p-4 transition-all ${slot.is_active && !isIncomplete ? 'border-gray-200 bg-white' : 'border-gray-200 bg-gray-50 opacity-60'
             }`}>
             {
-                slot?.status == "available" ? (
-                    <div className="flex justify-between items-start mb-3">
+                slot?.status == "available" || slot?.is_new ? (
+                    <div className="flex justify-between  mb-3">
                         <div className="flex items-center gap-3">
                             {
                                 !slot?.is_booked &&
@@ -718,7 +718,7 @@ const SlotEditorCard = ({ slot, index, selectedDate, isEditing, onEdit, onSave, 
                         }
                     </div>
                 ) : (
-                    <div className="flex justify-between items-start mb-3">
+                    <div className="flex justify-between  mb-3">
                         <div className="flex items-center gap-3">
                             <span className="text-sm font-medium text-gray-500 capitalize">{slot?.status}</span>
                         </div>

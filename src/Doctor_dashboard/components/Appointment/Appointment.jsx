@@ -59,7 +59,7 @@ const STATUS_CONFIG = {
 };
 
 const CONSULTATION_TYPES = ['video', 'chat', 'in-person'];
-const STATUS_OPTIONS = ['confirmed', 'pending', 'completed', 'cancelled', 'rescheduled', 'reschedule'];
+const STATUS_OPTIONS = ['confirmed',  'completed', 'cancelled', 'rescheduled', 'reschedule'];
 const ITEMS_PER_PAGE_OPTIONS = [5, 10, 15, 25, 50];
 
 // ==================== HELPER FUNCTIONS ====================
