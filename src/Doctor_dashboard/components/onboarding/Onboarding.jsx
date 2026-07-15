@@ -689,6 +689,7 @@ const DoctorOnboarding = () => {
 
     // ==================== SUBMIT ====================
     const handleSubmit = useCallback(async () => {
+        console.log("doctorService file loaded");
         if (!formData.agreements.termsAccepted || !formData.agreements.privacyAccepted || !formData.agreements.communicationAccepted) {
             return;
         }

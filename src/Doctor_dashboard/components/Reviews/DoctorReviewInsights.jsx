@@ -170,7 +170,8 @@ const ReviewCard = memo(({
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-all">
       {/* Review Header */}
-      <div className="flex items-start justify-between mb-3">
+      <div onClick={() => toggleExpand(review.id)}
+  className="flex items-start justify-between mb-3 cursor-pointer">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-100 to-emerald-200 flex items-center justify-center overflow-hidden flex-shrink-0">
             {review.reviewer_profile_image ? (
@@ -224,7 +225,7 @@ const ReviewCard = memo(({
             </button>
           )}
           <button
-            onClick={() => toggleExpand(review.id)}
+            onClick={(e) =>{  e.stopPropagation();toggleExpand(review.id)}}
             className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg transition"
           >
             {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -233,8 +234,10 @@ const ReviewCard = memo(({
       </div>
 
       {/* Review Content */}
-      <div className="space-y-2">
-        <p className={`text-gray-700 text-sm ${!isExpanded && review.review?.length > 150 ? 'line-clamp-3' : ''}`}>
+{isExpanded && (
+      <div className=
+      "space-y-2">
+        <p className={`text-gray-700 text-sm`}>
           {review.review || 'No written review provided.'}
         </p>
 
@@ -289,7 +292,7 @@ const ReviewCard = memo(({
         )}
 
         {/* Reply Button (if expanded and no reply) */}
-        {isExpanded && !hasReply && review.status === 'active' && (
+        {!hasReply && review.status === 'active' && (
           <button
             onClick={() => {
               setSelectedReview(review);
@@ -303,6 +306,7 @@ const ReviewCard = memo(({
           </button>
         )}
       </div>
+      )}
     </div>
   );
 });

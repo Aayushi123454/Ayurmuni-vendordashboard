@@ -1134,10 +1134,22 @@ const AppointmentDetail = () => {
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-6 py-5 mb-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div className="flex items-center gap-4">
-                            <button onClick={() => navigate('/doctor/appointments')}
-                                className="p-2.5 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-all">
-                                <ArrowLeft className="w-5 h-5" />
-                            </button>
+                            <div className="relative group inline-block">
+                                <button
+                                    onClick={() => navigate('/doctor/appointments')}
+                                    className="p-2.5 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-all"
+                                >
+                                    <ArrowLeft className="w-5 h-5" />
+                                </button>
+
+                                <div className="absolute left-1/2 -translate-x-1/2 -top-10
+                  bg-gray-800 text-white text-xs px-2 py-1 rounded
+                  opacity-0 group-hover:opacity-100
+                  transition-opacity duration-150
+                  whitespace-nowrap pointer-events-none">
+                                    Back
+                                </div>
+                            </div>
                             <div>
                                 <h1 className="text-xl font-bold text-gray-900">Appointment Details</h1>
                                 <p className="text-xs text-gray-400 font-mono mt-0.5">ID: {appointment?.id?.slice(0, 12)}...</p>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo,useRef } from 'react';
 import dayjs from "dayjs";
 import {
     Calendar as CalendarIcon,
@@ -117,7 +117,7 @@ const StatusBadge = ({ status }) => {
     const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
     const Icon = config.icon;
     return (
-        <span className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-[20px]text-xs font-medium ${config.color}`}>
+        <span className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-2xl text-xs font-medium ${config.color}`}>
             <Icon size={12} />
             <span>{config.label}</span>
         </span>
@@ -235,13 +235,33 @@ const SortDropdown = ({ sortBy, sortOrder, onSortChange }) => {
         { value: 'created_at', label: 'Created Date' }
     ];
 
+    // <Raman--------
+    const dropdownRef = useRef(null);
+
+useEffect(() => {
+  const handleClickOutside = (event) => {
+    if (
+      dropdownRef.current &&
+      !dropdownRef.current.contains(event.target)
+    ) {
+      setIsOpen(false);
+    }
+  };
+
+  document.addEventListener("mousedown", handleClickOutside);
+
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+  };
+}, []);
+// -------------------
     const currentLabel = sortOptions.find(opt => opt.value === sortBy)?.label || 'Sort By';
 
     return (
-        <div className="relative min-w-[250px]">
+        <div  ref={dropdownRef} className="relative min-w-[250px] ">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="px-4 py-2.5 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700"
+                className="px-4 ml-[70px] py-2.5 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700"
             >
                 <ArrowUpDown size={16} />
                 <span>{currentLabel}</span>
@@ -825,7 +845,7 @@ const AppointmentsPage = () => {
                                 />
                             </div>
                         </div>
-                        <div className="flex  gap-3">
+                        <div className="flex  gap-3 justify-end gap-3">
                             <select
                                 value={statusFilter}
                                 onChange={(e) => setStatusFilter(e.target.value)}

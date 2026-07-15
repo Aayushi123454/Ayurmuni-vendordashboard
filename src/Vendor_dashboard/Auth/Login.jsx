@@ -65,10 +65,18 @@ const OtpInput = ({ onVerify, onBack, mobile, loading, onResendOtp, resendLoadin
   };
 
   const handleKeyDown = (index, e) => {
-    if (e.key === "Backspace" && !otp[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
+  if (e.key === "Backspace" && !otp[index] && index > 0) {
+    inputRefs.current[index - 1]?.focus();
+  }
+
+  if (e.key === "Enter") {
+    const otpValue = otp.join("");
+
+    if (otpValue.length === 4) {
+      handleSubmit();
     }
-  };
+  }
+};
 
   const handleSubmit = () => {
     const otpValue = otp.join("");
