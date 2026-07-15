@@ -694,7 +694,7 @@ const InvoiceTemplate = React.forwardRef(({ appointment, patient, doctor }, ref)
 InvoiceTemplate.displayName = 'InvoiceTemplate';
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
-const AppointmentDetail = () => {
+const AppointmentDetail = ({ videodetails }) => {
     const { type, appointmentId } = useParams();
     const navigate = useNavigate();
 
@@ -1210,7 +1210,10 @@ const AppointmentDetail = () => {
                                         <Link to={`/doctor/messenger/${patient?.id}`} className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 bg-emerald-50 text-[#0D614E]">
                                             <MessageCircle className="w-3.5 h-3.5" /> Message
                                         </Link>
-                                        <button onClick={e => setshowCall(!showCall)} className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 bg-emerald-50 text-[#0D614E]">
+                                        <button onClick={e => {
+                                            // setshowCall(!showCall)
+                                            videodetails({ ...videodetails, showCall: !videodetails.showCall, patient: patient, appointment: appointment })
+                                        }} className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 bg-emerald-50 text-[#0D614E]">
                                             <Video className="w-3.5 h-3.5" />Join Call
                                         </button>
                                     </div>

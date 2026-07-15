@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
-import { Suspense, lazy, useEffect } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { Toaster } from "react-hot-toast";
 import "./App.css";
 
@@ -15,6 +15,8 @@ import InventoryVault from "./Vendor_dashboard/Pages/Inventory/Inventory";
 import AddProduct from "./Vendor_dashboard/Pages/Inventory/AddProduct";
 import EditProduct from "./Vendor_dashboard/Pages/Inventory/editproduct";
 import Messenger from "./Doctor_dashboard/components/messenger/messanger";
+import { Rnd } from "react-rnd";
+import { X } from "lucide-react";
 
 // Doctor Pages
 const DoctorDashboard = lazy(() => import("./Doctor_dashboard/components/dashboard/Dashboard"));
@@ -68,10 +70,40 @@ function App() {
   const token = sessionStorage.getItem("accessToken");
   const role = sessionStorage.getItem("role");
   const isAuthenticated = !!token;
+  const [videodetails, setvideodetails] = useState({
+    appointment: null,
+    patient: null,
+    showCall: false
+  });
 
   return (
     <>
       <Toaster position="top-right" />
+      {
+        videodetails?.showCall && videodetails?.appointment && videodetails?.patient && (
+          <Rnd
+            default={{
+              x: (0),
+              y: 0,
+              width: 500,
+              height: 400,
+            }}
+            minWidth={550}
+            minHeight={550}
+            bounds="window"
+            style={{
+              zIndex: 9999999,
+              position: "fixed",
+            }}
+          >
+            <div className=" fixed bottom-6 left-6 w-[550px] h-[550px] rounded-3xl overflow-hidden shadow-2xl bg-black" style={{ zIndex: "99999999999" }}>
+              <DoctorVideoCall consultationId={videodetails?.appointment?.id} patientDetails={videodetails?.patient} />
+              <span className='crossicomn' onClick={e => setvideodetails({ ...videodetails, showCall: !videodetails.showCall })}>
+                <X size={16} />
+              </span>
+            </div>
+          </Rnd>
+        )}
       <BrowserRouter>
         <OnboardingRedirect />
         <Routes>
@@ -96,10 +128,10 @@ function App() {
                 <Route path="dashboard" element={<DoctorDashboard />} />
                 <Route path="availability" element={<DoctorAvailabilityCalendar2 />} />
                 <Route path="appointments" element={<AppointmentsPage />} />
-                <Route path="appointments/:type/:appointmentId" element={<AppointmentDetail />} />
+                <Route path="appointments/:type/:appointmentId" element={<AppointmentDetail videodetails={setvideodetails} />} />
                 <Route path="patients" element={<PatientManagement />} />
                 {/* <Route path="patients/detail/:patientId" element={<PatientDetailPage />} /> */}
-                <Route path="patients/:type/:appointmentId" element={<AppointmentDetail />} />
+                <Route path="patients/:type/:appointmentId" element={<AppointmentDetail videodetails={setvideodetails} />} />
                 <Route path="videocall/:consultationId" element={<DoctorVideoCall />} />
                 <Route path="messenger" element={<Messenger />} />
                 <Route path="messenger/:patientId" element={<Messenger />} />

@@ -82,6 +82,7 @@ const DoctorSidebar = () => {
     });
 
   return (
+    <>
     <div className={`sidebar ${collapsed ? "collapsed" : ""}`}>
       <div className="logo">
         <img src={logo} alt="Ayurmuni-logo" />
@@ -135,6 +136,7 @@ const DoctorSidebar = () => {
         </div>
       )}
     </div>
+    </>
   );
 };
 
