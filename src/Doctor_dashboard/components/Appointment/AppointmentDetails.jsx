@@ -694,7 +694,7 @@ const InvoiceTemplate = React.forwardRef(({ appointment, patient, doctor }, ref)
 InvoiceTemplate.displayName = 'InvoiceTemplate';
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
-const AppointmentDetail = () => {
+const AppointmentDetail = ({ videodetails }) => {
     const { type, appointmentId } = useParams();
     const navigate = useNavigate();
 
@@ -852,7 +852,10 @@ const AppointmentDetail = () => {
         }
     };
     const handleAddMed = () => {
-        if (!newMed.medicine_name.trim()) return;
+        if (!newMed.medicine_name.trim() || !newMed.medicine.trim() || !newMed.dosage.trim() || !newMed.frequency.trim() || !newMed.duration.trim()) {
+            toast.error("Product fields are required");
+            return
+        };
         setFormData(prev => ({
             ...prev,
             prescriptions: [...prev.prescriptions, { ...newMed, id: Date.now(), prescribed_at: new Date().toISOString() }]
@@ -955,6 +958,8 @@ const AppointmentDetail = () => {
                     dos: "",
                     donts: ""
                 })
+                fetchAppointmentDetails()
+                setActiveTab('history')
                 setUpdating(false)
             } else {
                 toast.error(res.data.errors.appointment_id[0]);
@@ -1166,22 +1171,22 @@ const AppointmentDetail = () => {
                                 appointment?.status &&
                                 <StatusBadge status={appointment?.status} />
                             }
-                            {
+                            {/* {
                                 type != "patient" && (appointment?.status == "confirmed" || appointment?.status == "completed") &&
                                 <button onClick={() => setShowPreview(true)}
                                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-600 text-[#0D614E] text-sm font-semibold hover:bg-emerald-50 transition-all">
                                     <Eye className="w-4 h-4" />
                                     Preview Prescription
                                 </button>
-                            }
-                            {(appointment?.status == "confirmed" || appointment?.status == "completed") &&
+                            } */}
+                            {/* {(appointment?.status == "confirmed" || appointment?.status == "completed") &&
                                 <button onClick={handleSavePrescription} disabled={updating}
                                     className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:shadow-lg disabled:opacity-50"
                                     style={{ background: 'linear-gradient(135deg, #0D614E 0%, #0a4a3d 100%)' }}>
                                     <Save className="w-4 h-4" />
                                     {updating ? 'Saving...' : 'Save Changes'}
                                 </button>
-                            }
+                            } */}
                         </div>
                     </div>
                 </div>
@@ -1217,7 +1222,10 @@ const AppointmentDetail = () => {
                                         <Link to={`/doctor/messenger/${patient?.id}`} className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 bg-emerald-50 text-[#0D614E]">
                                             <MessageCircle className="w-3.5 h-3.5" /> Message
                                         </Link>
-                                        <button onClick={e => setshowCall(!showCall)} className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 bg-emerald-50 text-[#0D614E]">
+                                        <button onClick={e => {
+                                            // setshowCall(!showCall)
+                                            videodetails({ ...videodetails, showCall: !videodetails.showCall, patient: patient, appointment: appointment })
+                                        }} className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 bg-emerald-50 text-[#0D614E]">
                                             <Video className="w-3.5 h-3.5" />Join Call
                                         </button>
                                     </div>
@@ -1293,13 +1301,15 @@ const AppointmentDetail = () => {
 
                                 {/* Prescription Tab */}
                                 {activeTab === 'prescription' && (
-                                    appointment?.status == "confirmed" || appointment?.status == "completed" ?
+                                    appointment?.status == "confirmed"
+                                        // || appointment?.status == "completed"
+                                        ?
                                         <div className="space-y-6">
                                             {/* Chief Complaint */}
                                             <div className="space-y-2">
                                                 <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                                                     <AlertCircle className="w-3.5 h-3.5 text-emerald-600" />
-                                                    Chief Complaint
+                                                    Chief Complaint<span className="text-rose-500">*</span>
                                                 </label>
                                                 <textarea
                                                     rows={8}
@@ -1549,14 +1559,14 @@ const AppointmentDetail = () => {
                                                             )}
                                                         </div>
                                                         <div className="grid grid-cols-2 gap-3">
-                                                            <input type="text" placeholder="Dosage (e.g., 500mg)" value={newMed.dosage}
+                                                            <input type="text" placeholder="Dosage (e.g., 500mg) *" value={newMed.dosage}
                                                                 onChange={e => setNewMed({ ...newMed, dosage: e.target.value })}
                                                                 className="px-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                                                            <input type="text" placeholder="Frequency (e.g., Twice daily)" value={newMed.frequency}
+                                                            <input type="text" placeholder="Frequency (e.g., Twice daily) *" value={newMed.frequency}
                                                                 onChange={e => setNewMed({ ...newMed, frequency: e.target.value })}
                                                                 className="px-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                                                         </div>
-                                                        <input type="text" placeholder="Duration (e.g., 7 days)" value={newMed.duration}
+                                                        <input type="text" placeholder="Duration (e.g., 7 days) *" value={newMed.duration}
                                                             onChange={e => setNewMed({ ...newMed, duration: e.target.value })}
                                                             className="w-full px-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                                                         <textarea placeholder="Instructions" rows={2} value={newMed.instruction}
@@ -1798,12 +1808,22 @@ const AppointmentDetail = () => {
 
                                             {/* Save Prescription Button */}
                                             <div className="flex justify-end gap-3 pt-4">
-                                                <button onClick={handleSavePrescription}
-                                                    disabled={updating}
-                                                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:shadow-lg"
-                                                    style={{ background: 'linear-gradient(135deg, #0D614E 0%, #0a4a3d 100%)' }}>
+                                                <button
+                                                    onClick={handleSavePrescription}
+                                                    disabled={
+                                                        updating ||
+                                                        !formData?.symptom_description?.trim() ||
+                                                        formData.prescriptions.length === 0
+                                                    }
+                                                    className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:shadow-lg ${updating ||
+                                                        !formData?.symptom_description?.trim() ||
+                                                        formData.prescriptions.length === 0
+                                                        ? "bg-gray-400 cursor-not-allowed"
+                                                        : "bg-gradient-to-r from-[#0D614E] to-[#0a4a3d]"
+                                                        }`}
+                                                >
                                                     <Save className="w-4 h-4" />
-                                                    {updating ? 'Saving...' : 'Save Prescription to History'}
+                                                    {updating ? "Saving..." : "Save Prescription"}
                                                 </button>
                                             </div>
                                         </div>
@@ -1841,14 +1861,21 @@ const AppointmentDetail = () => {
                                                     Unable to Add Prescription
                                                 </h3>
 
-                                                <p className="text-slate-600 mt-2 max-w-lg">
+                                                {/* <p className="text-slate-600 mt-2 max-w-lg">
                                                     This consultation was {appointment?.status} before completion. Prescription
                                                     generation is disabled for {appointment?.status} appointments to maintain
                                                     accurate medical records.
-                                                </p>
+                                                </p> */}
+                                                {
+                                                    appointment?.status === "completed" && (
+                                                        <p className="text-slate-600 mt-2 max-w-lg">
+                                                            The prescription has already been provided for this appointment.
+                                                        </p>
+                                                    )
+                                                }
 
-                                                <div className="mt-6 flex capitalize items-center gap-2 px-4 py-2 rounded-full bg-red-100 text-red-700">
-                                                    <span className="w-2 h-2 rounded-full bg-red-500 "></span>
+                                                <div className={"mt-6 flex capitalize items-center gap-2 px-4 py-2 rounded-full  " + (appointment?.status == "cancelled" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700")}>
+                                                    {/* <span className="w-2 h-2 rounded-full bg-red-500 "></span> */}
                                                     Appointment Status: {appointment?.status}
                                                 </div>
                                             </div>

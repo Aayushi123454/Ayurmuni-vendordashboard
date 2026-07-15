@@ -59,7 +59,7 @@ const STATUS_CONFIG = {
 };
 
 const CONSULTATION_TYPES = ['video', 'chat', 'in-person'];
-const STATUS_OPTIONS = ['confirmed', 'pending', 'completed', 'cancelled', 'rescheduled', 'reschedule'];
+const STATUS_OPTIONS = ['confirmed',  'completed', 'cancelled', 'rescheduled', 'reschedule'];
 const ITEMS_PER_PAGE_OPTIONS = [5, 10, 15, 25, 50];
 
 // ==================== HELPER FUNCTIONS ====================
@@ -546,41 +546,63 @@ const AppointmentsPage = () => {
     // Sorting state
     const [sortBy, setSortBy] = useState('');
     const [sortOrder, setSortOrder] = useState('');
+    const [appointmentStats, setAppointmentStats] = useState({
+        total: 0,
+        today: 0,
+        confirmed: 0,
+        rescheduled: 0,
+        completed: 0,
+    });
+    const [totalItems, setTotalItems] = useState(0);
 
     // Fetch appointments from API
     const fetchAppointments = useCallback(async () => {
         setIsLoading(true);
         try {
-            const response = await doctorService?.getAppointment("appointment");
+            const response = await doctorService?.getAppointment(
+                "appointment",
+                currentPage,
+                itemsPerPage,
+                {
+                    search: searchTerm,
+                    status: statusFilter,
+                }
+            );
             if (response?.data?.success && response?.data?.data?.results) {
                 const appointmentsData = response.data.data.results.map(apt => ({
                     id: apt.id,
                     appointment_date: apt.appointment_date,
                     start_time: apt.start_time,
                     end_time: apt.end_time,
-                    consultation_type: apt.consultation_type,
+                    consultation_type: apt.type || apt.consultation_type,
                     status: apt.status,
-                    notes: apt.notes,
                     concern: apt.concern,
-                    patient_id: apt.patient,
-                    doctor_id: apt.doctor,
-                    patient_name: apt.patient
-                        ? `${apt.patient.first_name || ''} ${apt.patient.last_name || ''}`.trim()
-                        : 'Unknown Patient',
+                    patient_name: apt.patient_name || 'Unknown Patient',
                     patient_prakriti: apt.prakriti,
-                    patient_email: apt.patient?.email || '',
-                    patient_phone: apt.patient?.phone_number || apt.patient?.phone || '',
-                    patient_age: apt.patient?.dob || '',
-                    patient_gender: apt.patient?.gender || '',
-                    fee: apt.amount || apt.fee || 0,
-                    availability: apt.availability,
-                    created_at: apt.created_at,
-                    call_status: apt.call_status,
-                    channel_name: apt.channel_name
+                    day: apt.day,
                 }));
                 setAppointments(appointmentsData);
+                setTotalItems(response.data.data.count ?? appointmentsData.length);
+                const counts = response.data.data.total_counts;
+                if (counts) {
+                    setAppointmentStats({
+                        total: counts.total ?? 0,
+                        today: counts.today ?? 0,
+                        confirmed: counts.confirmed ?? 0,
+                        rescheduled: counts.rescheduled ?? 0,
+                        completed: counts.completed ?? 0,
+                    });
+                }
             } else {
                 setAppointments([]);
+                setTotalItems(0);
+                setAppointmentStats({
+                    total: 0,
+                    today: 0,
+                    confirmed: 0,
+                    rescheduled: 0,
+                    completed: 0,
+                });
             }
         } catch (error) {
             console.error('Failed to fetch appointments:', error);
@@ -595,31 +617,19 @@ const AppointmentsPage = () => {
         // } catch (error) {
         //     toast.error('Failed to load appointments');
         // }
-    }, []);
+    }, [currentPage, itemsPerPage, searchTerm, statusFilter]);
 
     useEffect(() => {
         fetchAppointments();
     }, [fetchAppointments]);
 
-    // Reset page when filters change
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [searchTerm, statusFilter, typeFilter, sortBy, sortOrder]);
-
-    // Filter, Sort, and Paginate appointments
-    const filteredAndSortedAppointments = useMemo(() => {
-        // First filter
+    // Sort and filter current page (type filter + sort are client-side on page results)
+    const displayedAppointments = useMemo(() => {
         let filtered = appointments.filter(apt => {
-            const matchesSearch = searchTerm === '' ||
-                (apt.patient_name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                (apt.notes?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                (apt.concern?.toLowerCase().includes(searchTerm.toLowerCase()));
-            const matchesStatus = statusFilter === 'all' || apt.status === statusFilter;
             const matchesType = typeFilter === 'all' || apt.consultation_type === typeFilter;
-            return matchesSearch && matchesStatus && matchesType;
+            return matchesType;
         });
 
-        // Then sort
         filtered.sort((a, b) => {
             let comparison = 0;
 
@@ -647,33 +657,12 @@ const AppointmentsPage = () => {
         });
 
         return filtered;
-    }, [appointments, searchTerm, statusFilter, typeFilter, sortBy, sortOrder]);
+    }, [appointments, typeFilter, sortBy, sortOrder]);
 
-    // Pagination
-    const paginatedAppointments = useMemo(() => {
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const endIndex = startIndex + itemsPerPage;
-        return filteredAndSortedAppointments.slice(startIndex, endIndex);
-    }, [filteredAndSortedAppointments, currentPage, itemsPerPage]);
-
-    const totalItems = filteredAndSortedAppointments.length;
     const totalPages = Math.ceil(totalItems / itemsPerPage);
 
-    // Statistics
-    const stats = useMemo(() => {
-        const today = new Date().toISOString().split('T')[0];
-        const todayAppointments = appointments.filter(apt => apt.appointment_date === today);
-
-        return {
-            total: appointments.length,
-            today: todayAppointments.length,
-            confirmed: appointments.filter(apt => apt.status === 'confirmed').length,
-            completed: appointments.filter(apt => apt.status === 'completed').length,
-            cancelled: appointments.filter(apt => apt.status === 'cancelled').length,
-            pending: appointments.filter(apt => apt.status === 'pending').length,
-            rescheduled: appointments.filter(apt => apt.status === 'rescheduled').length
-        };
-    }, [appointments]);
+    // Statistics from API total_counts
+    const stats = appointmentStats;
 
     // Handle Sort
     const handleSortChange = (newSortBy) => {
@@ -768,7 +757,7 @@ const AppointmentsPage = () => {
     // Export to CSV
     const exportToCSV = () => {
         const headers = ['Date', 'Start Time', 'End Time', 'Patient Name', 'Prakriti', 'Consultation Type', 'Status', 'Concern', 'Amount'];
-        const csvData = filteredAndSortedAppointments.map(apt => [
+        const csvData = displayedAppointments.map(apt => [
             apt.appointment_date,
             formatTime(apt.start_time),
             formatTime(apt.end_time),
@@ -826,7 +815,7 @@ const AppointmentsPage = () => {
                     <StatCard title="Total Appointments" value={stats.total} icon={CalendarIcon} iconBg="bg-emerald-50" iconColor="text-[#0D614E]" />
                     <StatCard title="Today's Appointments" value={stats.today} icon={Clock} iconBg="bg-yellow-50" iconColor="text-yellow-600" />
                     <StatCard title="Confirmed" value={stats.confirmed} icon={CheckCircle} iconBg="bg-blue-50" iconColor="text-blue-600" />
-                    <StatCard title="Pending" value={stats.pending} icon={AlertCircle} iconBg="bg-purple-50" iconColor="text-purple-600" />
+                    <StatCard title="Rescheduled" value={stats.rescheduled} icon={RefreshCw} iconBg="bg-orange-50" iconColor="text-orange-600" />
                     <StatCard title="Completed" value={stats.completed} icon={CheckCheck} iconBg="bg-green-50" iconColor="text-green-600" />
                 </div>
 
@@ -840,7 +829,10 @@ const AppointmentsPage = () => {
                                     type="text"
                                     placeholder="Search by patient name, concern, or notes..."
                                     value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    onChange={(e) => {
+                                        setSearchTerm(e.target.value);
+                                        setCurrentPage(1);
+                                    }}
                                     className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0D614E]"
                                 />
                             </div>
@@ -848,7 +840,10 @@ const AppointmentsPage = () => {
                         <div className="flex  gap-3 justify-end gap-3">
                             <select
                                 value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
+                                onChange={(e) => {
+                                    setStatusFilter(e.target.value);
+                                    setCurrentPage(1);
+                                }}
                                 className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0D614E] bg-white"
                             >
                                 <option value="all">All Status</option>
@@ -907,6 +902,8 @@ const AppointmentsPage = () => {
                                     setSearchTerm('');
                                     setStatusFilter('all');
                                     setTypeFilter('all');
+                                    setCurrentPage(1);
+                                    setTypeFilter('all');
                                 }}
                                 className="text-xs text-[#0D614E] hover:underline"
                             >
@@ -920,7 +917,7 @@ const AppointmentsPage = () => {
                 <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                     {isLoading ? (
                         <LoadingSpinner />
-                    ) : paginatedAppointments.length === 0 ? (
+                    ) : displayedAppointments.length === 0 ? (
                         <EmptyState message="No appointments found matching your criteria" onRefresh={fetchAppointments} />
                     ) : (
                         <>
@@ -978,7 +975,7 @@ const AppointmentsPage = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
-                                        {paginatedAppointments.map((appointment) => (
+                                        {displayedAppointments.map((appointment) => (
                                             <tr key={appointment.id} className="hover:bg-gray-50 transition-colors">
                                                 <td className="px-6 py-4">
                                                     <div className="flex flex-col">
