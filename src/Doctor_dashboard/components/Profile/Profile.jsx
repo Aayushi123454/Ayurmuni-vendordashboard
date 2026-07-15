@@ -1131,7 +1131,7 @@ const getStatusText = (isActive, isVerified) => {
 
 // ==================== VALIDATION HELPER ====================
 const validateField = (value, pattern, fieldName) => {
-    if (!value || value.trim() === '') return { isValid: true, error: '' };
+    if (!value || value?.trim() === '') return { isValid: true, error: '' };
     if (!pattern.test(value)) {
         return { isValid: false, error: `Invalid ${fieldName} format` };
     }
@@ -1527,39 +1527,63 @@ const DoctorProfile = () => {
             twitter_url: { pattern: VALIDATION_PATTERNS.twitter, name: 'Twitter URL' },
             facebook_url: { pattern: VALIDATION_PATTERNS.facebook, name: 'Facebook URL' },
             instagram_url: { pattern: VALIDATION_PATTERNS.instagram, name: 'Instagram URL' },
-            registration_number: { pattern: VALIDATION_PATTERNS.registration_number, name: 'Registration Number' },
-            ayurvedic_council_id: { pattern: VALIDATION_PATTERNS.council_id, name: 'Council ID' },
-            experience_years: { pattern: VALIDATION_PATTERNS.experience_years, name: 'Experience Years' },
-            consultation_fee: { pattern: VALIDATION_PATTERNS.consultation_fee, name: 'Consultation Fee' },
+            // registration_number: { pattern: VALIDATION_PATTERNS.registration_number, name: 'Registration Number' },
+            // ayurvedic_council_id: { pattern: VALIDATION_PATTERNS.council_id, name: 'Council ID' },
+            // experience_years: { pattern: VALIDATION_PATTERNS.experience_years, name: 'Experience Years' },
+            // consultation_fee: { pattern: VALIDATION_PATTERNS.consultation_fee, name: 'Consultation Fee' },
             first_name: { pattern: VALIDATION_PATTERNS.name, name: 'First Name' },
             last_name: { pattern: VALIDATION_PATTERNS.name, name: 'Last Name' },
-            qualification: { pattern: /^[a-zA-Z0-9\s,.\-()]{3,100}$/, name: 'Qualification' },
-            registration_council: { pattern: /^[a-zA-Z\s\-]{3,50}$/, name: 'Registration Council' },
-            nationality: { pattern: /^[a-zA-Z\s]{3,50}$/, name: 'Nationality' },
-            city: { pattern: /^[a-zA-Z\s\-]{2,50}$/, name: 'City' },
-            state: { pattern: /^[a-zA-Z\s\-]{2,50}$/, name: 'State' },
-            country: { pattern: /^[a-zA-Z\s\-]{2,50}$/, name: 'Country' },
-            emergency_contact_name: { pattern: /^[a-zA-Z\s]{2,50}$/, name: 'Emergency Contact Name' },
-            emergency_contact_relation: { pattern: /^[a-zA-Z\s]{2,30}$/, name: 'Emergency Contact Relation' },
+            // qualification: { pattern: /^[a-zA-Z0-9\s,.\-()]{3,100}$/, name: 'Qualification' },
+            // registration_council: { pattern: /^[a-zA-Z\s\-]{3,50}$/, name: 'Registration Council' },
+            // nationality: { pattern: /^[a-zA-Z\s]{3,50}$/, name: 'Nationality' },
+            // city: { pattern: /^[a-zA-Z\s\-]{2,50}$/, name: 'City' },
+            // state: { pattern: /^[a-zA-Z\s\-]{2,50}$/, name: 'State' },
+            // country: { pattern: /^[a-zA-Z\s\-]{2,50}$/, name: 'Country' },
+            // emergency_contact_name: { pattern: /^[a-zA-Z\s]{2,50}$/, name: 'Emergency Contact Name' },
+            // emergency_contact_relation: { pattern: /^[a-zA-Z\s]{2,30}$/, name: 'Emergency Contact Relation' },
             emergency_contact_phone: { pattern: VALIDATION_PATTERNS.phone, name: 'Emergency Phone' },
             bio: { pattern: /^[\s\S]{10,500}$/, name: 'Bio' },
-            address_line: { pattern: /^[a-zA-Z0-9\s,.\-/#]{5,100}$/, name: 'Address' }
+            // address_line: { pattern: /^[a-zA-Z0-9\s,.\-/#]{5,100}$/, name: 'Address' }
         };
-
         const config = patterns[field];
         if (!config) return { isValid: true, error: '' };
 
-        if (!value || value.trim() === '') {
-            // Only validate required fields that are actually required
-            const requiredFields = ['first_name', 'last_name', 'email', 'secondary_number', 'registration_number'];
+        // Convert string values only
+        const trimmedValue =
+            typeof value === 'string'
+                ? value.trim()
+                : value;
+
+        // Required field validation
+        if (
+            trimmedValue === null ||
+            trimmedValue === undefined ||
+            trimmedValue === ''
+        ) {
+            const requiredFields = [
+                'first_name',
+                'last_name',
+                'email',
+                'secondary_number',
+                'registration_number'
+            ];
+
             if (requiredFields.includes(field)) {
-                return { isValid: false, error: `${config.name} is required` };
+                return {
+                    isValid: false,
+                    error: `${config.name} is required`
+                };
             }
+
             return { isValid: true, error: '' };
         }
 
-        if (!config.pattern.test(value.trim())) {
-            return { isValid: false, error: `Invalid ${config.name} format` };
+        // Pattern validation
+        if (!config.pattern.test(String(trimmedValue))) {
+            return {
+                isValid: false,
+                error: `Invalid ${config.name} format`
+            };
         }
 
         return { isValid: true, error: '' };
@@ -1601,7 +1625,7 @@ const DoctorProfile = () => {
     const validateBankField = useCallback((field, value) => {
         switch (field) {
             case 'account_holder_name':
-                if (!value || value.trim().length < 2) {
+                if (!value || value?.trim().length < 2) {
                     return { isValid: false, error: 'Account holder name is required (min 2 characters)' };
                 }
                 return { isValid: true, error: '' };
