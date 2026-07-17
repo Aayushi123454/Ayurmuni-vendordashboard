@@ -44,7 +44,7 @@ export default function AddProduct() {
   const [draggedIndex, setDraggedIndex] = useState(null);
 
   const [formData, setFormData] = useState({
-    category_id: "",
+    product_subcategory_id: "",
     brand_name_id: "",
     manufacturer: "",
     origin: "",
@@ -71,7 +71,7 @@ export default function AddProduct() {
   const [editingVariant, setEditingVariant] = useState(null);
   const [showVariantModal, setShowVariantModal] = useState(false);
   const [variantForm, setVariantForm] = useState({
-    variant_code: "",
+    vendor_sku_code: "",
     title: "",
     mrp: "",
     selling_price: "",
@@ -130,23 +130,22 @@ export default function AddProduct() {
 
   const fetchdatabrandcat = async () => {
     try {
-      const [brand, productcat, maincat, diseasescat] = await Promise.all([
+      const [brand, productcat, diseasescat] = await Promise.all([
         vendorService.getbrandandcategory("brand-name"),
-        vendorService.getbrandandcategory("product-category"),
-        vendorService.getbrandandcategory("category"),
+        vendorService.getbrandandcategory("product-subcategory"),
+        // vendorService.getbrandandcategory("category"),
         vendorService.getbrandandcategory("health-diseases"),
       ]);
 
       const brandData = brand?.data?.data || brand?.data || [];
       const catData = productcat?.data?.data || productcat?.data || [];
-      const maincategory = maincat?.data?.data || maincat?.data || [];
       const diseasescate = diseasescat?.data?.data || diseasescat?.data || [];
 
       setlists(prev => ({
         ...prev,
         brand: brandData,
         productcat: catData,
-        maincategory,
+        // maincategory,
         diseasescate,
       }));
     } catch (error) {
@@ -442,19 +441,19 @@ export default function AddProduct() {
       toast.error("MRP is required");
       return false;
     }
-    if (!variantForm.hsn_code) {
-      toast.error("HSN Number is required");
-      return false;
-    }
-    if (!variantForm.stock) {
-      toast.error("Quantity/stock is required");
-      return false;
-    }
+    // if (!variantForm.hsn_code) {
+    //   toast.error("HSN Number is required");
+    //   return false;
+    // }
+    // if (!variantForm.stock) {
+    //   toast.error("Quantity/stock is required");
+    //   return false;
+    // }
     if (!variantForm.size) {
       toast.error("Size is required");
       return false;
     }
-    if (!variantForm.variant_code && !editingVariant) {
+    if (!variantForm.vendor_sku_code && !editingVariant) {
       toast.error("SKU is required");
       return false;
     }
@@ -486,7 +485,7 @@ export default function AddProduct() {
 
       const newVariant = {
         id: editingVariant ? editingVariant.id : Date.now(),
-        variant_code: variantForm.variant_code || generateSKU(),
+        vendor_sku_code: variantForm.vendor_sku_code || generateSKU(),
         title: variantForm.title,
         mrp: parseFloat(variantForm.mrp),
         discount: variantForm.discount || "",
@@ -520,15 +519,12 @@ export default function AddProduct() {
         is_active: true,
         vendor_price: parseFloat(priceType == "TP" ? variantForm.selling_price : (Number(variantForm.selling_price) -
           (variantForm.selling_price * platformFee / 100) -
-          ((variantForm.selling_price * platformFee / 100) * gst / 100)).toLocaleString('en-IN', { minimumFractionDigits: 2 })),
+          ((variantForm.selling_price * platformFee / 100) * gst / 100)).toLocaleString('en-IN', { minimumFractionDigits: 2 }))?.toFixed(2),
         selling_price: parseFloat(priceType == "TP" ? (Number(variantForm.selling_price) +
           (variantForm.selling_price * platformFee / 100) +
           ((variantForm.selling_price * platformFee / 100) * gst / 100)).toLocaleString('en-IN', { minimumFractionDigits: 2 }) :
-          variantForm.selling_price)
+          variantForm.selling_price)?.toFixed(2)
       };
-      console.log(newVariant);
-
-
       if (editingVariant) {
         setVariants(variants.map(v => v.id === editingVariant.id ? newVariant : v));
         toast.success("Variant updated successfully");
@@ -536,7 +532,6 @@ export default function AddProduct() {
         setVariants([...variants, newVariant]);
         toast.success("Variant added successfully");
       }
-
       resetVariantForm();
       setShowVariantModal(false);
     } catch (error) {
@@ -559,7 +554,7 @@ export default function AddProduct() {
     }
 
     setVariantForm({
-      variant_code: "",
+      vendor_sku_code: "",
       title: "",
       mrp: "",
       selling_price: "",
@@ -605,10 +600,10 @@ export default function AddProduct() {
     })) || [];
 
     setVariantForm({
-      variant_code: variant.variant_code,
+      vendor_sku_code: variant.vendor_sku_code,
       title: variant.title,
       mrp: variant.mrp,
-      selling_price: variant.selling_price,
+      selling_price: variant.selling_price ? variant.selling_price.toFixed(2) : "",
       discount: variant.discount || "",
       cost_per_item: variant.cost_per_item || "",
       stock: variant.stock,
@@ -677,7 +672,7 @@ export default function AddProduct() {
     const newVariant = {
       ...variant,
       id: Date.now(),
-      variant_code: `${variant.variant_code}-COPY-${Date.now().toString().slice(-4)}`,
+      vendor_sku_code: `${variant.vendor_sku_code}-COPY-${Date.now().toString().slice(-4)}`,
       is_default: false,
       title: `${variant.title} (Copy)`,
       coverImage: variant.coverImage ? { ...variant.coverImage, id: Date.now() } : null,
@@ -702,7 +697,7 @@ export default function AddProduct() {
       toast.error("Product name is required");
       return false;
     }
-    if (!formData.category_id) {
+    if (!formData.product_subcategory_id) {
       toast.error("Category is required");
       return false;
     }
@@ -779,9 +774,9 @@ export default function AddProduct() {
       ),
     };
 
-    console.log("Product Data:", productData);
-
     try {
+      console.log(productData);
+
       const response = await vendorService.addProduct(productData);
       if (response.data.success) {
         toast.success(response.data.message);
@@ -885,17 +880,17 @@ export default function AddProduct() {
                   <div className="form-group">
                     <label>CATEGORY <span className="required">*</span></label>
                     <select
-                      name="category_id"
-                      value={formData.category_id}
+                      name="product_subcategory_id"
+                      value={formData.product_subcategory_id}
                       onChange={handleInputChange}
-                      className={errors.category_id ? "error" : ""}
+                      className={errors.product_subcategory_id ? "error" : ""}
                     >
                       <option value="">Select Category</option>
                       {lists?.productcat?.map((data) => (
                         <option key={data?.id} value={data?.id}>{data?.name}</option>
                       ))}
                     </select>
-                    {errors.category_id && <span className="error-text">{errors.category_id}</span>}
+                    {errors.product_subcategory_id && <span className="error-text">{errors.product_subcategory_id}</span>}
                   </div>
                   <div className="form-group">
                     <label>BRAND NAME <span className="required">*</span></label>
@@ -1148,10 +1143,10 @@ export default function AddProduct() {
                       <div className="col-price">₹{Number(variant.vendor_price).toFixed(2) || "N/A"}</div>
                       <div className="col-stock">
                         <span className={`stock-badge ${variant.stock <= (variant.low_stock_threshold || 5) ? 'low-stock' : ''}`}>
-                          {variant.stock} in stock
+                          {variant.stock || 0} in stock
                         </span>
                       </div>
-                      <div className="col-sku">{variant.variant_code}</div>
+                      <div className="col-sku">{variant.vendor_sku_code}</div>
                       <div className="col-default">
                         <button
                           className={`default-checkbox ${variant.is_default ? "active" : ""}`}
@@ -1326,16 +1321,16 @@ export default function AddProduct() {
                   <label>SKU <span className="required">*</span></label>
                   <input
                     type="text"
-                    name="sku"
+                    name="vendor_sku_code"
                     placeholder="Enter SKU"
-                    value={variantForm.variant_code}
+                    value={variantForm.vendor_sku_code}
                     onChange={handleVariantInputChange}
-                    className={errors.variant_code ? 'error' : ''}
+                    className={errors.vendor_sku_code ? 'error' : ''}
                   />
-                  {errors.variant_code && <span className="error-text">{errors.variant_code}</span>}
-                  <button type="button" className="generate-sku" onClick={() => setVariantForm(prev => ({ ...prev, variant_code: generateSKU() }))}>
+                  {errors.vendor_sku_code && <span className="error-text">{errors.vendor_sku_code}</span>}
+                  {/* <button type="button" className="generate-sku" onClick={() => setVariantForm(prev => ({ ...prev, vendor_sku_code: generateSKU() }))}>
                     Generate SKU
-                  </button>
+                  </button> */}
                 </div>
               </div>
 
@@ -1380,7 +1375,7 @@ export default function AddProduct() {
                     step="0.01"
                   />
                 </div>
-                <div className="form-group">
+                {/* <div className="form-group">
                   <label>HSN Number <span className="required">*</span></label>
                   <input
                     type="text"
@@ -1391,47 +1386,9 @@ export default function AddProduct() {
                     className={errors.hsn_code ? "error" : ""}
                   />
                   {errors.hsn_code && <span className="error-text">{errors.hsn_code}</span>}
-                </div>
-              </div>
+                </div> */}
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Quantity / Stock <span className="required">*</span></label>
-                  <input
-                    type="number"
-                    name="stock"
-                    placeholder="0"
-                    value={variantForm.stock}
-                    onChange={handleVariantInputChange}
-                    className={errors.stock ? 'error' : ''}
-                  />
-                  {errors.stock && <span className="error-text">{errors.stock}</span>}
-                </div>
-                <div className="form-group">
-                  <label>Size/Weight <span className="required">*</span></label>
-                  <div className="weight-input">
-                    <input
-                      type="number"
-                      name="size"
-                      placeholder="size"
-                      value={variantForm.size}
-                      onChange={handleVariantInputChange}
-                      step="0.01"
-                      className={errors.size ? 'error' : ''}
-                    />
-                    <select name="weightage" value={variantForm.weightage} onChange={handleVariantInputChange}>
-                      <option value="g">g</option>
-                      <option value="kg">kg</option>
-                      <option value="ml">ml</option>
-                      <option value="L">L</option>
-                      <option value="pcs">Pieces</option>
-                    </select>
-                  </div>
-                  {errors.size && <span className="error-text">{errors.size}</span>}
-                </div>
-              </div>
 
-              <div className="form-row">
                 <div className="form-group">
                   <label>Type <span className="required">*</span></label>
                   <select
@@ -1458,6 +1415,46 @@ export default function AddProduct() {
                   </select>
                   {errors.physical_state && <span className="error-text">{errors.physical_state}</span>}
                 </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Size/Weight <span className="required">*</span></label>
+                  <div className="weight-input">
+                    <input
+                      type="number"
+                      name="size"
+                      placeholder="size"
+                      value={variantForm.size}
+                      onChange={handleVariantInputChange}
+                      step="0.01"
+                      className={errors.size ? 'error' : ''}
+                    />
+                    <select name="weightage" value={variantForm.weightage} onChange={handleVariantInputChange}>
+                      <option value="g">g</option>
+                      <option value="kg">kg</option>
+                      <option value="ml">ml</option>
+                      <option value="L">L</option>
+                      <option value="pcs">Pieces</option>
+                    </select>
+                  </div>
+                  {errors.size && <span className="error-text">{errors.size}</span>}
+                </div>
+
+
+                {/* <div className="form-row">
+                <div className="form-group">
+                  <label>Quantity / Stock <span className="required">*</span></label>
+                  <input
+                    type="number"
+                    name="stock"
+                    placeholder="0"
+                    value={variantForm.stock}
+                    onChange={handleVariantInputChange}
+                    className={errors.stock ? 'error' : ''}
+                  />
+                  {errors.stock && <span className="error-text">{errors.stock}</span>}
+                </div>
                 <div className="form-group">
                   <label>Low stock threshold</label>
                   <input
@@ -1468,9 +1465,9 @@ export default function AddProduct() {
                     onChange={handleVariantInputChange}
                   />
                 </div>
-              </div>
+              </div> */}
 
-              <div className="form-row">
+
                 <div className="form-group">
                   <label className="checkbox-label">
                     <input
@@ -1492,6 +1489,8 @@ export default function AddProduct() {
                     />
                   )}
                 </div>
+              </div>
+              <div className="form-row">
                 <div className="form-group">
                   <label className="checkbox-label">
                     <input
