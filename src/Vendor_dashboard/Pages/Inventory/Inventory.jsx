@@ -14,6 +14,7 @@ import { vendorService } from "../../../services/vendorService";
 
 // Helper function to get status based on stock and threshold
 const getVariantStatus = (stock, threshold) => {
+  if (!stock) return "stocknotadded";
   if (stock <= 0) return "outofstock";
   if (stock <= threshold) return "lowstock";
   return "instock";
@@ -21,7 +22,7 @@ const getVariantStatus = (stock, threshold) => {
 
 // Helper to format quantity display
 const formatQuantity = (stock, threshold) => {
-  if (stock <= 0) return "0 Units";
+  if (!stock || stock <= 0) return "0 Units";
   return `${stock} Units`;
 };
 
@@ -55,6 +56,7 @@ const EXPIRY_ROWS = [
 ];
 
 const STATUS_MAP = {
+  "stocknotadded": { label: "Stock Not Added", cls: "iv-chip-outofstock" },
   instock: { label: "In Stock", cls: "iv-chip-instock" },
   lowstock: { label: "Low Stock", cls: "iv-chip-lowstock" },
   outofstock: { label: "Out of Stock", cls: "iv-chip-outofstock" },
@@ -152,9 +154,9 @@ function VariantRow({ variant, productName }) {
           <span className="font-[600]">{variant.title}</span>
         </div>
       </td>
-      <td><span className="iv-sku-badge">{variant.variant_code}</span></td>
-      <td><span className="iv-price-mrp">Rs.{parseFloat(variant.mrp).toLocaleString()}</span></td>
-      <td><span className="iv-price-sell">Rs.{parseFloat(variant.selling_price).toLocaleString()}</span></td>
+      <td><span className="iv-sku-badge">{variant.vendor_sku_code}</span></td>
+      <td><span className="iv-price-mrp">₹{parseFloat(variant.mrp).toLocaleString()}</span></td>
+      <td><span className="iv-price-sell">₹{parseFloat(variant.selling_price).toLocaleString()}</span></td>
       <td>
         <span className={`iv-qty ${status}`}>
           {formatQuantity(variant.stock, variant.low_stock_threshold)}
@@ -190,7 +192,7 @@ function ProductBlock({ product, collaps, setcollaps }) {
     <div className="iv-product-block">
       <div className="iv-product-header">
         <div className="iv-product-avatar shadow-md">
-          <img src={avatarUrl} alt={product.name} />
+          <img src={product?.product_subcategory_image_url} alt={product.name} />
         </div>
         <div className="iv-product-info">
           <div className="iv-product-name">
@@ -366,10 +368,10 @@ export default function InventoryVault() {
         </button>
       </div>
 
-      <div className="iv-top-grid">
+      {/* <div className="iv-top-grid">
         <CriticalAlerts />
         <ExpiryPipeline />
-      </div>
+      </div> */}
 
       {/* <div className="iv-ledger-header">
         <div className="iv-ledger-title">Batch Inventory Ledger</div>
@@ -397,7 +399,23 @@ export default function InventoryVault() {
         </div>
       ) : products.length === 0 ? (
         <div className="iv-empty-state">
-          <p>No products found. Click "Add Product" to get started.</p>
+          <div className="iv-empty-icon">
+            📦
+          </div>
+
+          <h3>No Products Yet</h3>
+
+          <p>
+            You haven't added any products yet.
+            Start building your catalog by adding your first product.
+          </p>
+
+          <button
+            className="iv-btn-add"
+            onClick={() => navigate("/vendor/new-product")} // Replace with your function
+          >
+            + Add Product
+          </button>
         </div>
       ) : (
         products.map((product) => (
