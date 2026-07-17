@@ -42,7 +42,9 @@ const Header = () => {
 
   const LogOut = () => {
     sessionStorage.clear();
-    window.location.replace('/login')
+    setTimeout(() => {
+      window.location.replace('/login')
+    }, 500);
   }
 
   return (

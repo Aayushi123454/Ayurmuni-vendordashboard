@@ -511,7 +511,7 @@ body {
   object-fit: cover;
 }
 
-.iv-variant-avatar img{
+.iv-variant-avatar img {
   object-fit: cover;
 }
 
@@ -647,7 +647,8 @@ body {
   background: #fef3c7;
 }
 
-.iv-qty.outofstock {
+.iv-qty.outofstock,
+.iv-qty.stocknotadded {
   color: #F43F5E;
   background: #ffe4e6;
 }
@@ -1039,4 +1040,61 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--green);
+}
+
+.iv-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  background: #ffffff;
+  border: 2px dashed #d1d5db;
+  border-radius: 16px;
+  min-height: 320px;
+}
+
+.iv-empty-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  margin-bottom: 20px;
+}
+
+.iv-empty-state h3 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.iv-empty-state p {
+  margin: 12px 0 28px;
+  max-width: 420px;
+  color: #6b7280;
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+.iv-add-product-btn {
+  background: #0f766e;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s ease;
+}
+
+.iv-add-product-btn:hover {
+  background: #115e59;
+  transform: translateY(-2px);
 }
