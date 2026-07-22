@@ -47,7 +47,7 @@ export default function EditProduct() {
     const [draggedIndex, setDraggedIndex] = useState(null);
 
     const [formData, setFormData] = useState({
-        category_id: "",
+        product_subcategory_id: "",
         brand_name_id: "",
         manufacturer: "",
         origin: "",
@@ -67,6 +67,8 @@ export default function EditProduct() {
         is_active: true,
     });
 
+    const [originalData, setOriginalData] = useState(null); // To store the original product data for comparison
+
     const [healthConcerns, setHealthConcerns] = useState([]);
 
     // Variants State
@@ -74,7 +76,7 @@ export default function EditProduct() {
     const [editingVariant, setEditingVariant] = useState(null);
     const [showVariantModal, setShowVariantModal] = useState(false);
     const [variantForm, setVariantForm] = useState({
-        variant_code: "",
+        vendor_sku_code: "",
         title: "",
         mrp: "",
         selling_price: "",
@@ -120,7 +122,7 @@ export default function EditProduct() {
                 // Set product information
                 setName(product.name || "");
                 setFormData({
-                    category_id: product.product_category_id || "",
+                    product_subcategory_id: product.product_subcategory_id || "",
                     brand_name_id: product.brand_name_id || "",
                     manufacturer: product.manufacturer || "",
                     origin: product.origin || "",
@@ -169,7 +171,29 @@ export default function EditProduct() {
                 }));
 
                 setVariants(processedVariants);
-
+                setOriginalData({
+                    product: {
+                        product_subcategory_id: product.product_subcategory_id || "",
+                        brand_name_id: product.brand_name_id || "",
+                        manufacturer: product.manufacturer || "",
+                        origin: product.origin || "",
+                        short_description: product.short_description || "",
+                        full_description: product.full_description || "",
+                        how_to_use: product.how_to_use || "",
+                        benifits: product.benifits || "",
+                        treatment_type: product.treatment_type || "",
+                        compositions: product.compositions || "",
+                        side_effects: product.side_effects || "",
+                        dosages: product.dosages || "",
+                        ayushLicense: product.ayushLicense || "",
+                        safety_information: product.safety_information || "",
+                        model_number: product.model_number || "",
+                        is_nutrition: product.is_nutrition || true,
+                        is_featured: product.is_featured || false,
+                        is_active: product.is_active !== undefined ? product.is_active : true,
+                    },
+                    variants: processedVariants
+                });
                 // Determine price type from first variant
                 if (processedVariants.length > 0) {
                     const firstVariant = processedVariants[0];
@@ -177,12 +201,12 @@ export default function EditProduct() {
                 }
             } else {
                 toast.error("Failed to load product data");
-                navigate("/inventory");
+                // navigate("/inventory");
             }
         } catch (error) {
             console.error("Error fetching product:", error);
             toast.error(error.message || "Failed to load product data");
-            navigate("/inventory");
+            // navigate("/inventory");
         } finally {
             setLoading(false);
         }
@@ -201,23 +225,23 @@ export default function EditProduct() {
 
     const fetchdatabrandcat = async () => {
         try {
-            const [brand, productcat, maincat, diseasescat] = await Promise.all([
+            const [brand, productcat, diseasescat] = await Promise.all([
                 vendorService.getbrandandcategory("brand-name"),
-                vendorService.getbrandandcategory("product-category"),
-                vendorService.getbrandandcategory("category"),
+                vendorService.getbrandandcategory("product-subcategory"),
+                // vendorService.getbrandandcategory("category"),
                 vendorService.getbrandandcategory("health-diseases"),
             ]);
 
             const brandData = brand?.data?.data || brand?.data || [];
             const catData = productcat?.data?.data || productcat?.data || [];
-            const maincategory = maincat?.data?.data || maincat?.data || [];
+            // const maincategory = maincat?.data?.data || maincat?.data || [];
             const diseasescate = diseasescat?.data?.data || diseasescat?.data || [];
 
             setlists(prev => ({
                 ...prev,
                 brand: brandData,
                 productcat: catData,
-                maincategory,
+                // maincategory,
                 diseasescate,
             }));
         } catch (error) {
@@ -451,14 +475,14 @@ export default function EditProduct() {
             toast.error("MRP is required");
             return false;
         }
-        if (!variantForm.hsn_code) {
-            toast.error("HSN Number is required");
-            return false;
-        }
-        if (!variantForm.stock) {
-            toast.error("Quantity/stock is required");
-            return false;
-        }
+        // if (!variantForm.hsn_code) {
+        //     toast.error("HSN Number is required");
+        //     return false;
+        // }
+        // if (!variantForm.stock) {
+        //     toast.error("Quantity/stock is required");
+        //     return false;
+        // }
         if (!variantForm.size) {
             toast.error("Size is required");
             return false;
@@ -487,7 +511,7 @@ export default function EditProduct() {
 
             const newVariant = {
                 id: editingVariant ? editingVariant.id : Date.now(),
-                variant_code: variantForm.variant_code || generateSKU(),
+                vendor_sku_code: variantForm.vendor_sku_code || generateSKU(),
                 title: variantForm.title,
                 mrp: parseFloat(variantForm.mrp),
                 discount: variantForm.discount || "",
@@ -553,7 +577,7 @@ export default function EditProduct() {
         }
 
         setVariantForm({
-            variant_code: "",
+            vendor_sku_code: "",
             title: "",
             mrp: "",
             selling_price: "",
@@ -592,7 +616,7 @@ export default function EditProduct() {
         })) || [];
 
         setVariantForm({
-            variant_code: variant.variant_code,
+            vendor_sku_code: variant.vendor_sku_code,
             title: variant.title,
             mrp: variant.mrp,
             selling_price: variant.selling_price,
@@ -644,7 +668,7 @@ export default function EditProduct() {
         const newVariant = {
             ...variant,
             id: Date.now(),
-            variant_code: `${variant.variant_code}-COPY-${Date.now().toString().slice(-4)}`,
+            vendor_sku_code: `${variant.vendor_sku_code}-COPY-${Date.now().toString().slice(-4)}`,
             is_default: false,
             title: `${variant.title} (Copy)`,
             coverImage: variant.coverImage ? { ...variant.coverImage, id: Date.now() } : null,
@@ -666,7 +690,7 @@ export default function EditProduct() {
             toast.error("Product name is required");
             return false;
         }
-        if (!formData.category_id) {
+        if (!formData.product_subcategory_id) {
             toast.error("Category is required");
             return false;
         }
@@ -695,6 +719,61 @@ export default function EditProduct() {
         setActiveTab("product");
     };
 
+    const EXCLUDED_KEYS = [
+        "sku_code",
+        "status",
+        "approval_status",
+        "approved_at",
+        "created_at",
+        "updated_at",
+        "reason",
+        "cover_image",
+        "coverImage",
+        "stock",
+        "low_stock_threshold",
+    ];
+
+    const getUpdatedFields = (current, original) => {
+        const result = {};
+
+        Object.keys(current).forEach((key) => {
+            if (EXCLUDED_KEYS.includes(key)) return;
+            console.log(key, current[key], original?.[key]);
+
+
+            const value = current[key];
+            const oldValue = original?.[key];
+
+            // Skip empty values
+            if (
+                value === "" ||
+                value === null ||
+                value === undefined ||
+                (Array.isArray(value) && value.length === 0)
+            ) {
+                return;
+            }
+
+            // Compare objects/arrays
+            if (
+                typeof value === "object" &&
+                value !== null
+            ) {
+                if (JSON.stringify(value) !== JSON.stringify(oldValue)) {
+                    result[key] = value;
+                }
+                return;
+            }
+
+            // Compare primitive values
+            if (value !== oldValue) {
+                result[key] = value;
+            }
+        });
+
+        return result;
+    };
+
     const handleSubmit = async () => {
         if (activeTab === "product") {
             if (!validateProductInfo()) return;
@@ -707,32 +786,35 @@ export default function EditProduct() {
             return;
         }
 
+        console.log(formData)
         const productData = {
-            product: {
+            product: getUpdatedFields({
                 name,
                 ...formData,
                 health_disease_ids: healthConcerns,
-            },
-            variants: variants.map(v => ({
-                ...v,
-                media: v.media || v.galleryImages?.map(img => ({
-                    media_url: img.media_url,
-                    media_type: "image",
-                    is_cover: img.is_cover || (v.coverImage?.id === img.id)
-                })) || [],
-                galleryImages: undefined
-            })),
+            }, originalData.product),
+            variants: variants
+                .map((variant, index) => {
+                    const updated = getUpdatedFields(
+                        variant,
+                        originalData.variants[index]
+                    );
+                    // Keep id for update API
+                    if (variant.id) {
+                        updated.id = variant.id;
+                    }
+
+                    return Object.keys(updated).length > 1 ? updated : null;
+                })
+                .filter(Boolean),
         };
-
-        console.log("Update Product Data:", productData);
-
         try {
             const response = await vendorService.updateProduct(id, productData);
             if (response.data.success) {
                 toast.success(response.data.message || "Product updated successfully");
-                setTimeout(() => {
-                    navigate("/inventory");
-                }, 1000);
+                // setTimeout(() => {
+                //     navigate("/inventory");
+                // }, 1000);
             }
         } catch (error) {
             console.error("Error updating product:", error);
@@ -822,8 +904,8 @@ export default function EditProduct() {
                                     <div className="form-group">
                                         <label>CATEGORY <span className="required">*</span></label>
                                         <select
-                                            name="category_id"
-                                            value={formData.category_id}
+                                            name="product_subcategory_id"
+                                            value={formData.product_subcategory_id}
                                             onChange={handleInputChange}
                                         >
                                             <option value="">Select Category</option>
@@ -1072,11 +1154,11 @@ export default function EditProduct() {
                                             <div className="col-price">₹{Number(variant.selling_price).toFixed(2)}</div>
                                             <div className="col-price">₹{Number(variant.vendor_price).toFixed(2) || "N/A"}</div>
                                             <div className="col-stock">
-                                                <span className={`stock-badge ${variant.stock <= (variant.low_stock_threshold || 5) ? 'low-stock' : ''}`}>
-                                                    {variant.stock} in stock
+                                                <span className={`stock-badge ${(variant.stock || 0) <= (variant.low_stock_threshold || 5) ? 'low-stock' : ''}`}>
+                                                    {variant.stock || 0} in stock
                                                 </span>
                                             </div>
-                                            <div className="col-sku">{variant.variant_code}</div>
+                                            <div className="col-sku">{variant?.vendor_sku_code}</div>
                                             <div className="col-default">
                                                 <button
                                                     className={`default-checkbox ${variant.is_default ? "active" : ""}`}
@@ -1117,7 +1199,7 @@ export default function EditProduct() {
                             <button className="btn-prev" onClick={handlePrevTab}>
                                 ← Back to Product Info
                             </button>
-                            <button className="btn-submit" onClick={handleSubmit}>
+                            <button className="btn-submit flex items-center gap-2" onClick={handleSubmit}>
                                 <Save size={16} /> Update Product
                             </button>
                         </div>
@@ -1247,14 +1329,14 @@ export default function EditProduct() {
                                     <label>SKU <span className="required">*</span></label>
                                     <input
                                         type="text"
-                                        name="sku"
+                                        name="vendor_sku_code"
                                         placeholder="Enter SKU"
-                                        value={variantForm.variant_code}
+                                        value={variantForm.vendor_sku_code}
                                         onChange={handleVariantInputChange}
                                     />
-                                    <button type="button" className="generate-sku" onClick={() => setVariantForm(prev => ({ ...prev, variant_code: generateSKU() }))}>
+                                    {/* <button type="button" className="generate-sku" onClick={() => setVariantForm(prev => ({ ...prev, vendor_sku_code: generateSKU() }))}>
                                         Generate SKU
-                                    </button>
+                                    </button> */}
                                 </div>
                             </div>
 
@@ -1296,28 +1378,30 @@ export default function EditProduct() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label>HSN Number <span className="required">*</span></label>
-                                    <input
-                                        type="text"
-                                        name="hsn_code"
-                                        placeholder="HSN code"
-                                        value={variantForm.hsn_code}
-                                        onChange={handleVariantInputChange}
-                                    />
+                                    <label>Type <span className="required">*</span></label>
+                                    <select name="physical_state" value={variantForm.physical_state} onChange={handleVariantInputChange}>
+                                        <option value="">Select Type</option>
+                                        {[
+                                            { value: "tablet", label: "Tablet" },
+                                            { value: "capsule", label: "Capsule" },
+                                            { value: "powder", label: "Powder" },
+                                            { value: "syrup", label: "Syrup" },
+                                            { value: "oil", label: "Oil" },
+                                            { value: "cream", label: "Cream" },
+                                            { value: "gel", label: "Gel" },
+                                            { value: "drops", label: "Drops" },
+                                            { value: "juice", label: "Juice" },
+                                            { value: "other", label: "Other" }
+                                        ].map((data) => (
+                                            <option key={data.value} value={data.value}>{data.label}</option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
 
                             <div className="form-row">
-                                <div className="form-group">
-                                    <label>Quantity / Stock <span className="required">*</span></label>
-                                    <input
-                                        type="number"
-                                        name="stock"
-                                        placeholder="0"
-                                        value={variantForm.stock}
-                                        onChange={handleVariantInputChange}
-                                    />
-                                </div>
+
+
                                 <div className="form-group">
                                     <label>Size/Weight <span className="required">*</span></label>
                                     <div className="weight-input">
@@ -1338,42 +1422,6 @@ export default function EditProduct() {
                                         </select>
                                     </div>
                                 </div>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Type <span className="required">*</span></label>
-                                    <select name="physical_state" value={variantForm.physical_state} onChange={handleVariantInputChange}>
-                                        <option value="">Select Type</option>
-                                        {[
-                                            { value: "tablet", label: "Tablet" },
-                                            { value: "capsule", label: "Capsule" },
-                                            { value: "powder", label: "Powder" },
-                                            { value: "syrup", label: "Syrup" },
-                                            { value: "oil", label: "Oil" },
-                                            { value: "cream", label: "Cream" },
-                                            { value: "gel", label: "Gel" },
-                                            { value: "drops", label: "Drops" },
-                                            { value: "juice", label: "Juice" },
-                                            { value: "other", label: "Other" }
-                                        ].map((data) => (
-                                            <option key={data.value} value={data.value}>{data.label}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="form-group">
-                                    <label>Low stock threshold</label>
-                                    <input
-                                        type="number"
-                                        name="low_stock_threshold"
-                                        placeholder="Alert when stock below"
-                                        value={variantForm.low_stock_threshold}
-                                        onChange={handleVariantInputChange}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="form-row">
                                 <div className="form-group">
                                     <label className="checkbox-label">
                                         <input
@@ -1395,6 +1443,43 @@ export default function EditProduct() {
                                         />
                                     )}
                                 </div>
+                            </div>
+
+                            <div className="form-row">
+                                {/* <div className="form-group">
+                                    <label>Quantity / Stock <span className="required">*</span></label>
+                                    <input
+                                        type="number"
+                                        name="stock"
+                                        placeholder="0"
+                                        value={variantForm.stock}
+                                        onChange={handleVariantInputChange}
+                                    />
+                                </div> */}
+                                {/* <div className="form-group">
+                                    <label>HSN Number <span className="required">*</span></label>
+                                    <input
+                                        type="text"
+                                        name="hsn_code"
+                                        placeholder="HSN code"
+                                        value={variantForm.hsn_code}
+                                        onChange={handleVariantInputChange}
+                                    />
+                                </div> */}
+                                {/* <div className="form-group">
+                                    <label>Low stock threshold</label>
+                                    <input
+                                        type="number"
+                                        name="low_stock_threshold"
+                                        placeholder="Alert when stock below"
+                                        value={variantForm.low_stock_threshold}
+                                        onChange={handleVariantInputChange}
+                                    />
+                                </div> */}
+                            </div>
+
+                            <div className="form-row">
+
                                 <div className="form-group">
                                     <label className="checkbox-label">
                                         <input

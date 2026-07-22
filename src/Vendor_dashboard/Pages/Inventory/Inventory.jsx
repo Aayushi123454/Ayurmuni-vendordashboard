@@ -14,9 +14,9 @@ import { vendorService } from "../../../services/vendorService";
 
 // Helper function to get status based on stock and threshold
 const getVariantStatus = (stock, threshold) => {
-  if (!stock) return "stocknotadded";
-  if (stock <= 0) return "outofstock";
-  if (stock <= threshold) return "lowstock";
+  if (!stock) return "not-added";
+  if (stock <= 0) return "out-of-stock";
+  if (stock <= threshold) return "low-stock";
   return "instock";
 };
 
@@ -56,10 +56,10 @@ const EXPIRY_ROWS = [
 ];
 
 const STATUS_MAP = {
-  "stocknotadded": { label: "Stock Not Added", cls: "iv-chip-outofstock" },
+  "not-added": { label: "Stock Not Added", cls: "iv-chip-outofstock" },
   instock: { label: "In Stock", cls: "iv-chip-instock" },
-  lowstock: { label: "Low Stock", cls: "iv-chip-lowstock" },
-  outofstock: { label: "Out of Stock", cls: "iv-chip-outofstock" },
+  "low-stock": { label: "Low Stock", cls: "iv-chip-lowstock" },
+  "out-of-stock": { label: "Out of Stock", cls: "iv-chip-outofstock" },
 };
 
 function CriticalAlerts() {
@@ -127,56 +127,130 @@ function ExpiryPipeline() {
   );
 }
 
-function Toggle({ checked, onChange }) {
+function Toggle({ checked, disabled, onChange }) {
   return (
     <label className="iv-toggle">
-      <input type="checkbox" checked={checked} onChange={onChange} />
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={onChange} />
       <span className="iv-toggle-slider" />
     </label>
   );
 }
 
 function VariantRow({ variant, productName }) {
-  const [active, setActive] = useState(variant.is_active);
-  const status = getVariantStatus(variant.stock, variant.low_stock_threshold);
-  const statusConfig = STATUS_MAP[status];
+  const [active, setActive] = useState(variant.status === "active");
 
-  // Get cover image URL or use default
-  const avatarUrl = variant.cover_image?.media_url || variant.media?.[0]?.media_url || Ayurvedaimage;
+  const status = getVariantStatus(
+    variant.stock,
+    variant.low_stock_threshold
+  );
+
+  const avatarUrl =
+    variant.cover_image?.media_url ||
+    variant.media?.[0]?.media_url ||
+    Ayurvedaimage;
+
+  const approvalColors = {
+    approved: "bg-green-100 text-green-700 border-green-200",
+    pending: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    rejected: "bg-red-100 text-red-700 border-red-200",
+  };
 
   return (
-    <tr>
-      <td>
-        <div className="iv-variant-cell flex items-center gap-4">
-          <div className="iv-variant-avatar shadow-md">
-            <img src={avatarUrl} className=" max-w-[50px] w-full h-full max-h-[50px] " alt={variant.title} />
+    <tr className="border-b hover:bg-gray-50 transition">
+      {/* Product */}
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div className="h-14 w-14 overflow-hidden rounded-lg border bg-white shadow-sm">
+            <img
+              src={avatarUrl}
+              alt={variant.title}
+              className="h-full w-full object-cover"
+            />
           </div>
-          <span className="font-[600]">{variant.title}</span>
+
+          <div>
+            <h4 className="text-sm font-semibold text-gray-800">
+              {variant.title}
+            </h4>
+
+            <span
+              className={`mt-1 inline-flex rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${approvalColors[variant.approval_status] ||
+                "bg-gray-100 text-gray-600 border-gray-200"
+                }`}
+            >
+              {variant.approval_status}
+            </span>
+          </div>
         </div>
       </td>
-      <td><span className="iv-sku-badge">{variant.vendor_sku_code}</span></td>
-      <td><span className="iv-price-mrp">₹{parseFloat(variant.mrp).toLocaleString()}</span></td>
-      <td><span className="iv-price-sell">₹{parseFloat(variant.selling_price).toLocaleString()}</span></td>
-      <td>
-        <span className={`iv-qty ${status}`}>
-          {formatQuantity(variant.stock, variant.low_stock_threshold)}
+
+      {/* SKU */}
+      <td className="px-4 py-3">
+        <span className="rounded-md bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
+          {variant.vendor_sku_code}
         </span>
       </td>
-      <td>
-        <span className={`iv-status-chip ${statusConfig.cls}`}>
-          <span className="iv-status-dot" />
-          {statusConfig.label}
+
+      {/* MRP */}
+      <td className="px-4 py-3">
+        <span className="font-medium text-gray-700">
+          ₹{Number(variant.mrp).toLocaleString()}
         </span>
       </td>
-      <td>
-        <Toggle checked={active} onChange={() => setActive((v) => !v)} />
+
+      {/* Selling Price */}
+      <td className="px-4 py-3">
+        <span className="font-semibold text-green-600">
+          ₹{Number(variant.selling_price).toLocaleString()}
+        </span>
       </td>
-      <td>
-        <div className="iv-actions-cell">
-          <Link to={"edit-product/:id"} className="iv-act-btn"><span className="greenicon"><FaEdit /></span></Link>
-          <Link className="iv-act-btn"><span className="redicon"><FiTrash2 /></span></Link>
-        </div>
+
+      {/* Stock */}
+      <td className="px-4 py-3">
+        <span
+          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${status === "in-stock"
+            ? "bg-green-100 text-green-700"
+            : status === "low-stock"
+              ? "bg-yellow-100 text-yellow-700"
+              : "bg-red-100 text-red-700"
+            }`}
+        >
+          {formatQuantity(
+            variant.stock,
+            variant.low_stock_threshold
+          )}
+        </span>
       </td>
+
+      {/* Status */}
+      <td className="px-4 py-3">
+        <span
+          className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium ${status === "in-stock"
+            ? "bg-green-100 text-green-700"
+            : status === "low-stock"
+              ? "bg-yellow-100 text-yellow-700"
+              : "bg-red-100 text-red-700"
+            }`}
+          style={{
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <span className="h-2 w-2 rounded-full bg-current"></span>
+          {status.replace("-", " ")}
+        </span>
+      </td>
+
+      {/* Toggle */}
+      <td className="px-4 py-3">
+        <Toggle
+          checked={active}
+          disabled={variant.approval_status !== "approved"}
+          onChange={() => setActive((prev) => !prev)}
+        />
+      </td>
+
+      {/* Actions */}
+
     </tr>
   );
 }
@@ -192,7 +266,7 @@ function ProductBlock({ product, collaps, setcollaps }) {
     <div className="iv-product-block">
       <div className="iv-product-header">
         <div className="iv-product-avatar shadow-md">
-          <img src={product?.product_subcategory_image_url} alt={product.name} />
+          <img src={product?.variants[0]?.cover_image?.media_url || avatarUrl} alt={product.name} />
         </div>
         <div className="iv-product-info">
           <div className="iv-product-name">
@@ -212,6 +286,20 @@ function ProductBlock({ product, collaps, setcollaps }) {
           </div>
         </div>
         <button className="iv-btn-view-all" onClick={e => setcollaps(product.id)}>View Variants</button>
+        <div className="flex items-center gap-2">
+          <Link
+            to={`/vendor/edit-product/${product.id}`}
+            className="rounded-lg border border-green-200 p-2 !text-green-600 transition hover:bg-green-50 "
+          >
+            <FaEdit size={16} />
+          </Link>
+
+          <button
+            className="rounded-lg border border-red-200 p-2 text-red-600 transition hover:bg-red-50"
+          >
+            <FiTrash2 size={16} />
+          </button>
+        </div>
       </div>
       {
         collaps == product.id &&
@@ -225,7 +313,7 @@ function ProductBlock({ product, collaps, setcollaps }) {
               <th>Quantity</th>
               <th>Status</th>
               <th>Active</th>
-              <th>Actions</th>
+              {/* <th>Actions</th> */}
             </tr>
           </thead>
           <tbody>

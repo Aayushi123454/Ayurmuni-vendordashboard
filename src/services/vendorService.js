@@ -99,7 +99,7 @@ export const vendorService = {
     // Get Product list detail
     getsingleProducts: async (id) => {
         try {
-            const response = await API.get('/vendors/product/?id=23792390-aeb5-421d-be97-20eb00afe7b5');
+            const response = await API.get(`/vendors/product/?id=${id}`);
             return response;
         } catch (error) {
             console.error('Admin service error:', error);
@@ -111,6 +111,17 @@ export const vendorService = {
     addProduct: async (productData) => {
         try {
             const response = await API.post('/vendors/product/add/', productData);
+            return response;
+        } catch (error) {
+            console.error('Admin service error:', error);
+            throw error;
+        }
+    },
+
+     // Update Product list detail
+    updateProduct: async (id, productData) => {
+        try {
+            const response = await API.patch(`/vendors/product/?id=${id}`, productData);
             return response;
         } catch (error) {
             console.error('Admin service error:', error);
