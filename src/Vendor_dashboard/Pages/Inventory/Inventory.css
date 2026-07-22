@@ -642,13 +642,13 @@ body {
   background: #d1fae5;
 }
 
-.iv-qty.lowstock {
+.iv-qty.low-stock {
   color: #FFC107;
   background: #fef3c7;
 }
 
-.iv-qty.outofstock,
-.iv-qty.stocknotadded {
+.iv-qty.out-of-stock,
+.iv-qty.stock-not-added {
   color: #F43F5E;
   background: #ffe4e6;
 }
@@ -729,7 +729,7 @@ body {
   position: relative;
   display: inline-block;
   width: 40px;
-  height: 22px;
+  height: 18px;
   cursor: pointer;
 }
 
@@ -750,10 +750,10 @@ body {
 .iv-toggle-slider::before {
   content: '';
   position: absolute;
-  width: 18px;
-  height: 18px;
-  left: 2px;
-  bottom: 2px;
+  width: 16px;
+  height: 16px;
+  left: 1px;
+  bottom: 1px;
   background: white;
   border-radius: 50%;
   transition: 0.2s;
@@ -764,7 +764,7 @@ body {
 }
 
 .iv-toggle input:checked+.iv-toggle-slider::before {
-  transform: translateX(18px);
+  transform: translateX(23px);
 }
 
 /* Action Buttons */
