@@ -14,7 +14,7 @@ import { vendorService } from "../../../services/vendorService";
 
 // Helper function to get status based on stock and threshold
 const getVariantStatus = (stock, threshold) => {
-  if (!stock) return "not-added";
+  if (!stock) return "out-of-stock";
   if (stock <= 0) return "out-of-stock";
   if (stock <= threshold) return "low-stock";
   return "instock";
