@@ -1563,6 +1563,7 @@ export default function EditProduct() {
                     </div>
                 )
             }
-        </div >
+            
+        </DashboardPageShell>
     );
 }
