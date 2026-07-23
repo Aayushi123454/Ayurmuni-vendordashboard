@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { Package, Pencil, Trash2 } from "lucide-react";
 import { vendorService } from "../../../services/vendorService";
+import usePersistedState from "../../hooks/usePersistedState";
 import DashboardPageShell from "../../components/shared/DashboardPageShell";
 import { PageEmpty, PageError, PageLoader, PaginationBar } from "../../components/shared/PageState";
+import { TableSkeleton } from "../../components/shared/Skeleton";
 import StatusBadge from "../../components/shared/StatusBadge";
 import SearchToolbar from "../../components/shared/SearchToolbar";
 import DataTable, { TableRow, TableCell } from "../../components/shared/DataTable";
@@ -23,7 +25,7 @@ const COLUMNS = [
     { key: "vendor_sku", label: "Vendor SKU" },
     { key: "system_sku", label: "System SKU" },
     { key: "variant", label: "Variant" },
-    { key: "qty", label: "Quantity" },
+    { key: "qty", label: "Quantity", sortable: true },
     { key: "status", label: "Status" },
     { key: "updated", label: "Updated" },
     { key: "actions", label: "Actions" },
@@ -37,10 +39,12 @@ export default function StockManagement() {
     const [searchInput, setSearchInput] = useState("");
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
+    const [pageSize, setPageSize] = usePersistedState("vendor:stock:pageSize", 10);
+    const [sortKey, setSortKey] = useState("");
+    const [sortDir, setSortDir] = useState("desc");
     const [editingItem, setEditingItem] = useState(null);
     const [editQuantity, setEditQuantity] = useState("");
     const [saving, setSaving] = useState(false);
-    const pageSize = 10;
 
     const fetchInventory = useCallback(async () => {
         try {
@@ -59,11 +63,28 @@ export default function StockManagement() {
         } finally {
             setLoading(false);
         }
-    }, [page, search]);
+    }, [page, pageSize, search]);
 
     useEffect(() => {
         fetchInventory();
     }, [fetchInventory]);
+
+    const handleSort = (key) => {
+        if (sortKey === key) {
+            setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+        } else {
+            setSortKey(key);
+            setSortDir("asc");
+        }
+    };
+
+    const sortedItems = React.useMemo(() => {
+        if (sortKey !== "qty") return items;
+        return [...items].sort((a, b) => {
+            const diff = (a.quantity || 0) - (b.quantity || 0);
+            return sortDir === "asc" ? diff : -diff;
+        });
+    }, [items, sortKey, sortDir]);
 
     const saveQuantity = async () => {
         if (!editingItem) return;
@@ -135,7 +156,7 @@ export default function StockManagement() {
             </UnicommerceNotice>
 
             {loading ? (
-                <PageLoader message="Loading stock records..." />
+                <TableSkeleton columns={8} rows={pageSize > 10 ? 8 : pageSize} />
             ) : error ? (
                 <PageError message={error} onRetry={fetchInventory} />
             ) : items.length === 0 ? (
@@ -149,8 +170,14 @@ export default function StockManagement() {
                 />
             ) : (
                 <>
-                    <DataTable columns={COLUMNS}>
-                        {items.map((item) => {
+                    <DataTable
+                        columns={COLUMNS}
+                        sortKey={sortKey}
+                        sortDir={sortDir}
+                        onSort={handleSort}
+                        stickyActions
+                    >
+                        {sortedItems.map((item) => {
                             const isLow = item.quantity <= LOW_STOCK_THRESHOLD;
                             const isOut = item.quantity <= 0;
                             const stockStatus = isOut ? "out-of-stock" : isLow ? "low-stock" : "instock";
@@ -158,7 +185,7 @@ export default function StockManagement() {
                                 <TableRow key={item.id}>
                                     <TableCell>
                                         <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-[#0D614E]/10 flex items-center justify-center text-[#0D614E]">
+                                            <div className="w-8 h-8 rounded-lg bg-[#0D614E]/10 flex items-center justify-center text-[#0D614E] transition-transform duration-200 group-hover:scale-105">
                                                 <Package size={16} />
                                             </div>
                                             <span className="font-medium text-gray-800">{item.product_name}</span>
@@ -167,10 +194,10 @@ export default function StockManagement() {
                                     <TableCell><code className="text-xs bg-gray-100 px-2 py-1 rounded">{item.vendor_sku_code || "—"}</code></TableCell>
                                     <TableCell><code className="text-xs text-gray-500">{item.sku_code || "—"}</code></TableCell>
                                     <TableCell>{item.variant_title || "—"}</TableCell>
-                                    <TableCell><span className="font-semibold">{item.quantity}</span></TableCell>
+                                    <TableCell><span className="font-semibold tabular-nums">{item.quantity}</span></TableCell>
                                     <TableCell><StatusBadge status={stockStatus} /></TableCell>
                                     <TableCell className="text-gray-500">{item.updated_at ? new Date(item.updated_at).toLocaleDateString() : "—"}</TableCell>
-                                    <TableCell>
+                                    <TableCell sticky>
                                         <div className="flex items-center gap-2">
                                             <IconButton title="Update quantity" onClick={() => { setEditingItem(item); setEditQuantity(String(item.quantity ?? 0)); }}>
                                                 <Pencil size={15} />
@@ -184,19 +211,27 @@ export default function StockManagement() {
                             );
                         })}
                     </DataTable>
-                    <PaginationBar page={page} pageSize={pageSize} totalCount={totalCount} onPageChange={setPage} itemLabel="records" />
+                    <PaginationBar
+                        page={page}
+                        pageSize={pageSize}
+                        totalCount={totalCount}
+                        onPageChange={setPage}
+                        onPageSizeChange={setPageSize}
+                        storageKey="vendor:stock"
+                        itemLabel="records"
+                    />
                 </>
             )}
 
             <Modal
                 open={Boolean(editingItem)}
-                onClose={() => setEditingItem(null)}
+                onClose={() => !saving && setEditingItem(null)}
                 title="Update Stock"
                 subtitle={editingItem ? `${editingItem.product_name} · Vendor SKU: ${editingItem.vendor_sku_code || "—"}` : ""}
                 footer={
                     <>
-                        <Button variant="secondary" onClick={() => setEditingItem(null)}>Cancel</Button>
-                        <Button onClick={saveQuantity} disabled={saving}>{saving ? "Saving..." : "Save"}</Button>
+                        <Button variant="secondary" onClick={() => setEditingItem(null)} disabled={saving}>Cancel</Button>
+                        <Button onClick={saveQuantity} loading={saving}>{saving ? "Saving..." : "Save"}</Button>
                     </>
                 }
             >
@@ -210,9 +245,10 @@ export default function StockManagement() {
                     id="quantity"
                     type="number"
                     min="0"
+                    autoFocus
                     value={editQuantity}
                     onChange={(e) => setEditQuantity(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0D614E]"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#0D614E]/30 focus:border-[#0D614E]/40"
                 />
             </Modal>
         </DashboardPageShell>

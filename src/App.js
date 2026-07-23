@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom
 import { Suspense, lazy, useEffect, useState } from "react";
 import { Toaster } from "react-hot-toast";
 import "./App.css";
+import "./Vendor_dashboard/components/shared/design-system.css";
 
 // Shared Components
 import Sidebar from "./Vendor_dashboard/Sidebar/sidebar";

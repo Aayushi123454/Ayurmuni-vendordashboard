@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { vendorService } from "../../../services/vendorService";
 import DashboardPageShell from "../../components/shared/DashboardPageShell";
-import { PageEmpty, PageError, PageLoader } from "../../components/shared/PageState";
+import { PageEmpty, PageError } from "../../components/shared/PageState";
+import { TableSkeleton } from "../../components/shared/Skeleton";
 import StatusBadge from "../../components/shared/StatusBadge";
 import SearchToolbar, { SelectFilter } from "../../components/shared/SearchToolbar";
 import DataTable, { TableRow, TableCell } from "../../components/shared/DataTable";
@@ -86,7 +87,7 @@ export default function Catalog() {
             subtitle="Browse read-only category, brand, and tax reference data for product creation."
             breadcrumbs={[{ label: "Dashboard" }, { label: "Catalog Reference" }]}
         >
-            <div className="flex flex-wrap gap-2 mb-6">
+            <div className="flex flex-wrap gap-2 mb-6 ds-stagger">
                 {TABS.map((tab) => (
                     <Button
                         key={tab.id}
@@ -121,7 +122,7 @@ export default function Catalog() {
             </SearchToolbar>
 
             {loading ? (
-                <PageLoader message="Loading catalog..." />
+                <TableSkeleton columns={columns.length} rows={8} />
             ) : error ? (
                 <PageError message={error} onRetry={fetchData} />
             ) : items.length === 0 ? (

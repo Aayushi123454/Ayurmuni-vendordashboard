@@ -20,7 +20,7 @@ const PIE_COLORS = ["#0D614E", "#10B981", "#8B5CF6", "#F59E0B", "#F43F5E", "#3B8
 
 function ChartCard({ title, subtitle, children, emptyMessage, hasData }) {
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="ds-card ds-card-interactive p-6">
             <div className="mb-4">
                 <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
                 {subtitle && <p className="text-sm text-gray-500 mt-0.5">{subtitle}</p>}
