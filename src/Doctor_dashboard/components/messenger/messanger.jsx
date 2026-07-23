@@ -91,38 +91,59 @@ const Avatar = ({ src, name, className = 'w-12 h-12' }) => {
 
 const MessageItem = ({ message }) => {
     const isOwn = message.senderId === CHAT_SENDER_DOCTOR;
-
+    //  console.log(message)
+    //  console.log(message.senderId);
+    //  console.log(CHAT_SENDER_DOCTOR);
+    //  console.log(message.senderId === CHAT_SENDER_DOCTOR);
     return (
         <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-3`}>
             <div className={`max-w-[70%] ${isOwn ? 'order-2' : 'order-1'}`}>
-                <div className={`rounded-2xl px-4 py-2.5 shadow-sm ${isOwn
-                    ? 'bg-[#0D614E] !text-white'
-                    : 'bg-white border border-gray-200 text-gray-800'
-                    }`}>
-                    {message.type === 'image' && message.attachments?.length > 0 && (
-                        <div className="space-y-2 mb-2">
-                            {message.attachments.map((attachment, index) => (
-                                <a
-                                    key={`${message.id}-img-${index}`}
-                                    href={attachment.file_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    <img
-                                        src={attachment.file_url}
-                                        alt={attachment.file_name || 'Attachment'}
-                                        className="max-w-full rounded-lg max-h-48 object-cover"
-                                    />
-                                </a>
-                            ))}
-                        </div>
-                    )}
-                    {message.content && (
-                        <p className={`text-sm whitespace-pre-wrap break-words ${isOwn ? '!text-white' : ''}`}>
-                            {message.content}
-                        </p>
-                    )}
-                </div>
+                {/* Raman */}
+                <div
+    className={`inline-block px-4 py-2.5 shadow-sm break-words
+    ${
+        isOwn
+            ? "bg-[#0D614E] text-white rounded-2xl rounded-tr-md"
+            : "bg-white text-gray-900 border border-gray-200 rounded-2xl rounded-tl-md"
+    }`}
+>
+    {/* Tail */}
+    <span
+        className={`absolute top-0 w-3 h-3 rotate-45
+        ${
+            isOwn
+                ? "right-[-5px] bg-[#0D614E]"
+                : "left-[-5px] bg-white border-l border-t border-gray-200"
+        }`}
+    />
+{/* Raman */}
+    {message.type === "image" && message.attachments?.length > 0 && (
+        <div className="space-y-2 mb-2">
+            {message.attachments.map((attachment, index) => (
+                <a
+                    key={index}
+                    href={attachment.file_url}
+                    target="_blank"
+                    rel="noreferrer"
+                >
+                    <img
+                        src={attachment.file_url}
+                        alt=""
+                        className="rounded-lg max-h-48"
+                    />
+                </a>
+            ))}
+        </div>
+    )}
+
+    {message.content && (
+        <p className={`text-sm whitespace-pre-wrap break-words ${
+    isOwn ? "text-white" : "text-gray-800"
+  }`}>
+            {message.content}
+        </p>
+    )}
+</div>
                 <div className={`flex items-center mt-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
                     <span className="text-xs text-gray-400">
                         {formatTime(message.timestamp)}

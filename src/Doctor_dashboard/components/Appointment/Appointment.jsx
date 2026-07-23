@@ -117,6 +117,7 @@ const StatusBadge = ({ status }) => {
     const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
     const Icon = config.icon;
     return (
+        // Raman
         <span className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-2xl text-xs font-medium ${config.color}`}>
             <Icon size={12} />
             <span>{config.label}</span>

@@ -226,7 +226,6 @@ const PrescriptionTemplate = React.forwardRef(({ appointment, formData, doctor, 
         if (!dob) return 'N/A';
         return new Date().getFullYear() - new Date(dob).getFullYear();
     };
-
     const formatDate = (dateString) => {
         const options = { day: 'numeric', month: 'long', year: 'numeric' };
         return new Date(dateString).toLocaleDateString('en-IN', options);
@@ -904,10 +903,10 @@ const AppointmentDetail = ({ videodetails }) => {
             toast.error("Chief Complaint is required");
             return false;
         }
-        if (!formData.prescriptions[0]) {
-            toast.error("Prescribed Medicines is required");
-            return false;
-        }
+        // if (!formData.prescriptions[0]) {
+        //     toast.error("Prescribed Medicines is required");
+        //     return false;
+        // }
         return true;
     };
 
@@ -1146,7 +1145,7 @@ const AppointmentDetail = ({ videodetails }) => {
                                 >
                                     <ArrowLeft className="w-5 h-5" />
                                 </button>
-
+{/* Raman */}
                                 <div className="absolute left-1/2 -translate-x-1/2 -top-10
                   bg-gray-800 text-white text-xs px-2 py-1 rounded
                   opacity-0 group-hover:opacity-100
@@ -1154,6 +1153,7 @@ const AppointmentDetail = ({ videodetails }) => {
                   whitespace-nowrap pointer-events-none">
                                     Back
                                 </div>
+{/* Raman                                 */}
                             </div>
                             <div>
                                 <h1 className="text-xl font-bold text-gray-900">Appointment Details</h1>
@@ -1812,12 +1812,10 @@ const AppointmentDetail = ({ videodetails }) => {
                                                     onClick={handleSavePrescription}
                                                     disabled={
                                                         updating ||
-                                                        !formData?.symptom_description?.trim() ||
-                                                        formData.prescriptions.length === 0
+                                                        !formData?.symptom_description?.trim()
                                                     }
                                                     className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:shadow-lg ${updating ||
-                                                        !formData?.symptom_description?.trim() ||
-                                                        formData.prescriptions.length === 0
+                                                        !formData?.symptom_description?.trim()
                                                         ? "bg-gray-400 cursor-not-allowed"
                                                         : "bg-gradient-to-r from-[#0D614E] to-[#0a4a3d]"
                                                         }`}
