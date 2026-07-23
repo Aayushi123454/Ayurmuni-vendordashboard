@@ -1,0 +1,123 @@
+.help-page .help-header {
+    margin-bottom: 24px;
+}
+
+.help-page h1 {
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.help-accent {
+    color: #0D614E;
+}
+
+.help-page .help-header p {
+    margin-top: 6px;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.help-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+}
+
+.help-card {
+    background: #fff;
+    border: 1px solid #eef2f7;
+    border-radius: 16px;
+    padding: 20px;
+}
+
+.help-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: #ecfdf5;
+    color: #0D614E;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+}
+
+.help-card h3 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.help-card p {
+    margin-top: 6px;
+    color: #374151;
+    font-size: 14px;
+}
+
+.help-meta {
+    display: block;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.help-section {
+    background: #fff;
+    border: 1px solid #eef2f7;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.help-section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    color: #0D614E;
+}
+
+.help-section-title h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+}
+
+.help-faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.help-faq-item {
+    border: 1px solid #f3f4f6;
+    border-radius: 12px;
+    padding: 12px 14px;
+}
+
+.help-faq-item summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: #111827;
+}
+
+.help-faq-item p {
+    margin-top: 10px;
+    color: #6b7280;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.help-note {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 14px;
+    padding: 14px 16px;
+    color: #92400e;
+    font-size: 13px;
+    line-height: 1.5;
+}

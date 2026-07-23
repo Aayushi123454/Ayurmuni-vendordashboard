@@ -21,6 +21,14 @@ import {
 import "./AddProduct.css";
 import { vendorService } from "../../../services/vendorService";
 import toast from "react-hot-toast";
+import UnicommerceNotice from "../../components/shared/UnicommerceNotice";
+import {
+  extractApiErrorMessage,
+  getSelectedSubcategoryMeta,
+  isUnicommerceSyncError,
+  mapVariantToApiPayload,
+  UNICOMMERCE_NOTICES,
+} from "../../../utils/unicommerceHelpers";
 
 export default function AddProduct() {
   const navigate = useNavigate();
@@ -757,20 +765,19 @@ export default function AddProduct() {
       }),
 
       variants: variants.map((v) =>
-        removeEmptyFields({
-          ...v,
-
-          media:
-            v.media ||
-            v.galleryImages?.map((img) => ({
-              media_url: img.media_url,
-              media_type: "image",
-              is_cover: img.is_cover || (v.coverImage?.id === img.id),
-            })) ||
-            [],
-
-          galleryImages: undefined,
-        })
+        mapVariantToApiPayload(
+          removeEmptyFields({
+            ...v,
+            media:
+              v.media ||
+              v.galleryImages?.map((img) => ({
+                media_url: img.media_url,
+                media_type: "image",
+                is_cover: img.is_cover || v.coverImage?.id === img.id,
+              })) ||
+              [],
+          })
+        )
       ),
     };
 
@@ -781,12 +788,13 @@ export default function AddProduct() {
       if (response.data.success) {
         toast.success(response.data.message);
         setTimeout(() => {
-          navigate("/products");
+          navigate("/vendor/products");
         }, 1000);
       }
     } catch (error) {
       console.error("Error saving product:", error);
-      toast.error("Failed to save product. Please try again.");
+      const message = extractApiErrorMessage(error, "Failed to save product. Please try again.");
+      toast.error(isUnicommerceSyncError(error) ? `Unicommerce sync: ${message}` : message);
     }
   };
 
@@ -799,12 +807,16 @@ export default function AddProduct() {
           URL.revokeObjectURL(img.preview);
         }
       });
-      navigate("/inventory");
+      navigate("/vendor/products");
     }
   };
 
   // Calculate total stock
-  const totalStock = variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+  const totalStock = variants.reduce((sum, v) => sum + (parseInt(v.stock, 10) || 0), 0);
+  const selectedSubcategory = getSelectedSubcategoryMeta(
+    lists.productcat,
+    formData.product_subcategory_id
+  );
   const priceRange = variants.length > 0 ? {
     min: Math.min(...variants.map(v => v.selling_price)),
     max: Math.max(...variants.map(v => v.selling_price))
@@ -822,6 +834,10 @@ export default function AddProduct() {
           <p>Create a new listing in your botanical collection. Ensure all ingredients and dosage types are accurately cataloged.</p>
         </div>
       </div>
+
+      <UnicommerceNotice>
+        {UNICOMMERCE_NOTICES.pendingVariant} {UNICOMMERCE_NOTICES.systemSku}
+      </UnicommerceNotice>
 
       {/* Tabs */}
       <div className="product-tabs">
@@ -891,6 +907,11 @@ export default function AddProduct() {
                       ))}
                     </select>
                     {errors.product_subcategory_id && <span className="error-text">{errors.product_subcategory_id}</span>}
+                    {selectedSubcategory && (
+                      <span className="field-note">
+                        HSN: {selectedSubcategory.hsn_code || "—"} · Tax: {selectedSubcategory.tax_class_code || selectedSubcategory.tax_class_name || "—"}
+                      </span>
+                    )}
                   </div>
                   <div className="form-group">
                     <label>BRAND NAME <span className="required">*</span></label>
@@ -1121,7 +1142,7 @@ export default function AddProduct() {
                     <div className="col-price">Selling Price</div>
                     <div className="col-price">Recive Amount</div>
                     <div className="col-stock">Stock</div>
-                    <div className="col-sku">SKU</div>
+                    <div className="col-sku">Vendor SKU</div>
                     <div className="col-default">Default</div>
                     <div className="col-actions">Actions</div>
                   </div>

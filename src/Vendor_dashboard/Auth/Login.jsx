@@ -494,6 +494,7 @@ export default function AuthPage() {
     setShowOtp(false);
     setMobile("");
     setSelectedRole("");
+    setselectrole("")
     setOtpData(null);
     setTimeout(() => setActiveTab(tab), 350);
   }, [activeTab, animationState, triggerAnimation]);

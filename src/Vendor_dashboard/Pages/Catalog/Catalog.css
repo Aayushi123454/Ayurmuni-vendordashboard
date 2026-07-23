@@ -1,0 +1,134 @@
+.catalog-page .catalog-header {
+    margin-bottom: 24px;
+}
+
+.catalog-page h1 {
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.catalog-accent {
+    color: #0D614E;
+}
+
+.catalog-page .catalog-header p {
+    margin-top: 6px;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.catalog-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.catalog-tabs button {
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #4b5563;
+    cursor: pointer;
+}
+
+.catalog-tabs button.active {
+    background: #0D614E;
+    border-color: #0D614E;
+    color: #fff;
+}
+
+.catalog-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.catalog-select {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-size: 14px;
+    background: #fff;
+}
+
+.catalog-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 220px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 10px 14px;
+}
+
+.catalog-search input {
+    border: none;
+    outline: none;
+    width: 100%;
+    font-size: 14px;
+}
+
+.catalog-btn-primary {
+    border-radius: 12px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #0D614E;
+    color: #fff;
+    border: none;
+}
+
+.catalog-table-wrap {
+    overflow-x: auto;
+    background: #fff;
+    border: 1px solid #eef2f7;
+    border-radius: 16px;
+}
+
+.catalog-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 640px;
+}
+
+.catalog-table th,
+.catalog-table td {
+    padding: 14px 16px;
+    text-align: left;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 14px;
+}
+
+.catalog-table th {
+    background: #f9fafb;
+    color: #6b7280;
+    font-weight: 600;
+}
+
+.catalog-badge {
+    display: inline-flex;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.catalog-badge.active {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.catalog-count {
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+    color: #6b7280;
+    border-top: 1px solid #f3f4f6;
+}

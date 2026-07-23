@@ -8,7 +8,7 @@ import {
     TrendingUp, Users, Info, Camera, Linkedin, Twitter, Facebook, Instagram,
     Settings, Bell, Lock, AlertTriangle, DollarSign, Percent
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { vendorService } from '../../../services/vendorService';
 
@@ -280,7 +280,11 @@ const getStatusText = (status) => {
 // ==================== MAIN COMPONENT ====================
 const VendorProfile = () => {
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('business');
+    const [searchParams] = useSearchParams();
+    const [activeTab, setActiveTab] = useState(() => {
+        const tab = searchParams.get('tab');
+        return TABS.includes(tab) ? tab : 'business';
+    });
     const [isEditing, setIsEditing] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -580,6 +584,13 @@ const VendorProfile = () => {
     useEffect(() => {
         fetchVendorProfile();
     }, [fetchVendorProfile]);
+
+    useEffect(() => {
+        const tab = searchParams.get('tab');
+        if (tab && TABS.includes(tab)) {
+            setActiveTab(tab);
+        }
+    }, [searchParams]);
 
     // ==================== MEMOIZED VALUES ====================
     const statusBadge = useMemo(() => getStatusBadge(vendorData.approval_status), [vendorData.approval_status]);
