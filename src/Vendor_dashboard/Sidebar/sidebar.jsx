@@ -5,14 +5,14 @@ import "../components/shared/vendor-shared.css";
 import logo from "../../Assests/logo/logo.svg";
 import shortLogo from "../../Assests/logo/short_logo.svg";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Clock3, Bell, Layers, Image, BookOpen, Package, LayoutDashboard, ShoppingCart, Wallet, Star, LifeBuoy, Settings } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock3, Bell, Layers, /* Image, BookOpen, */ Package, LayoutDashboard, ShoppingCart, Wallet, Star, LifeBuoy, Settings } from "lucide-react";
 
 const MENU_ITEMS = [
   { name: "Dashboard", icon: LayoutDashboard, path: "/vendor/dashboard" },
   { name: "Products", icon: Package, path: "/vendor/products", match: ["/vendor/products", "/vendor/new-product", "/vendor/edit-product"] },
   { name: "Stock Management", icon: Layers, path: "/vendor/stock" },
-  { name: "Banners", icon: Image, path: "/vendor/banners" },
-  { name: "Catalog", icon: BookOpen, path: "/vendor/catalog" },
+  // { name: "Banners", icon: Image, path: "/vendor/banners" },
+  // { name: "Catalog", icon: BookOpen, path: "/vendor/catalog" },
   { name: "Orders", icon: ShoppingCart, path: "/vendor/orders", soon: true },
   { name: "Finance", icon: Wallet, path: "/vendor/finance", soon: true },
   { name: "Ratings", icon: Star, path: "/vendor/ratings", soon: true },

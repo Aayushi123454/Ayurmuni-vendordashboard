@@ -6,12 +6,33 @@
 
 export const UNICOMMERCE_NOTICES = {
   pendingVariant:
-    "Stock is saved locally. Unicommerce sync runs after admin approves this variant.",
+    "Quantity cannot be updated until admin approves this variant. Use Stock Management after approval.",
   approvedStock:
     "Stock updates sync to Unicommerce for approved variants. Use Stock Management for inventory changes.",
   systemSku:
     "System SKU (sku_code) is assigned by the platform and used for Unicommerce fulfillment.",
 };
+
+export function isVariantApproved(variant) {
+  return variant?.approval_status === "approved";
+}
+
+export function canUpdateVariantQuantity(variant) {
+  return isVariantApproved(variant);
+}
+
+/** User-facing reason when stock update is blocked (matches platform workflow). */
+export function getStockUpdateBlockReason(variant) {
+  if (canUpdateVariantQuantity(variant)) return null;
+  const status = variant?.approval_status || "pending";
+  if (status === "rejected") {
+    return "This variant was rejected. Stock cannot be updated until an admin re-approves it.";
+  }
+  if (status === "pending") {
+    return UNICOMMERCE_NOTICES.pendingVariant;
+  }
+  return `Stock updates are only available for approved variants (current status: ${status}).`;
+}
 
 export function getVariantQuantity(variant) {
   if (!variant) return 0;
@@ -33,7 +54,7 @@ export function mapVariantToApiPayload(variant) {
   const payload = { ...variant };
   const stockValue = payload.stock ?? payload.quantity;
 
-  if (stockValue !== undefined && stockValue !== null && stockValue !== "") {
+  if (canUpdateVariantQuantity(variant) && stockValue !== undefined && stockValue !== null && stockValue !== "") {
     payload.quantity = parseInt(stockValue, 10) || 0;
   }
 
@@ -67,6 +88,31 @@ export function extractApiErrorMessage(error, fallback = "Something went wrong")
 export function isUnicommerceSyncError(error) {
   return error?.response?.status === 502;
 }
+
+/** Detect backend validation/errors tied to variant approval for stock updates. */
+export function isApprovalRelatedStockError(error) {
+  const data = error?.response?.data;
+  const message = extractApiErrorMessage(error, "").toLowerCase();
+  const quantityErrors = data?.errors?.quantity;
+  const quantityText = Array.isArray(quantityErrors)
+    ? quantityErrors.join(" ").toLowerCase()
+    : String(quantityErrors || "").toLowerCase();
+  const combined = `${message} ${quantityText}`;
+
+  return (
+    combined.includes("approv") ||
+    combined.includes("pending") ||
+    combined.includes("not approved") ||
+    combined.includes("quantity cannot") ||
+    combined.includes("awaiting admin")
+  );
+}
+
+export const STOCK_APPROVAL_BLOCKED = {
+  title: "Quantity Update Unavailable",
+  description:
+    "This product is still awaiting admin approval. Inventory can be updated only after approval. Once approved, you'll be able to manage stock from this page and changes will automatically sync with Unicommerce.",
+};
 
 export function getSelectedSubcategoryMeta(subcategories, subcategoryId) {
   if (!subcategoryId || !Array.isArray(subcategories)) return null;

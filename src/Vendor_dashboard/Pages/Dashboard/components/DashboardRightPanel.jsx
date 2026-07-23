@@ -3,9 +3,9 @@ import {
     AlertTriangle,
     ArrowRight,
     Bell,
-    BookOpen,
+    // BookOpen,
     Clock,
-    Image,
+    // Image,
     Layers,
     Package,
     ShoppingBag,
@@ -48,8 +48,8 @@ export default function DashboardRightPanel({
     const quickLinks = [
         { label: "Add Product", icon: Package, path: "/vendor/new-product" },
         { label: "Stock Management", icon: Layers, path: "/vendor/stock" },
-        { label: "Banners", icon: Image, path: "/vendor/banners" },
-        { label: "Catalog Reference", icon: BookOpen, path: "/vendor/catalog" },
+        // { label: "Banners", icon: Image, path: "/vendor/banners" },
+        // { label: "Catalog Reference", icon: BookOpen, path: "/vendor/catalog" },
     ];
 
     return (

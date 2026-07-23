@@ -5,7 +5,6 @@ import {
     Bell,
     ChevronRight,
     LogOut,
-    Plus,
     Search,
     Settings,
     User,
@@ -16,8 +15,8 @@ const VENDOR_TITLES = {
     "/vendor/dashboard": "Dashboard",
     "/vendor/products": "Products",
     "/vendor/stock": "Stock Management",
-    "/vendor/banners": "Banners",
-    "/vendor/catalog": "Catalog Reference",
+    // "/vendor/banners": "Banners",
+    // "/vendor/catalog": "Catalog Reference",
     "/vendor/new-product": "Add Product",
     "/vendor/orders": "Orders",
     "/vendor/finance": "Finance",
@@ -146,7 +145,6 @@ const Header = () => {
                         <ChevronRight size={14} className="text-gray-300" aria-hidden />
                         <span className="vendor-header__crumb vendor-header__crumb--current">{pageTitle}</span>
                     </nav>
-                    <h2 className="vendor-header__title">{pageTitle}</h2>
                 </div>
 
                 <form className="vendor-header__search" onSubmit={handleSearch} role="search">
@@ -164,15 +162,6 @@ const Header = () => {
                 <div className="vendor-header__actions">
                     <button
                         type="button"
-                        className="vendor-header__create ds-focus"
-                        onClick={() => navigate("/vendor/new-product")}
-                    >
-                        <Plus size={16} />
-                        <span className="hidden sm:inline">Create</span>
-                    </button>
-
-                    <button
-                        type="button"
                         className="vendor-header__icon-btn ds-focus"
                         onClick={() => navigate("/vendor/notifications")}
                         aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ""}`}
@@ -182,11 +171,6 @@ const Header = () => {
                             <span className="vendor-header__badge">{unreadCount > 99 ? "99+" : unreadCount}</span>
                         )}
                     </button>
-
-                    <div className="vendor-header__workspace hidden md:flex">
-                        <span className="vendor-header__workspace-dot" />
-                        <span className="truncate max-w-[120px]">{user?.business_name || "Workspace"}</span>
-                    </div>
 
                     <div className="vendor-header__profile" ref={profileRef}>
                         <button

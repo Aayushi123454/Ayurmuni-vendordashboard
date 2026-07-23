@@ -1,256 +1,790 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { Package, Pencil, Trash2 } from "lucide-react";
+import {
+    AlertTriangle,
+    Boxes,
+    Cloud,
+    CloudOff,
+    Lock,
+    Package,
+    Pencil,
+    RefreshCw,
+    Trash2,
+    TrendingDown,
+    Warehouse,
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { vendorService } from "../../../services/vendorService";
 import usePersistedState from "../../hooks/usePersistedState";
 import DashboardPageShell from "../../components/shared/DashboardPageShell";
-import { PageEmpty, PageError, PageLoader, PaginationBar } from "../../components/shared/PageState";
-import { TableSkeleton } from "../../components/shared/Skeleton";
+import { PageEmpty, PageError, PaginationBar, TableCard } from "../../components/shared/PageState";
+import { MetricSkeleton, StockCardGridSkeleton } from "../../components/shared/Skeleton";
 import StatusBadge from "../../components/shared/StatusBadge";
-import SearchToolbar from "../../components/shared/SearchToolbar";
-import DataTable, { TableRow, TableCell } from "../../components/shared/DataTable";
+import SearchToolbar, { SelectFilter } from "../../components/shared/SearchToolbar";
 import Modal from "../../components/shared/Modal";
-import Button, { IconButton } from "../../components/shared/Button";
-import UnicommerceNotice from "../../components/shared/UnicommerceNotice";
+import Button from "../../components/shared/Button";
+import PremiumKPICard from "../Dashboard/components/PremiumKPICard";
 import {
     extractApiErrorMessage,
     isUnicommerceSyncError,
-    UNICOMMERCE_NOTICES,
+    isApprovalRelatedStockError,
+    isVariantApproved,
+    STOCK_APPROVAL_BLOCKED,
 } from "../../../utils/unicommerceHelpers";
+import {
+    LOW_STOCK_THRESHOLD,
+    STOCK_FILTERS,
+    KPI_FILTER_MAP,
+    computeInventorySummary,
+    computeFilterCounts,
+    filterInventoryItems,
+    formatDateTime,
+    getStockHealthKey,
+    getProductCardAccent,
+    STOCK_HEALTH_LABELS,
+    parseInventoryListResponse,
+    canManageStock,
+    fetchAllVendorProducts,
+    enrichInventoryWithApproval,
+    fetchVariantApprovalStatus,
+} from "./stockHelpers";
+import "../../components/shared/vendor-shared.css";
+import "./Stock.css";
 
-const LOW_STOCK_THRESHOLD = 10;
+const QTY_PRESETS = [10, 25, 50, 100];
 
-const COLUMNS = [
-    { key: "product", label: "Product" },
-    { key: "vendor_sku", label: "Vendor SKU" },
-    { key: "system_sku", label: "System SKU" },
-    { key: "variant", label: "Variant" },
-    { key: "qty", label: "Quantity", sortable: true },
-    { key: "status", label: "Status" },
-    { key: "updated", label: "Updated" },
-    { key: "actions", label: "Actions" },
-];
+function SyncBadge({ item }) {
+    const approved = isVariantApproved(item);
+    return approved ? (
+        <span className="stock-sync-badge stock-sync-badge--live" title="Updates sync to Unicommerce">
+            <Cloud size={12} aria-hidden />
+            Unicommerce
+        </span>
+    ) : (
+        <span className="stock-sync-badge stock-sync-badge--pending" title="Awaiting admin approval before sync">
+            <CloudOff size={12} aria-hidden />
+            Awaiting approval
+        </span>
+    );
+}
+
+function QuantityUnavailableModal({ item, open, onClose, onViewProduct }) {
+    return (
+        <Modal
+            open={open}
+            onClose={onClose}
+            title={STOCK_APPROVAL_BLOCKED.title}
+            subtitle={
+                item ? `${item.product_name} · ${item.variant_title || "Default variant"}` : undefined
+            }
+            size="sm"
+            footer={
+                <>
+                    <Button variant="secondary" onClick={onViewProduct}>
+                        View Product Status
+                    </Button>
+                    <Button onClick={onClose}>Got it</Button>
+                </>
+            }
+        >
+            <p className="text-sm text-gray-600 leading-relaxed">{STOCK_APPROVAL_BLOCKED.description}</p>
+        </Modal>
+    );
+}
+
+function StockKpiSection({ summary, listTotalCount, summaryLoading, hasActiveQuery, onFilterSelect }) {
+    if (summaryLoading) {
+        return <MetricSkeleton count={5} />;
+    }
+
+    const catalogNote =
+        summary.totalRecords >= 500
+            ? "Based on latest 500 records"
+            : "Catalog-wide snapshot";
+
+    return (
+        <>
+            <div className="stock-overview-label">
+                <span>Inventory overview</span>
+                <span>{catalogNote}</span>
+            </div>
+            <div className="stock-kpi-grid ds-stagger">
+                <PremiumKPICard
+                    variant="hero"
+                    icon={Warehouse}
+                    label={hasActiveQuery ? "Matching records" : "Inventory records"}
+                    value={listTotalCount}
+                    subtitle={hasActiveQuery ? "Current search / filter" : "Total in your catalog"}
+                    className="stock-kpi-clickable"
+                    onAction={() => onFilterSelect("all")}
+                    actionLabel="View all"
+                />
+                <PremiumKPICard
+                    variant="soft"
+                    icon={Boxes}
+                    label="Total units"
+                    value={summary.totalUnits}
+                    subtitle="On-hand quantity"
+                />
+                <PremiumKPICard
+                    variant={summary.lowStock > 0 ? "alert" : "soft"}
+                    icon={TrendingDown}
+                    label="Low stock"
+                    value={summary.lowStock}
+                    subtitle={`≤ ${LOW_STOCK_THRESHOLD} units`}
+                    trend={summary.lowStock > 0 ? "Needs attention" : "Healthy levels"}
+                    trendDirection={summary.lowStock > 0 ? "down" : "up"}
+                    className="stock-kpi-clickable"
+                    onAction={summary.lowStock > 0 ? () => onFilterSelect("low-stock") : undefined}
+                    actionLabel="Review"
+                />
+                <PremiumKPICard
+                    variant={summary.outOfStock > 0 ? "alert" : "muted"}
+                    icon={AlertTriangle}
+                    label="Out of stock"
+                    value={summary.outOfStock}
+                    subtitle="Zero units on hand"
+                    trend={summary.outOfStock > 0 ? "Restock needed" : "None flagged"}
+                    trendDirection={summary.outOfStock > 0 ? "down" : "up"}
+                    className="stock-kpi-clickable"
+                    onAction={summary.outOfStock > 0 ? () => onFilterSelect("out-of-stock") : undefined}
+                    actionLabel="Review"
+                />
+                <PremiumKPICard
+                    variant="accent"
+                    icon={Package}
+                    label="Pending approval"
+                    value={summary.pendingApproval}
+                    subtitle="Updates locked until approved"
+                    className="stock-kpi-clickable"
+                    onAction={summary.pendingApproval > 0 ? () => onFilterSelect("pending") : undefined}
+                    actionLabel="Review"
+                />
+            </div>
+        </>
+    );
+}
+
+function StockProductCard({ item, onEdit, onDelete, onBlocked }) {
+    const health = getStockHealthKey(item.quantity);
+    const accent = getProductCardAccent(item);
+    const { date, time } = formatDateTime(item.updated_at);
+    const canEdit = canManageStock(item);
+
+    return (
+        <article className={`stock-product-card stock-product-card--${accent} ds-animate-in`}>
+            <div className="stock-product-card__header">
+                <div className="stock-product-card__title-wrap">
+                    <div className="stock-product-icon">
+                        <Package size={16} aria-hidden />
+                    </div>
+                    <div className="min-w-0">
+                        <p className="stock-product-name truncate">{item.product_name}</p>
+                        <p className="stock-product-variant truncate">{item.variant_title || "Default variant"}</p>
+                    </div>
+                </div>
+                <StatusBadge status={health} label={STOCK_HEALTH_LABELS[health]} />
+            </div>
+
+            <div className="stock-product-card__metrics">
+                <div className="stock-product-card__metric">
+                    <p className="stock-product-card__metric-label">Quantity</p>
+                    <p className="stock-product-card__metric-value">{item.quantity ?? 0}</p>
+                </div>
+                <div className="stock-product-card__metric">
+                    <p className="stock-product-card__metric-label">Approval</p>
+                    <StatusBadge status={item.approval_status || "pending"} />
+                </div>
+                <div className="stock-product-card__metric">
+                    <p className="stock-product-card__metric-label">Sync</p>
+                    <SyncBadge item={item} />
+                </div>
+            </div>
+
+            <div className="stock-product-card__sku">
+                <span className="stock-product-card__metric-label">Vendor SKU</span>
+                <code className="stock-product-card__sku-value">{item.vendor_sku_code || "—"}</code>
+            </div>
+
+            <p className="stock-product-card__updated">
+                Updated {date}{time ? ` · ${time}` : ""}
+            </p>
+
+            <div className="stock-product-card__actions">
+                {canEdit ? (
+                    <button
+                        type="button"
+                        className="stock-card-btn stock-card-btn--update ds-focus"
+                        onClick={() => onEdit(item)}
+                    >
+                        <Pencil size={13} />
+                        Update
+                    </button>
+                ) : (
+                    <button
+                        type="button"
+                        className="stock-card-btn stock-card-btn--locked ds-focus"
+                        onClick={() => onBlocked(item)}
+                        title="Quantity update unavailable"
+                    >
+                        <Lock size={13} />
+                        Locked
+                    </button>
+                )}
+                <button
+                    type="button"
+                    className="stock-card-btn stock-card-btn--delete ds-focus"
+                    onClick={() => onDelete(item)}
+                >
+                    <Trash2 size={13} />
+                    Delete
+                </button>
+            </div>
+        </article>
+    );
+}
 
 export default function StockManagement() {
+    const navigate = useNavigate();
     const [items, setItems] = useState([]);
+    const [products, setProducts] = useState([]);
+    const [summaryItems, setSummaryItems] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [summaryLoading, setSummaryLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
     const [searchInput, setSearchInput] = useState("");
+    const [productFilter, setProductFilter] = useState("");
+    const [stockFilter, setStockFilter] = useState("all");
     const [page, setPage] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [pageSize, setPageSize] = usePersistedState("vendor:stock:pageSize", 10);
-    const [sortKey, setSortKey] = useState("");
-    const [sortDir, setSortDir] = useState("desc");
     const [editingItem, setEditingItem] = useState(null);
     const [editQuantity, setEditQuantity] = useState("");
+    const [deletingItem, setDeletingItem] = useState(null);
+    const [blockedItem, setBlockedItem] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
+    const hasActiveQuery = Boolean(search || productFilter);
+
+    const productOptions = useMemo(
+        () => products.map((product) => ({ value: product.id, label: product.name })),
+        [products]
+    );
+
+    const fetchProducts = useCallback(async () => {
+        const normalized = await fetchAllVendorProducts(vendorService);
+        setProducts(normalized);
+        return normalized;
+    }, []);
+
+    const enrichRows = useCallback(async (results, productList, options = {}) => {
+        return enrichInventoryWithApproval(results, productList, vendorService, options);
+    }, []);
+
+    const fetchSummary = useCallback(async (productList) => {
+        try {
+            setSummaryLoading(true);
+            const response = await vendorService.getInventory({ page_size: 500 });
+            const { results } = parseInventoryListResponse(response);
+            setSummaryItems(await enrichRows(results, productList));
+        } catch {
+            setSummaryItems([]);
+        } finally {
+            setSummaryLoading(false);
+        }
+    }, [enrichRows]);
 
     const fetchInventory = useCallback(async () => {
         try {
             setLoading(true);
             setError("");
-            const response = await vendorService.getInventory({
+            const productList = products.length ? products : await fetchProducts();
+            const inventoryRes = await vendorService.getInventory({
                 page,
                 page_size: pageSize,
                 search: search || undefined,
+                product_id: productFilter || undefined,
             });
-            const data = response.data?.data;
-            setItems(data?.results || []);
-            setTotalCount(data?.count || 0);
+            const { results, count } = parseInventoryListResponse(inventoryRes);
+            setItems(await enrichRows(results, productList, { verifyLive: true }));
+            setTotalCount(count);
         } catch (err) {
-            setError(err?.response?.data?.message || err.message || "Failed to load stock");
+            const status = err?.response?.status;
+            const message = err?.response?.data?.message || err.message || "Failed to load stock";
+            setError(
+                status === 403
+                    ? message || "Your vendor account must be approved before managing inventory."
+                    : message
+            );
         } finally {
             setLoading(false);
         }
-    }, [page, pageSize, search]);
+    }, [page, pageSize, search, productFilter, products, fetchProducts, enrichRows]);
+
+    const reloadAll = useCallback(async () => {
+        const list = await fetchProducts();
+        await Promise.all([fetchSummary(list), fetchInventory()]);
+    }, [fetchProducts, fetchSummary, fetchInventory]);
+
+    useEffect(() => {
+        fetchProducts().then((list) => fetchSummary(list));
+    }, [fetchProducts, fetchSummary]);
 
     useEffect(() => {
         fetchInventory();
     }, [fetchInventory]);
 
-    const handleSort = (key) => {
-        if (sortKey === key) {
-            setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-        } else {
-            setSortKey(key);
-            setSortDir("asc");
+    useEffect(() => {
+        if (editingItem && !canManageStock(editingItem)) {
+            setEditingItem(null);
+            setBlockedItem(editingItem);
+        }
+    }, [editingItem]);
+
+    const handleRefresh = async () => {
+        setRefreshing(true);
+        try {
+            await reloadAll();
+        } finally {
+            setRefreshing(false);
         }
     };
 
-    const sortedItems = React.useMemo(() => {
-        if (sortKey !== "qty") return items;
-        return [...items].sort((a, b) => {
-            const diff = (a.quantity || 0) - (b.quantity || 0);
-            return sortDir === "asc" ? diff : -diff;
-        });
-    }, [items, sortKey, sortDir]);
+    const summary = useMemo(() => computeInventorySummary(summaryItems), [summaryItems]);
+    const filterCounts = useMemo(() => computeFilterCounts(items), [items]);
+    const filteredItems = useMemo(() => filterInventoryItems(items, stockFilter), [items, stockFilter]);
+
+    const applyStockFilter = (key) => {
+        const mapped = KPI_FILTER_MAP[key] || key;
+        setStockFilter(mapped);
+    };
+
+    const showApprovalBlocked = useCallback((item) => {
+        setBlockedItem(item);
+    }, []);
+
+    const closeApprovalBlocked = useCallback(() => {
+        setBlockedItem(null);
+    }, []);
+
+    const openEdit = (item) => {
+        if (!canManageStock(item)) {
+            showApprovalBlocked(item);
+            return;
+        }
+        setEditingItem(item);
+        setEditQuantity(String(item.quantity ?? 0));
+    };
+
+    const viewBlockedProductStatus = () => {
+        if (!blockedItem?.product_id) {
+            closeApprovalBlocked();
+            navigate("/vendor/products");
+            return;
+        }
+        closeApprovalBlocked();
+        navigate(`/vendor/edit-product/${blockedItem.product_id}`);
+    };
+
+    const adjustQuantity = (delta) => {
+        setEditQuantity((prev) => String(Math.max(0, (Number(prev) || 0) + delta)));
+    };
+
+    const setPresetQuantity = (value) => {
+        setEditQuantity(String(Math.max(0, value)));
+    };
 
     const saveQuantity = async () => {
         if (!editingItem) return;
-        const quantity = Number(editQuantity);
-        if (Number.isNaN(quantity) || quantity < 0) {
-            toast.error("Enter a valid quantity");
-            return;
-        }
+
+        setSaving(true);
         try {
-            setSaving(true);
+            let liveApproval;
+            try {
+                liveApproval = await fetchVariantApprovalStatus(
+                    editingItem.product_id,
+                    editingItem.variant_id,
+                    vendorService
+                );
+            } catch {
+                toast.error("Could not verify variant approval status. Please try again.");
+                return;
+            }
+
+            if (liveApproval !== "approved") {
+                setEditingItem(null);
+                showApprovalBlocked({ ...editingItem, approval_status: liveApproval });
+                await reloadAll();
+                return;
+            }
+
+            const quantity = Number(editQuantity);
+            if (Number.isNaN(quantity) || quantity < 0) {
+                toast.error("Enter a valid quantity (0 or greater)");
+                return;
+            }
+            if (quantity === (editingItem.quantity ?? 0)) {
+                toast.error("Quantity is unchanged");
+                return;
+            }
+
             await vendorService.updateInventory(editingItem.id, { quantity });
-            toast.success("Stock updated");
+            toast.success("Stock updated successfully");
             setEditingItem(null);
-            fetchInventory();
+            await reloadAll();
         } catch (err) {
-            const message = extractApiErrorMessage(err, "Failed to update stock");
-            toast.error(isUnicommerceSyncError(err) ? `Unicommerce sync: ${message}` : message);
+            if (isApprovalRelatedStockError(err)) {
+                setEditingItem(null);
+                showApprovalBlocked(editingItem);
+            } else {
+                const message = extractApiErrorMessage(err, "Failed to update stock");
+                toast.error(isUnicommerceSyncError(err) ? `Unicommerce sync: ${message}` : message);
+            }
         } finally {
             setSaving(false);
         }
     };
 
-    const handleDelete = async (item) => {
-        if (!window.confirm(`Delete inventory record for ${item.product_name}?`)) return;
+    const confirmDelete = async () => {
+        if (!deletingItem) return;
         try {
-            await vendorService.deleteInventory(item.id);
+            setDeleting(true);
+            await vendorService.deleteInventory(deletingItem.id);
             toast.success("Inventory record deleted");
-            fetchInventory();
+            setDeletingItem(null);
+            await reloadAll();
         } catch (err) {
             toast.error(err?.response?.data?.message || "Failed to delete inventory");
+        } finally {
+            setDeleting(false);
         }
     };
 
-    const lowStockCount = items.filter((item) => item.quantity <= LOW_STOCK_THRESHOLD).length;
+    const editDelta = editingItem ? (Number(editQuantity) || 0) - (editingItem.quantity || 0) : 0;
+    const editQuantityUnchanged = editingItem && (Number(editQuantity) || 0) === (editingItem.quantity ?? 0);
+    const editBlocked = editingItem && !canManageStock(editingItem);
+
+    const activeFilterLabels = [
+        search && `Search: "${search}"`,
+        productFilter && products.find((p) => p.id === productFilter)?.name,
+        stockFilter !== "all" && STOCK_FILTERS.find((f) => f.key === stockFilter)?.label,
+    ].filter(Boolean);
 
     return (
-        <DashboardPageShell
-            title="Stock"
-            accent="Management"
-            subtitle="Track and update inventory quantities for your product variants. Updates sync to Unicommerce for approved variants."
-            breadcrumbs={[{ label: "Dashboard" }, { label: "Stock" }]}
-            actions={
-                lowStockCount > 0 ? (
-                    <Button variant="pill">{lowStockCount} low stock on this page</Button>
-                ) : null
-            }
-        >
-            <SearchToolbar
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                onSubmit={() => {
-                    setPage(1);
-                    setSearch(searchInput.trim());
-                }}
-                onClear={
-                    search || searchInput
-                        ? () => {
-                              setSearch("");
-                              setSearchInput("");
-                              setPage(1);
-                          }
-                        : undefined
-                }
-                placeholder="Search SKU, product name, variant..."
-            />
-
-            <UnicommerceNotice>
-                {UNICOMMERCE_NOTICES.approvedStock} {UNICOMMERCE_NOTICES.systemSku}
-            </UnicommerceNotice>
-
-            {loading ? (
-                <TableSkeleton columns={8} rows={pageSize > 10 ? 8 : pageSize} />
-            ) : error ? (
-                <PageError message={error} onRetry={fetchInventory} />
-            ) : items.length === 0 ? (
-                <PageEmpty
-                    title="No stock records found"
-                    description={
-                        search
-                            ? "Try a different search term."
-                            : "Stock records appear when you add products with quantities or create inventory entries."
-                    }
-                />
-            ) : (
-                <>
-                    <DataTable
-                        columns={COLUMNS}
-                        sortKey={sortKey}
-                        sortDir={sortDir}
-                        onSort={handleSort}
-                        stickyActions
+        <div className="stock-page">
+            <DashboardPageShell
+                title="Stock"
+                accent="Management"
+                subtitle="View and manage on-hand inventory across your product variants."
+                breadcrumbs={[]}
+                actions={
+                    <Button
+                        variant="secondary"
+                        onClick={handleRefresh}
+                        loading={refreshing}
+                        disabled={loading}
+                        className="!text-sm"
                     >
-                        {sortedItems.map((item) => {
-                            const isLow = item.quantity <= LOW_STOCK_THRESHOLD;
-                            const isOut = item.quantity <= 0;
-                            const stockStatus = isOut ? "out-of-stock" : isLow ? "low-stock" : "instock";
-                            return (
-                                <TableRow key={item.id}>
-                                    <TableCell>
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-[#0D614E]/10 flex items-center justify-center text-[#0D614E] transition-transform duration-200 group-hover:scale-105">
-                                                <Package size={16} />
-                                            </div>
-                                            <span className="font-medium text-gray-800">{item.product_name}</span>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell><code className="text-xs bg-gray-100 px-2 py-1 rounded">{item.vendor_sku_code || "—"}</code></TableCell>
-                                    <TableCell><code className="text-xs text-gray-500">{item.sku_code || "—"}</code></TableCell>
-                                    <TableCell>{item.variant_title || "—"}</TableCell>
-                                    <TableCell><span className="font-semibold tabular-nums">{item.quantity}</span></TableCell>
-                                    <TableCell><StatusBadge status={stockStatus} /></TableCell>
-                                    <TableCell className="text-gray-500">{item.updated_at ? new Date(item.updated_at).toLocaleDateString() : "—"}</TableCell>
-                                    <TableCell sticky>
-                                        <div className="flex items-center gap-2">
-                                            <IconButton title="Update quantity" onClick={() => { setEditingItem(item); setEditQuantity(String(item.quantity ?? 0)); }}>
-                                                <Pencil size={15} />
-                                            </IconButton>
-                                            <IconButton title="Delete record" className="!text-rose-600 !bg-rose-50 hover:!bg-rose-100" onClick={() => handleDelete(item)}>
-                                                <Trash2 size={15} />
-                                            </IconButton>
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            );
-                        })}
-                    </DataTable>
-                    <PaginationBar
-                        page={page}
-                        pageSize={pageSize}
-                        totalCount={totalCount}
-                        onPageChange={setPage}
-                        onPageSizeChange={setPageSize}
-                        storageKey="vendor:stock"
-                        itemLabel="records"
-                    />
-                </>
-            )}
-
-            <Modal
-                open={Boolean(editingItem)}
-                onClose={() => !saving && setEditingItem(null)}
-                title="Update Stock"
-                subtitle={editingItem ? `${editingItem.product_name} · Vendor SKU: ${editingItem.vendor_sku_code || "—"}` : ""}
-                footer={
-                    <>
-                        <Button variant="secondary" onClick={() => setEditingItem(null)} disabled={saving}>Cancel</Button>
-                        <Button onClick={saveQuantity} loading={saving}>{saving ? "Saving..." : "Save"}</Button>
-                    </>
+                        {!refreshing && <RefreshCw size={16} />}
+                        Refresh
+                    </Button>
                 }
             >
-                {editingItem?.sku_code && (
-                    <p className="mb-4 text-sm text-gray-500">
-                        System SKU (Unicommerce): <code className="text-xs bg-gray-100 px-2 py-0.5 rounded">{editingItem.sku_code}</code>
-                    </p>
-                )}
-                <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-                <input
-                    id="quantity"
-                    type="number"
-                    min="0"
-                    autoFocus
-                    value={editQuantity}
-                    onChange={(e) => setEditQuantity(e.target.value)}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#0D614E]/30 focus:border-[#0D614E]/40"
+                <StockKpiSection
+                    summary={summary}
+                    listTotalCount={totalCount}
+                    summaryLoading={summaryLoading}
+                    hasActiveQuery={hasActiveQuery}
+                    onFilterSelect={applyStockFilter}
                 />
-            </Modal>
-        </DashboardPageShell>
+
+                <div className="stock-toolbar-panel">
+                    <SearchToolbar
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        onSubmit={() => {
+                            setPage(1);
+                            setSearch(searchInput.trim());
+                        }}
+                        onClear={
+                            search || searchInput || productFilter
+                                ? () => {
+                                      setSearch("");
+                                      setSearchInput("");
+                                      setProductFilter("");
+                                      setStockFilter("all");
+                                      setPage(1);
+                                  }
+                                : undefined
+                        }
+                        placeholder="Search system SKU, vendor SKU, variant, or product name…"
+                    >
+                        <SelectFilter
+                            value={productFilter}
+                            onChange={(e) => {
+                                setProductFilter(e.target.value);
+                                setPage(1);
+                            }}
+                            options={productOptions}
+                            placeholder="All products"
+                            aria-label="Filter by product"
+                            className="w-[14rem] min-w-[10rem] max-w-[16rem]"
+                        />
+                    </SearchToolbar>
+
+                    <div className="stock-filter-row">
+                        {STOCK_FILTERS.map((filter) => (
+                            <button
+                                key={filter.key}
+                                type="button"
+                                className={`stock-filter-chip ${stockFilter === filter.key ? "stock-filter-chip--active" : ""}`}
+                                onClick={() => setStockFilter(filter.key)}
+                            >
+                                {filter.label}
+                                <span className="stock-filter-count">{filterCounts[filter.key] ?? 0}</span>
+                            </button>
+                        ))}
+                        <span className="stock-filter-hint">Health filters apply to the current page</span>
+                    </div>
+                </div>
+
+                <div className={`stock-content-shell ${refreshing ? "stock-content-shell--refreshing" : ""}`}>
+                    {loading ? (
+                        <StockCardGridSkeleton count={Math.min(pageSize, 6)} />
+                    ) : error ? (
+                        <PageError message={error} onRetry={reloadAll} />
+                    ) : filteredItems.length === 0 ? (
+                        <PageEmpty
+                            title={items.length === 0 ? "No stock records found" : "No records match this filter"}
+                            description={
+                                items.length === 0
+                                    ? search || productFilter
+                                        ? "Try adjusting your search or product filter."
+                                        : "Inventory records are created when you add products with variants. Manage quantities here after catalog setup."
+                                    : "Try a different stock health filter or clear your selection."
+                            }
+                            action={
+                                items.length === 0 && !search && !productFilter ? (
+                                    <Button onClick={() => navigate("/vendor/products")}>Go to Products</Button>
+                                ) : stockFilter !== "all" ? (
+                                    <Button variant="secondary" onClick={() => setStockFilter("all")}>
+                                        Show all on this page
+                                    </Button>
+                                ) : null
+                            }
+                        />
+                    ) : (
+                        <TableCard>
+                            <div className="stock-results-meta">
+                                <span>
+                                    Showing <strong>{filteredItems.length}</strong> of <strong>{items.length}</strong>{" "}
+                                    on this page · <strong>{totalCount.toLocaleString()}</strong> total records
+                                </span>
+                                {activeFilterLabels.length > 0 && (
+                                    <div className="stock-active-filters">
+                                        {activeFilterLabels.map((label) => (
+                                            <span key={label} className="stock-active-filter-tag">
+                                                {label}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="stock-card-grid">
+                                {filteredItems.map((item) => (
+                                    <StockProductCard
+                                        key={item.id}
+                                        item={item}
+                                        onEdit={openEdit}
+                                        onDelete={setDeletingItem}
+                                        onBlocked={showApprovalBlocked}
+                                    />
+                                ))}
+                            </div>
+
+                            <PaginationBar
+                                page={page}
+                                pageSize={pageSize}
+                                totalCount={totalCount}
+                                onPageChange={setPage}
+                                onPageSizeChange={setPageSize}
+                                storageKey="vendor:stock"
+                                itemLabel="records"
+                            />
+                        </TableCard>
+                    )}
+                </div>
+
+                <QuantityUnavailableModal
+                    item={blockedItem}
+                    open={Boolean(blockedItem)}
+                    onClose={closeApprovalBlocked}
+                    onViewProduct={viewBlockedProductStatus}
+                />
+
+                <Modal
+                    open={Boolean(editingItem)}
+                    onClose={() => !saving && setEditingItem(null)}
+                    title="Update stock quantity"
+                    subtitle={
+                        editingItem
+                            ? `${editingItem.product_name} · ${editingItem.variant_title || "Default variant"}`
+                            : ""
+                    }
+                    size="md"
+                    footer={
+                        <>
+                            <Button variant="secondary" onClick={() => setEditingItem(null)} disabled={saving}>
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={saveQuantity}
+                                loading={saving}
+                                disabled={editQuantityUnchanged || saving || editBlocked}
+                            >
+                                Save quantity
+                            </Button>
+                        </>
+                    }
+                >
+                    {editingItem && (
+                        <>
+                            <div className="stock-sku-stack mb-4">
+                                <span className="text-xs text-gray-500">Vendor SKU</span>
+                                <code className="stock-sku-vendor">{editingItem.vendor_sku_code || "—"}</code>
+                                {editingItem.sku_code && (
+                                    <>
+                                        <span className="text-xs text-gray-500 mt-2">System SKU</span>
+                                        <code className="stock-sku-system">{editingItem.sku_code}</code>
+                                    </>
+                                )}
+                            </div>
+
+                            <div className="stock-update-preview">
+                                <div className="stock-update-stat">
+                                    <p className="stock-update-stat-label">Current</p>
+                                    <p className="stock-update-stat-value">{editingItem.quantity ?? 0}</p>
+                                </div>
+                                <div className="stock-update-stat">
+                                    <p className="stock-update-stat-label">New</p>
+                                    <p className="stock-update-stat-value">{Number(editQuantity) || 0}</p>
+                                </div>
+                                <div className="stock-update-stat">
+                                    <p className="stock-update-stat-label">Change</p>
+                                    <p
+                                        className={`stock-update-stat-value ${
+                                            editDelta > 0
+                                                ? "stock-update-stat-value--delta-positive"
+                                                : editDelta < 0
+                                                  ? "stock-update-stat-value--delta-negative"
+                                                  : ""
+                                        }`}
+                                    >
+                                        {editDelta > 0 ? "+" : ""}
+                                        {editDelta}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <label htmlFor="stock-quantity" className="block text-sm font-medium text-gray-700 mb-2">
+                                Quantity on hand
+                            </label>
+                            <div className="stock-qty-stepper">
+                                <button
+                                    type="button"
+                                    className="stock-qty-stepper-btn"
+                                    onClick={() => adjustQuantity(-1)}
+                                    disabled={saving || (Number(editQuantity) || 0) <= 0}
+                                    aria-label="Decrease quantity"
+                                >
+                                    −
+                                </button>
+                                <input
+                                    id="stock-quantity"
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    autoFocus
+                                    value={editQuantity}
+                                    onChange={(e) => setEditQuantity(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" && !editQuantityUnchanged && !saving) {
+                                            e.preventDefault();
+                                            saveQuantity();
+                                        }
+                                    }}
+                                    className="stock-qty-stepper-input"
+                                />
+                                <button
+                                    type="button"
+                                    className="stock-qty-stepper-btn"
+                                    onClick={() => adjustQuantity(1)}
+                                    disabled={saving}
+                                    aria-label="Increase quantity"
+                                >
+                                    +
+                                </button>
+                            </div>
+
+                            <div className="stock-qty-presets">
+                                {QTY_PRESETS.map((preset) => (
+                                    <button
+                                        key={preset}
+                                        type="button"
+                                        className="stock-qty-preset"
+                                        disabled={saving}
+                                        onClick={() => setPresetQuantity(preset)}
+                                    >
+                                        Set {preset}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <div className="stock-modal-notice stock-modal-notice--sync">
+                                <strong>Unicommerce sync:</strong> Saving updates inventory and syncs to Unicommerce.
+                                If sync fails, you will see an error and the quantity will not be saved.
+                            </div>
+                        </>
+                    )}
+                </Modal>
+
+                <Modal
+                    open={Boolean(deletingItem)}
+                    onClose={() => !deleting && setDeletingItem(null)}
+                    title="Delete inventory record"
+                    subtitle={deletingItem ? deletingItem.product_name : ""}
+                    size="sm"
+                    footer={
+                        <>
+                            <Button variant="secondary" onClick={() => setDeletingItem(null)} disabled={deleting}>
+                                Cancel
+                            </Button>
+                            <Button variant="danger" onClick={confirmDelete} loading={deleting}>
+                                Delete record
+                            </Button>
+                        </>
+                    }
+                >
+                    {deletingItem && (
+                        <div className="stock-delete-warning">
+                            <AlertTriangle size={20} className="flex-shrink-0 mt-0.5" aria-hidden />
+                            <div>
+                                <p className="font-semibold">This action cannot be undone.</p>
+                                <p className="mt-1">
+                                    Delete inventory for{" "}
+                                    <strong>{deletingItem.variant_title || "this variant"}</strong> (
+                                    {deletingItem.quantity ?? 0} units on hand)? The variant itself remains in your
+                                    catalog.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                </Modal>
+            </DashboardPageShell>
+        </div>
     );
 }

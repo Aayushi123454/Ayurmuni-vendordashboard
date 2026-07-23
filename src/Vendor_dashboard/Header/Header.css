@@ -451,26 +451,6 @@
   border: 2px solid #fff;
 }
 
-.vendor-header__workspace {
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: 10px;
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
-  font-size: 12px;
-  font-weight: 500;
-  color: #374151;
-}
-
-.vendor-header__workspace-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: #10b981;
-  flex-shrink: 0;
-}
-
 .vendor-header__profile {
   position: relative;
 }

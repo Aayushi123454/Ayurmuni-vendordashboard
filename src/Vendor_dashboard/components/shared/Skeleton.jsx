@@ -70,3 +70,35 @@ export function MetricSkeleton({ count = 5 }) {
         </div>
     );
 }
+
+export function StockCardGridSkeleton({ count = 4 }) {
+    return (
+        <div
+            className="stock-card-grid stock-card-grid--skeleton ds-stagger"
+            aria-busy="true"
+            aria-label="Loading inventory"
+        >
+            {Array.from({ length: count }).map((_, i) => (
+                <div key={i} className="stock-product-card stock-product-card--skeleton">
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                        <div className="flex items-start gap-2 flex-1 min-w-0">
+                            <Skeleton className="h-8 w-8 rounded-lg flex-shrink-0" />
+                            <div className="flex-1 space-y-2 min-w-0">
+                                <Skeleton className="h-3.5 w-full max-w-[140px]" />
+                                <Skeleton className="h-3 w-2/3" />
+                            </div>
+                        </div>
+                        <Skeleton className="h-5 w-16 rounded-full flex-shrink-0" />
+                    </div>
+                    <Skeleton className="h-16 w-full rounded-xl mb-3" />
+                    <Skeleton className="h-3 w-24 mb-2" />
+                    <Skeleton className="h-3 w-32 mb-3" />
+                    <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100">
+                        <Skeleton className="h-8 w-full rounded-lg" />
+                        <Skeleton className="h-8 w-full rounded-lg" />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}

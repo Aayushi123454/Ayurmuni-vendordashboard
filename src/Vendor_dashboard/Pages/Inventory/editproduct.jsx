@@ -539,7 +539,14 @@ export default function EditProduct() {
 
             if (editingVariant) {
                 setlodervr(true)
-                const response = await vendorService?.updateVariants(id, editingVariant.id, newVariant)
+                const response = await vendorService?.updateVariants(
+                    id,
+                    editingVariant.id,
+                    mapVariantToApiPayload({
+                        ...newVariant,
+                        approval_status: editingVariant.approval_status,
+                    })
+                )
                 if (response.data.success) {
                     setVariants(variants.map(v => v.id === editingVariant.id ? newVariant : v));
                     toast.success("Variant updated successfully");
@@ -547,7 +554,10 @@ export default function EditProduct() {
                 }
             } else {
                 setlodervr(true)
-                const response = await vendorService?.addVariants(id, newVariant)
+                const response = await vendorService?.addVariants(
+                    id,
+                    mapVariantToApiPayload({ ...newVariant, approval_status: "pending" })
+                )
                 if (response.data.success) {
                     toast.success("Variant added successfully");
                     setlodervr(false)
