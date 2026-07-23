@@ -1,0 +1,127 @@
+/* Vendor shared utilities — complements Tailwind patterns used in Doctor Dashboard */
+
+.vendor-form-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 0.25rem;
+}
+
+.vendor-form-input {
+    width: 100%;
+    padding: 0.625rem 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    font-size: 0.875rem;
+    color: #1f2937;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.vendor-form-input:focus {
+    outline: none;
+    border-color: #0D614E;
+    box-shadow: 0 0 0 2px rgba(13, 97, 78, 0.2);
+}
+
+.vendor-form-input:disabled {
+    background: #f9fafb;
+}
+
+/* Legacy inventory product blocks — spacing aligned with doctor cards */
+.iv-product-block {
+    background: #fff;
+    border: 1px solid #f3f4f6;
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.iv-product-block:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
+}
+
+.iv-btn-view-all {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #0D614E;
+    background: rgba(13, 97, 78, 0.08);
+    border: 1px solid rgba(13, 97, 78, 0.15);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.iv-btn-view-all:hover {
+    background: rgba(13, 97, 78, 0.14);
+}
+
+.iv-product-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+}
+
+.iv-product-info {
+    flex: 1;
+    min-width: 200px;
+}
+
+.iv-product-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.iv-product-meta {
+    margin-top: 0.375rem;
+    font-size: 0.8125rem;
+    color: #6b7280;
+}
+
+.iv-meta-label {
+    font-weight: 500;
+}
+
+.iv-meta-dot {
+    margin: 0 0.375rem;
+}
+
+.iv-product-avatar {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.iv-product-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.iv-product-tag {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 0.125rem 0.5rem;
+    border-radius: 999px;
+}
+
+.iv-tag-ayurveda { background: #ecfdf5; color: #047857; }
+.iv-tag-beverage { background: #eff6ff; color: #1d4ed8; }
+.iv-tag-nutrition { background: #fef3c7; color: #b45309; }
+
+@media (max-width: 768px) {
+    .iv-product-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

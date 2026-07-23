@@ -49,7 +49,7 @@
   width: 40px;
   height: 40px;
   border: 4px solid #f3f3f3;
-  border-top: 4px solid #3498db;
+  border-top: 4px solid #0D614E;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -79,14 +79,38 @@
 
 .page-content {
   flex: 1;
-  padding: 20px;
+  padding: 0;
   overflow-y: auto;
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+  .sidebar {
+    width: 72px;
+  }
+
+  .sidebar .logo img {
+    width: 48px;
+  }
+
+  .sidebar .menu-title,
+  .sidebar .label,
+  .sidebar .menu-soon-badge {
+    display: none;
+  }
+
+  .sidebar .menu-item {
+    justify-content: center;
+    padding: 12px;
+  }
+
+  .main-content {
+    padding-left: 72px;
+    width: calc(100% - 72px);
+  }
+
   .page-content {
-    padding: 10px;
+    padding: 0;
   }
 }
 

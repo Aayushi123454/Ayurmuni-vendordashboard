@@ -36,8 +36,15 @@ const Dashboard = lazy(() => import("./Vendor_dashboard/Pages/Dashboard/Dashboar
 const Order = lazy(() => import("./Vendor_dashboard/Pages/Order/Order"));
 const OrderDetail = lazy(() => import("./Vendor_dashboard/Pages/OrderDetail/OrderDetail"));
 const Notification = lazy(() => import("./Vendor_dashboard/Pages/Notification/Notification"));
+const VendorNotification = lazy(() => import("./Vendor_dashboard/Pages/Notification/VendorNotification"));
 const VendorOnboarding = lazy(() => import("./Vendor_dashboard/Pages/onboarding/Onboarding"));
 const VendorProfile = lazy(() => import("./Vendor_dashboard/Pages/Profile/Profile"));
+const VendorStock = lazy(() => import("./Vendor_dashboard/Pages/Stock/Stock"));
+const VendorBanners = lazy(() => import("./Vendor_dashboard/Pages/Banners/Banners"));
+const VendorCatalog = lazy(() => import("./Vendor_dashboard/Pages/Catalog/Catalog"));
+const VendorHelpSupport = lazy(() => import("./Vendor_dashboard/Pages/HelpSupport/HelpSupport"));
+const VendorFinance = lazy(() => import("./Vendor_dashboard/Pages/Finance/Finance"));
+const VendorRatings = lazy(() => import("./Vendor_dashboard/Pages/Ratings/Ratings"));
 
 // Loader
 const LoadingFallback = () => (
@@ -163,12 +170,19 @@ function App() {
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="products" element={<InventoryVault />} />
+                <Route path="stock" element={<VendorStock />} />
+                <Route path="banners" element={<VendorBanners />} />
+                <Route path="catalog" element={<VendorCatalog />} />
                 <Route path="new-product" element={<AddProduct />} />
                 <Route path="edit-product/:id" element={<EditProduct />} />
                 <Route path="orders" element={<Order />} />
                 <Route path="orders/:id" element={<OrderDetail />} />
+                <Route path="finance" element={<VendorFinance />} />
+                <Route path="ratings" element={<VendorRatings />} />
+                <Route path="help-support" element={<VendorHelpSupport />} />
+                <Route path="settings" element={<Navigate to="/vendor/profile?tab=settings" replace />} />
                 <Route path="profile" element={<VendorProfile />} />
-                <Route path="notifications" element={<Notification />} />
+                <Route path="notifications" element={<VendorNotification />} />
               </Route>
             </>
           )}

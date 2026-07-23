@@ -34,10 +34,12 @@ import {
   Mail,
   ExternalLink,
 } from "lucide-react";
-import { doctorService } from "../../../services/doctorService";
+import { notificationService } from "../../../services/notificationService";
 
 const Notification = () => {
   const navigate = useNavigate();
+  const role = sessionStorage.getItem("role") || "doctor";
+  const isVendor = role === "vendor";
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState("all");
@@ -63,7 +65,7 @@ const Notification = () => {
         params.append("notification_type", selectedTab);
       }
 
-      const response = await doctorService?.notificationget(params);
+      const response = await notificationService.get(params);
       const data = response?.data?.data;
 
       if (data) {
@@ -97,7 +99,7 @@ const Notification = () => {
   const markAsRead = async (notificationId) => {
     try {
       setActionLoading(prev => ({ ...prev, [notificationId]: 'read' }));
-      await doctorService?.notificationpost(notificationId);
+      await notificationService.markRead(notificationId);
 
       setNotifications((prev) =>
         prev.map((notif) =>
@@ -117,7 +119,7 @@ const Notification = () => {
   const markAllAsRead = async () => {
     try {
       setActionLoading(prev => ({ ...prev, all: true }));
-      await doctorService?.notificationpostall("read");
+      await notificationService.markAllRead();
 
       setNotifications((prev) =>
         prev.map((notif) => ({ ...notif, is_read: true }))
@@ -135,7 +137,7 @@ const Notification = () => {
   const deleteNotification = async (notificationId) => {
     try {
       setActionLoading(prev => ({ ...prev, [notificationId]: 'delete' }));
-      await doctorService?.notificationpostdelete(notificationId);
+      await notificationService.delete(notificationId);
 
       setNotifications((prev) =>
         prev.filter((notif) => notif.id !== notificationId)
@@ -152,7 +154,7 @@ const Notification = () => {
   const clearAll = async () => {
     try {
       setActionLoading(prev => ({ ...prev, clearAll: true }));
-      await doctorService?.notificationpostall("clear");
+      await notificationService.clearAll();
 
       setNotifications([]);
       setUnreadCount(0);
@@ -289,10 +291,16 @@ const Notification = () => {
 
   // Handle action button click
   const handleActionClick = (notification) => {
-    // if (notification.data?.deep_link) {
-    //   navigate(notification.data.deep_link);
-    // } else
-    if (notification.data?.appointment_id) {
+    if (isVendor) {
+      const entityType = notification.data?.entity_type || notification.data?.profile_type;
+      if (entityType === "vendor" || notification.data?.event?.includes("approval")) {
+        navigate("/vendor/profile");
+      } else if (notification.notification_type === "order") {
+        navigate("/vendor/orders");
+      } else {
+        navigate("/vendor/dashboard");
+      }
+    } else if (notification.data?.appointment_id) {
       navigate(`/doctor/appointments/appointment/${notification.data.appointment_id}`);
     }
     setShowDetailModal(false);
@@ -306,6 +314,9 @@ const Notification = () => {
       'appointment.reschedule_requested': 'Reschedule Requested',
       'appointment.rescheduled_by_admin': 'Rescheduled by Admin',
       'appointment.rescheduled': 'Rescheduled',
+      'PROFILE_SUBMITTED': 'Profile Submitted',
+      'APPROVAL_STATUS_CHANGED': 'Approval Update',
+      'USER_REGISTERED': 'Registration',
     };
     return labels[event] || event || 'Update';
   };
@@ -359,7 +370,9 @@ const Notification = () => {
                 <Bell className="w-7 h-7 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Notifications</h1>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {isVendor ? "Vendor Notifications" : "Notifications"}
+                </h1>
                 <p className="text-sm text-gray-500">
                   {totalCount > 0 ? `You have ${totalCount} notification${totalCount > 1 ? 's' : ''}` : 'No notifications yet'}
                 </p>
@@ -812,13 +825,22 @@ const Notification = () => {
 
               {/* Action Buttons */}
               <div className="flex gap-3 pt-2">
-                {selectedNotification.data?.deep_link && (
+                {selectedNotification.data?.deep_link && !isVendor && (
                   <button
                     onClick={() => handleActionClick(selectedNotification)}
                     className="flex-1 px-4 py-3 text-white bg-gradient-to-r from-[#0D614E] to-[#0D614E]/80 hover:from-[#0D614E]/90 hover:to-[#0D614E] rounded-xl transition-all duration-200 shadow-md shadow-[#0D614E]/20 hover:shadow-lg hover:shadow-[#0D614E]/30 flex items-center justify-center gap-2"
                   >
                     <ExternalLink className="w-4 h-4" />
                     View Appointment
+                  </button>
+                )}
+                {isVendor && (
+                  <button
+                    onClick={() => handleActionClick(selectedNotification)}
+                    className="flex-1 px-4 py-3 text-white bg-gradient-to-r from-[#0D614E] to-[#0D614E]/80 rounded-xl flex items-center justify-center gap-2"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Open in Dashboard
                   </button>
                 )}
                 {!selectedNotification.is_read && (

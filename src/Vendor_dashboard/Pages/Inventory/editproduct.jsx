@@ -22,6 +22,16 @@ import {
 import "./AddProduct.css";
 import { vendorService } from "../../../services/vendorService";
 import toast from "react-hot-toast";
+import UnicommerceNotice from "../../components/shared/UnicommerceNotice";
+import {
+  extractApiErrorMessage,
+  getSelectedSubcategoryMeta,
+  getVariantQuantity,
+  isUnicommerceSyncError,
+  mapVariantFromApi,
+  mapVariantToApiPayload,
+  UNICOMMERCE_NOTICES,
+} from "../../../utils/unicommerceHelpers";
 
 export default function EditProduct() {
     const navigate = useNavigate();
@@ -114,7 +124,7 @@ export default function EditProduct() {
     const fetchProductData = async () => {
         try {
             setLoading(true);
-            const response = await vendorService.getsingleProducts(id);
+            const response = await vendorService.getSingleProduct(id);
 
             if (response.data.success) {
                 const product = response.data.data;
@@ -146,7 +156,8 @@ export default function EditProduct() {
                 setHealthConcerns(product.health_disease_ids || []);
 
                 // Process variants with their images
-                const processedVariants = product.variants.map(variant => ({
+                const processedVariants = product.variants.map((variant) =>
+                    mapVariantFromApi({
                     ...variant,
                     galleryImages: variant.media?.map(media => ({
                         id: media.id,
@@ -168,7 +179,8 @@ export default function EditProduct() {
                         file: null
                     } : null),
                     vendor_price: variant.vendor_price || calculateVendorPrice(variant),
-                }));
+                    })
+                );
 
                 setVariants(processedVariants);
                 setOriginalData({
@@ -799,12 +811,19 @@ export default function EditProduct() {
                         variant,
                         originalData.variants[index]
                     );
-                    // Keep id for update API
                     if (variant.id) {
                         updated.id = variant.id;
                     }
 
-                    return Object.keys(updated).length > 1 ? updated : null;
+                    const originalQty = getVariantQuantity(originalData.variants[index]);
+                    const nextQty = getVariantQuantity(variant);
+                    if (nextQty !== originalQty) {
+                        updated.quantity = nextQty;
+                    }
+                    delete updated.stock;
+
+                    const payload = mapVariantToApiPayload(updated);
+                    return Object.keys(payload).length > 1 ? payload : null;
                 })
                 .filter(Boolean),
         };
@@ -818,17 +837,23 @@ export default function EditProduct() {
             }
         } catch (error) {
             console.error("Error updating product:", error);
-            toast.error(error.response?.data?.message || "Failed to update product. Please try again.");
+            const message = extractApiErrorMessage(error, "Failed to update product. Please try again.");
+            toast.error(isUnicommerceSyncError(error) ? `Unicommerce sync: ${message}` : message);
         }
     };
 
     const handleCancel = () => {
         if (window.confirm("Are you sure you want to cancel? All unsaved changes will be lost.")) {
-            navigate("/inventory");
+            navigate("/vendor/products");
         }
     };
 
-    const totalStock = variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+    const totalStock = variants.reduce((sum, v) => sum + getVariantQuantity(v), 0);
+    const selectedSubcategory = getSelectedSubcategoryMeta(
+        lists.productcat,
+        formData.product_subcategory_id
+    );
+    const hasApprovedVariant = variants.some((v) => v.approval_status === "approved");
     const priceRange = variants.length > 0 ? {
         min: Math.min(...variants.map(v => v.selling_price)),
         max: Math.max(...variants.map(v => v.selling_price))
@@ -856,6 +881,13 @@ export default function EditProduct() {
                     <p>Update your product information, variants, and inventory details.</p>
                 </div>
             </div>
+
+            <UnicommerceNotice>
+                {hasApprovedVariant
+                    ? UNICOMMERCE_NOTICES.approvedStock
+                    : UNICOMMERCE_NOTICES.pendingVariant}{" "}
+                {UNICOMMERCE_NOTICES.systemSku}
+            </UnicommerceNotice>
 
             <div className="product-tabs">
                 <button
@@ -913,6 +945,11 @@ export default function EditProduct() {
                                                 <option key={data?.id} value={data?.id}>{data?.name}</option>
                                             ))}
                                         </select>
+                                        {selectedSubcategory && (
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                HSN: {selectedSubcategory.hsn_code || "—"} · Tax: {selectedSubcategory.tax_class_code || selectedSubcategory.tax_class_name || "—"}
+                                            </p>
+                                        )}
                                     </div>
                                     <div className="form-group">
                                         <label>BRAND NAME <span className="required">*</span></label>
@@ -1133,7 +1170,8 @@ export default function EditProduct() {
                                         <div className="col-price">Selling Price</div>
                                         <div className="col-price">Receive Amount</div>
                                         <div className="col-stock">Stock</div>
-                                        <div className="col-sku">SKU</div>
+                                        <div className="col-sku">Vendor SKU</div>
+                                        <div className="col-sku">System SKU</div>
                                         <div className="col-default">Default</div>
                                         <div className="col-actions">Actions</div>
                                     </div>
@@ -1154,11 +1192,17 @@ export default function EditProduct() {
                                             <div className="col-price">₹{Number(variant.selling_price).toFixed(2)}</div>
                                             <div className="col-price">₹{Number(variant.vendor_price).toFixed(2) || "N/A"}</div>
                                             <div className="col-stock">
-                                                <span className={`stock-badge ${(variant.stock || 0) <= (variant.low_stock_threshold || 5) ? 'low-stock' : ''}`}>
-                                                    {variant.stock || 0} in stock
+                                                <span className={`stock-badge ${getVariantQuantity(variant) <= (variant.low_stock_threshold || 5) ? 'low-stock' : ''}`}>
+                                                    {getVariantQuantity(variant)} in stock
                                                 </span>
+                                                {variant.approval_status !== "approved" && (
+                                                    <span className="block text-xs text-amber-700 mt-1">Pending approval</span>
+                                                )}
                                             </div>
-                                            <div className="col-sku">{variant?.vendor_sku_code}</div>
+                                            <div className="col-sku">{variant?.vendor_sku_code || "—"}</div>
+                                            <div className="col-sku">
+                                                <code className="text-xs">{variant?.sku_code || "Assigned after approval"}</code>
+                                            </div>
                                             <div className="col-default">
                                                 <button
                                                     className={`default-checkbox ${variant.is_default ? "active" : ""}`}
@@ -1326,7 +1370,7 @@ export default function EditProduct() {
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label>SKU <span className="required">*</span></label>
+                                    <label>Vendor SKU <span className="required">*</span></label>
                                     <input
                                         type="text"
                                         name="vendor_sku_code"
