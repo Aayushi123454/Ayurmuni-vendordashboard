@@ -114,4 +114,51 @@ export const vendorService = {
 
     deleteInventory: (id) =>
         API.delete(`/inventory/${id}/`),
+
+
+
+    // delete Product list detail
+    deleteVariants: async (id, vid) => {
+        try {
+            const response = await API.delete(`/vendors/product/?id=${id}&variant_id=${vid}`);
+            return response;
+        } catch (error) {
+            console.error('Admin service error:', error);
+            throw error;
+        }
+    },
+
+    // Add Variants list detail
+    addVariants: async (id, newVariant) => {
+        try {
+            const response = await API.post(`/vendors/product/?id=${id}`, newVariant);
+            return response;
+        } catch (error) {
+            console.error('Admin service error:', error);
+            throw error;
+        }
+    },
+
+    // Update Variants 
+    updateVariants: async (id, vid, updateVariant) => {
+        try {
+            const response = await API.patch(`/vendors/product/?id=${id}&variant_id=${vid}`, updateVariant);
+            return response;
+        } catch (error) {
+            console.error('Admin service error:', error);
+            throw error;
+        }
+    },
+
+
+    // //Get Brand,category
+    // getbrandandcategory: async (productData) => {
+    //     try {
+    //         const response = await API.get('/vendors/fields/info/?search=' + productData);
+    //         return response;
+    //     } catch (error) {
+    //         console.error('Admin service error:', error);
+    //         throw error;
+    //     }
+    // }
 };
