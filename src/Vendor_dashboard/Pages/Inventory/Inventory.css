@@ -470,7 +470,7 @@ body {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 24px;
+  /* padding: 24px; */
   flex-wrap: wrap;
 }
 
@@ -606,14 +606,14 @@ body {
   color: #64748B;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  padding: 20px 24px;
+  padding: 10px 14px;
   text-align: left;
   border-bottom: 1px solid var(--border);
   background: #fafcf9;
 }
 
 .iv-variants-table td {
-  padding: 20px 24px;
+  padding: 10px 14px;
   font-size: 14px;
   color: var(--text);
   border-bottom: 1px solid #f0f3ee;
