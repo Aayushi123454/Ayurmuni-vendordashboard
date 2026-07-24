@@ -40,6 +40,7 @@ function EmptyPanel({ message }) {
 
 export default function DashboardRightPanel({
     notifications = [],
+    recentOrders = [],
     lowStockItems = [],
     pendingVariants = [],
     approvalStatus,
@@ -55,14 +56,43 @@ export default function DashboardRightPanel({
     return (
         <aside className="space-y-4 lg:space-y-5">
             <PanelCard title="Recent Orders" action={() => onNavigate("/vendor/orders")} actionLabel="Orders">
-                <div className="flex flex-col items-center py-4 text-center">
-                    <div className="h-10 w-10 rounded-xl bg-gray-50 flex items-center justify-center mb-2">
-                        <ShoppingBag size={18} className="text-gray-400" />
-                    </div>
-                    <p className="text-sm font-medium text-gray-600">Orders coming soon</p>
-                    <p className="text-xs text-gray-400 mt-1">Order management is on the roadmap</p>
-                    <span className="mt-2 text-[10px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Soon</span>
-                </div>
+                {recentOrders.length > 0 ? (
+                    <ul className="space-y-3">
+                        {recentOrders.slice(0, 5).map((order) => (
+                            <li
+                                key={order.order_item_id || `${order.order_id}-${order.sku_code}`}
+                                className="flex gap-3 group cursor-pointer"
+                                onClick={() => onNavigate(`/vendor/orders/${order.order_id}`)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        onNavigate(`/vendor/orders/${order.order_id}`);
+                                    }
+                                }}
+                                role="button"
+                                tabIndex={0}
+                            >
+                                <div className="h-8 w-8 rounded-lg bg-[#0D614E]/10 flex items-center justify-center flex-shrink-0">
+                                    <ShoppingBag size={14} className="text-[#0D614E]" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className="text-sm font-medium text-gray-800 truncate group-hover:text-[#0D614E] transition-colors">
+                                            {order.order_display_code || order.order_code || "Order"}
+                                        </p>
+                                        <StatusBadge status={order.status} className="!px-2 !py-0.5 shrink-0" />
+                                    </div>
+                                    <p className="text-xs text-gray-400 mt-0.5 truncate">
+                                        {order.product_name || "Product"}
+                                        {order.quantity != null ? ` · Qty ${order.quantity}` : ""}
+                                    </p>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <EmptyPanel message="No recent orders" />
+                )}
             </PanelCard>
 
             <PanelCard title="Notifications" action={() => onNavigate("/vendor/notifications")}>

@@ -115,7 +115,17 @@ export const vendorService = {
     deleteInventory: (id) =>
         API.delete(`/inventory/${id}/`),
 
+    getOrders: (params = {}) =>
+        API.get(`/vendors/orders/${buildQuery(params)}`),
 
+    getOrder: (id) =>
+        API.get(`/vendors/orders/${buildQuery({ id })}`),
+
+    getOrderItem: (orderItemId) =>
+        API.get(`/vendors/orders/${buildQuery({ order_item_id: orderItemId })}`),
+
+    getOrdersSummary: () =>
+        API.get("/vendors/orders/summary/"),
 
     // delete Product list detail
     deleteVariants: async (id, vid) => {
