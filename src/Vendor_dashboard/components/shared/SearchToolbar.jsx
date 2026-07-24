@@ -3,7 +3,10 @@ import { Search } from "lucide-react";
 import Button from "./Button";
 
 const TOOLBAR_CONTROL =
-    "h-10 box-border rounded-lg border border-gray-200 bg-white text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#0D614E]/30 focus:border-[#0D614E]/40";
+    "box-border rounded-lg border border-gray-200 bg-white text-sm text-gray-900 leading-normal transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#0D614E]/30 focus:border-[#0D614E]/40";
+
+const TOOLBAR_INPUT = `${TOOLBAR_CONTROL} h-10`;
+const TOOLBAR_SELECT = `${TOOLBAR_CONTROL} h-10 min-h-[2.5rem] py-2 pl-3 pr-8`;
 
 export default function SearchToolbar({
     value,
@@ -49,7 +52,7 @@ export default function SearchToolbar({
                         onFocus={() => setFocused(true)}
                         onBlur={() => setFocused(false)}
                         aria-label="Search"
-                        className={`${TOOLBAR_CONTROL} w-full pl-10 pr-4`}
+                        className={`${TOOLBAR_INPUT} w-full pl-10 pr-4`}
                     />
                 </div>
                 {!live && (
@@ -75,7 +78,7 @@ export function SelectFilter({ value, onChange, options, placeholder, className 
             value={value}
             onChange={onChange}
             aria-label={ariaLabel || placeholder}
-            className={`${TOOLBAR_CONTROL} shrink-0 max-w-full truncate px-3 ds-focus ${className}`}
+            className={`${TOOLBAR_SELECT} shrink-0 ds-focus ${className}`}
         >
             {placeholder && <option value="">{placeholder}</option>}
             {options.map((opt) => (

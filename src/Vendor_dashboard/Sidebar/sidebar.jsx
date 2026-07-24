@@ -71,7 +71,6 @@ const Sidebar = () => {
           title={collapsed ? item.name : undefined}
           aria-current={isActive ? "page" : undefined}
         >
-          {isActive && <span className="sidebar-item__pill" aria-hidden />}
           <span className="sidebar-item__icon">
             <Icon size={18} strokeWidth={isActive ? 2.25 : 2} />
           </span>

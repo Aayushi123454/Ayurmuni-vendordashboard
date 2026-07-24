@@ -105,8 +105,8 @@ function StockKpiSection({ summary, listTotalCount, summaryLoading, hasActiveQue
     return (
         <>
             <div className="stock-overview-label">
-                <span>Inventory overview</span>
-                <span>{catalogNote}</span>
+                <span className="stock-overview-label__title">Inventory overview</span>
+                <span className="stock-overview-label__note">{catalogNote}</span>
             </div>
             <div className="stock-kpi-grid ds-stagger">
                 <PremiumKPICard
@@ -201,14 +201,15 @@ function StockProductCard({ item, onEdit, onDelete, onBlocked }) {
                 </div>
             </div>
 
-            <div className="stock-product-card__sku">
-                <span className="stock-product-card__metric-label">Vendor SKU</span>
-                <code className="stock-product-card__sku-value">{item.vendor_sku_code || "—"}</code>
+            <div className="stock-product-card__meta">
+                <div className="stock-product-card__sku">
+                    <span className="stock-product-card__metric-label">Vendor SKU</span>
+                    <code className="stock-product-card__sku-value">{item.vendor_sku_code || "—"}</code>
+                </div>
+                <p className="stock-product-card__updated">
+                    Updated {date}{time ? ` · ${time}` : ""}
+                </p>
             </div>
-
-            <p className="stock-product-card__updated">
-                Updated {date}{time ? ` · ${time}` : ""}
-            </p>
 
             <div className="stock-product-card__actions">
                 {canEdit ? (
@@ -480,6 +481,7 @@ export default function StockManagement() {
                 accent="Management"
                 subtitle="View and manage on-hand inventory across your product variants."
                 breadcrumbs={[]}
+                contentClassName="stock-page-content p-4 sm:p-6 lg:p-8"
                 actions={
                     <Button
                         variant="secondary"
@@ -502,7 +504,9 @@ export default function StockManagement() {
                 />
 
                 <div className="stock-toolbar-panel">
+                    <div className="stock-toolbar-shell">
                     <SearchToolbar
+                        className="stock-toolbar-search"
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
                         onSubmit={() => {
@@ -547,7 +551,8 @@ export default function StockManagement() {
                                 <span className="stock-filter-count">{filterCounts[filter.key] ?? 0}</span>
                             </button>
                         ))}
-                        <span className="stock-filter-hint">Health filters apply to the current page</span>
+                        <span className="stock-filter-hint">Filters apply to the current page</span>
+                    </div>
                     </div>
                 </div>
 
@@ -577,7 +582,7 @@ export default function StockManagement() {
                             }
                         />
                     ) : (
-                        <TableCard>
+                        <TableCard className="stock-records-panel">
                             <div className="stock-results-meta">
                                 <span>
                                     Showing <strong>{filteredItems.length}</strong> of <strong>{items.length}</strong>{" "}

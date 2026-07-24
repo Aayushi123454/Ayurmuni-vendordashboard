@@ -11,8 +11,8 @@
   left: 0;
   top: 0;
   z-index: 100;
-  background: #ffffff;
-  border-right: 1px solid #eef0f2;
+  background: var(--ds-surface, #ffffff);
+  border-right: 1px solid var(--ds-border, #e5e7eb);
   display: flex;
   flex-direction: column;
   transition: width 220ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -26,7 +26,7 @@
 .vendor-sidebar__logo {
   position: relative;
   padding: 16px 14px;
-  border-bottom: 1px solid rgba(13, 97, 78, 0.12);
+  border-bottom: 1px solid var(--ds-brand, #0D614E);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -67,8 +67,8 @@
 }
 
 .vendor-sidebar__toggle:hover {
-  color: #0D614E;
-  border-color: #0D614E;
+  color: var(--ds-brand, #0D614E);
+  border-color: var(--ds-brand, #0D614E);
   transform: translateY(-50%) scale(1.05);
 }
 
@@ -81,12 +81,12 @@
 }
 
 .vendor-sidebar__section {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #94a3b8;
-  padding: 12px 12px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ds-text-label, #94A3B8);
+  padding: 12px 14px 6px;
   min-height: 18px;
 }
 
@@ -100,21 +100,23 @@
   position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 10px 18px;
   border: none;
   background: transparent;
-  border-radius: 10px;
+  border-radius: 6px;
   cursor: pointer;
   text-align: left;
-  color: #64748b;
+  color: var(--ds-text-muted, #727783);
+  font-weight: 500;
   transition: background-color 200ms ease, color 200ms ease, transform 150ms ease;
 }
 
 .sidebar-item:hover {
-  background: rgba(13, 97, 78, 0.06);
-  color: #0D614E;
+  background: var(--ds-brand, #0D614E);
+  color: #ffffff;
+  font-weight: 600;
 }
 
 .sidebar-item:active {
@@ -122,26 +124,13 @@
 }
 
 .sidebar-item--active {
-  color: #0D614E;
-  background: rgba(13, 97, 78, 0.08);
+  color: #ffffff;
+  background: var(--ds-brand, #0D614E);
   font-weight: 600;
 }
 
 .sidebar-item__pill {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 20px;
-  background: #0D614E;
-  border-radius: 0 4px 4px 0;
-  animation: pill-in 200ms cubic-bezier(0.4, 0, 0.2, 1) both;
-}
-
-@keyframes pill-in {
-  from { opacity: 0; transform: translateY(-50%) scaleY(0.5); }
-  to { opacity: 1; transform: translateY(-50%) scaleY(1); }
+  display: none;
 }
 
 .sidebar-item__icon {
@@ -153,7 +142,7 @@
 }
 
 .sidebar-item__label {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -177,7 +166,7 @@
 }
 
 .vendor-sidebar--collapsed .sidebar-item__pill {
-  left: 4px;
+  display: none;
 }
 
 .vendor-sidebar__pending {
@@ -218,7 +207,7 @@
   width: 100%;
   padding: 8px;
   border-radius: 10px;
-  background: #0D614E;
+  background: var(--ds-brand, #0D614E);
   color: #fff;
   font-size: 12px;
   font-weight: 600;
@@ -228,7 +217,7 @@
 }
 
 .vendor-sidebar__pending button:hover {
-  background: #094c3d;
+  background: var(--ds-brand-hover, #094c3d);
 }
 
 /* Legacy doctor sidebar fallback */
