@@ -849,7 +849,7 @@ export default function EditProduct() {
                     Back
                 </Button>
             }
-            contentClassName="p-4 sm:p-6 lg:p-8 max-w-7xl"
+            contentClassName="p-4 sm:p-6 lg:p-8 max-w-8xl"
         >
 
             <UnicommerceNotice>
@@ -1141,7 +1141,7 @@ export default function EditProduct() {
                                         <div className="col-price">Receive Amount</div>
                                         <div className="col-stock">Stock</div>
                                         <div className="col-sku">Vendor SKU</div>
-                                        <div className="col-sku">System SKU</div>
+                                        {/* <div className="col-sku">System SKU</div> */}
                                         <div className="col-default">Default</div>
                                         <div className="col-actions">Actions</div>
                                     </div>
@@ -1170,9 +1170,9 @@ export default function EditProduct() {
                                                 )}
                                             </div>
                                             <div className="col-sku">{variant?.vendor_sku_code || "—"}</div>
-                                            <div className="col-sku">
+                                            {/* <div className="col-sku">
                                                 <code className="text-xs">{variant?.sku_code || "Assigned after approval"}</code>
-                                            </div>
+                                            </div> */}
                                             <div className="col-default">
                                                 <button
                                                     className={`default-checkbox ${variant.is_default ? "active" : ""}`}

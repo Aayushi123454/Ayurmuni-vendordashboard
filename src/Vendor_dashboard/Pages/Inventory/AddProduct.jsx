@@ -836,7 +836,7 @@ export default function AddProduct() {
           Back
         </Button>
       }
-      contentClassName="p-4 sm:p-6 lg:p-8 max-w-7xl"
+      contentClassName="p-4 sm:p-6 lg:p-8 max-w-8xl"
     >
       <UnicommerceNotice>
         {UNICOMMERCE_NOTICES.pendingVariant} {UNICOMMERCE_NOTICES.systemSku}

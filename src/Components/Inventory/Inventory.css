@@ -448,7 +448,20 @@ font-weight: 500;
 }
 .iv-variants-table tr:last-child td { border-bottom: none; }
 .iv-variants-table tr:hover td { background: #fafcf9; }
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
+.animate-slideDown {
+  animation: slideDown 0.2s ease-out;
+}
 .iv-sku-badge {
   font-size: 14px;
   color: #3F4945;
