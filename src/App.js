@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom
 import { Suspense, lazy, useEffect, useState } from "react";
 import { Toaster } from "react-hot-toast";
 import "./App.css";
+import "./Vendor_dashboard/components/shared/design-system.css";
 
 // Shared Components
 import Sidebar from "./Vendor_dashboard/Sidebar/sidebar";
@@ -40,8 +41,8 @@ const VendorNotification = lazy(() => import("./Vendor_dashboard/Pages/Notificat
 const VendorOnboarding = lazy(() => import("./Vendor_dashboard/Pages/onboarding/Onboarding"));
 const VendorProfile = lazy(() => import("./Vendor_dashboard/Pages/Profile/Profile"));
 const VendorStock = lazy(() => import("./Vendor_dashboard/Pages/Stock/Stock"));
-const VendorBanners = lazy(() => import("./Vendor_dashboard/Pages/Banners/Banners"));
-const VendorCatalog = lazy(() => import("./Vendor_dashboard/Pages/Catalog/Catalog"));
+// const VendorBanners = lazy(() => import("./Vendor_dashboard/Pages/Banners/Banners"));
+// const VendorCatalog = lazy(() => import("./Vendor_dashboard/Pages/Catalog/Catalog"));
 const VendorHelpSupport = lazy(() => import("./Vendor_dashboard/Pages/HelpSupport/HelpSupport"));
 const VendorFinance = lazy(() => import("./Vendor_dashboard/Pages/Finance/Finance"));
 const VendorRatings = lazy(() => import("./Vendor_dashboard/Pages/Ratings/Ratings"));
@@ -171,8 +172,8 @@ function App() {
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="products" element={<InventoryVault />} />
                 <Route path="stock" element={<VendorStock />} />
-                <Route path="banners" element={<VendorBanners />} />
-                <Route path="catalog" element={<VendorCatalog />} />
+                {/* <Route path="banners" element={<VendorBanners />} /> */}
+                {/* <Route path="catalog" element={<VendorCatalog />} /> */}
                 <Route path="new-product" element={<AddProduct />} />
                 <Route path="edit-product/:id" element={<EditProduct />} />
                 <Route path="orders" element={<Order />} />

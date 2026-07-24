@@ -22,6 +22,8 @@ import "./AddProduct.css";
 import { vendorService } from "../../../services/vendorService";
 import toast from "react-hot-toast";
 import UnicommerceNotice from "../../components/shared/UnicommerceNotice";
+import DashboardPageShell from "../../components/shared/DashboardPageShell";
+import Button from "../../components/shared/Button";
 import {
   extractApiErrorMessage,
   getSelectedSubcategoryMeta,
@@ -823,18 +825,19 @@ export default function AddProduct() {
   } : null;
 
   return (
-    <div className="add-product-page">
-      {/* Header */}
-      <div className="iv-header">
-        <div className="iv-header-title">
-          <button className="back-btn" onClick={handleCancel}>
-            <ChevronLeft size={16} /> Back
-          </button>
-          <h1>Add New <span className="inventoryspan">Product</span></h1>
-          <p>Create a new listing in your botanical collection. Ensure all ingredients and dosage types are accurately cataloged.</p>
-        </div>
-      </div>
-
+    <DashboardPageShell
+      title="Add New"
+      accent="Product"
+      subtitle="Create a new listing in your botanical collection. Ensure all ingredients and dosage types are accurately cataloged."
+      breadcrumbs={[{ label: "Dashboard" }, { label: "Products" }, { label: "Add Product" }]}
+      actions={
+        <Button variant="secondary" onClick={handleCancel}>
+          <ChevronLeft size={16} className="mr-1" aria-hidden />
+          Back
+        </Button>
+      }
+      contentClassName="p-4 sm:p-6 lg:p-8 max-w-7xl"
+    >
       <UnicommerceNotice>
         {UNICOMMERCE_NOTICES.pendingVariant} {UNICOMMERCE_NOTICES.systemSku}
       </UnicommerceNotice>
@@ -1631,6 +1634,6 @@ export default function AddProduct() {
           </div>
         </div>
       )}
-    </div>
+    </DashboardPageShell>
   );
 }

@@ -36,6 +36,7 @@
     padding: 1.25rem;
     margin-bottom: 1rem;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    transition: box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1), transform 200ms cubic-bezier(0.4, 0, 0.2, 1), border-color 200ms ease;
 }
 
 .iv-product-block:hover {
@@ -51,11 +52,12 @@
     border: 1px solid rgba(13, 97, 78, 0.15);
     border-radius: 0.5rem;
     cursor: pointer;
-    transition: background-color 0.15s;
+    transition: background-color 200ms ease, transform 150ms ease, box-shadow 200ms ease;
 }
 
 .iv-btn-view-all:hover {
     background: rgba(13, 97, 78, 0.14);
+    box-shadow: 0 1px 3px rgba(13, 97, 78, 0.12);
 }
 
 .iv-product-header {

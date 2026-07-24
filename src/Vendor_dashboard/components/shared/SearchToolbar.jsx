@@ -1,6 +1,9 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import Button from "./Button";
+
+const TOOLBAR_CONTROL =
+    "h-10 box-border rounded-lg border border-gray-200 bg-white text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#0D614E]/30 focus:border-[#0D614E]/40";
 
 export default function SearchToolbar({
     value,
@@ -11,39 +14,51 @@ export default function SearchToolbar({
     children,
     submitLabel = "Search",
     live = false,
+    className = "",
 }) {
+    const [focused, setFocused] = useState(false);
+
+    useEffect(() => {
+        if (!live || !onSubmit) return undefined;
+        const timer = setTimeout(() => onSubmit(), 350);
+        return () => clearTimeout(timer);
+    }, [value, live, onSubmit]);
+
     const handleSubmit = (e) => {
         e.preventDefault();
         onSubmit?.(e);
     };
 
     return (
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-100">
-            <form className="flex flex-wrap gap-4 items-center justify-between" onSubmit={handleSubmit}>
+        <div
+            className={`ds-card p-4 sm:p-5 mb-6 transition-shadow duration-200 ${focused ? "shadow-md ring-1 ring-[#0D614E]/10" : ""} ${className}`}
+        >
+            <form className="flex flex-nowrap items-center gap-3" onSubmit={handleSubmit}>
                 {children}
-                <div className="flex-1 min-w-[200px]">
-                    <div className="relative">
-                        <Search
-                            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                            size={18}
-                        />
-                        <input
-                            type="text"
-                            placeholder={placeholder}
-                            value={value}
-                            onChange={onChange}
-                            aria-label="Search"
-                            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0D614E] text-sm"
-                        />
-                    </div>
+                <div className="relative min-w-0 flex-1">
+                    <Search
+                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                        size={18}
+                        aria-hidden
+                    />
+                    <input
+                        type="search"
+                        placeholder={placeholder}
+                        value={value}
+                        onChange={onChange}
+                        onFocus={() => setFocused(true)}
+                        onBlur={() => setFocused(false)}
+                        aria-label="Search"
+                        className={`${TOOLBAR_CONTROL} w-full pl-10 pr-4`}
+                    />
                 </div>
                 {!live && (
-                    <div className="flex items-center gap-3">
-                        <Button type="submit" variant="primary">
+                    <div className="flex shrink-0 items-center gap-2">
+                        <Button type="submit" variant="primary" className="!h-10 !py-0 px-4 shrink-0">
                             {submitLabel}
                         </Button>
                         {onClear && value && (
-                            <Button type="button" variant="secondary" onClick={onClear}>
+                            <Button type="button" variant="secondary" className="!h-10 !py-0 px-4 shrink-0" onClick={onClear}>
                                 Clear
                             </Button>
                         )}
@@ -60,7 +75,7 @@ export function SelectFilter({ value, onChange, options, placeholder, className 
             value={value}
             onChange={onChange}
             aria-label={ariaLabel || placeholder}
-            className={`px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0D614E] bg-white text-sm ${className}`}
+            className={`${TOOLBAR_CONTROL} shrink-0 max-w-full truncate px-3 ds-focus ${className}`}
         >
             {placeholder && <option value="">{placeholder}</option>}
             {options.map((opt) => (

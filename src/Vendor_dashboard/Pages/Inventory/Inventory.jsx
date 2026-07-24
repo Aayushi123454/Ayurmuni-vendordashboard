@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./Inventory.css";
 import Ayurvedaimage from "../../../Assests/Ayurvedaimage.png";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FaEdit } from "react-icons/fa";
 import { FiTrash2 } from "react-icons/fi";
 import toast from "react-hot-toast";
@@ -9,9 +9,11 @@ import { vendorService } from "../../../services/vendorService";
 import UnicommerceNotice from "../../components/shared/UnicommerceNotice";
 import DashboardPageShell from "../../components/shared/DashboardPageShell";
 import Button from "../../components/shared/Button";
-import { PageEmpty, PageError, PageLoader, PaginationBar } from "../../components/shared/PageState";
+import { PageEmpty, PageError, PaginationBar } from "../../components/shared/PageState";
+import { ProductListSkeleton } from "../../components/shared/Skeleton";
 import StatusBadge from "../../components/shared/StatusBadge";
 import SearchToolbar from "../../components/shared/SearchToolbar";
+import usePersistedState from "../../hooks/usePersistedState";
 import {
   getVariantQuantity,
   mapVariantFromApi,
@@ -91,7 +93,7 @@ function ProductBlock({ product, expanded, onToggle, onDelete }) {
   const isExpanded = expanded === product.id;
 
   return (
-    <div className="iv-product-block">
+    <div className="iv-product-block ds-card ds-card-interactive ds-animate-in">
       <div className="iv-product-header">
         <div className="iv-product-avatar shadow-md">
           <img src={avatarUrl} alt={product.name} />
@@ -115,7 +117,7 @@ function ProductBlock({ product, expanded, onToggle, onDelete }) {
             )}
           </div>
         </div>
-        <button type="button" className="iv-btn-view-all" onClick={() => onToggle(product.id)}>
+        <button type="button" className="iv-btn-view-all ds-focus active:scale-[0.98] transition-transform duration-200" onClick={() => onToggle(product.id)}>
           {isExpanded ? "Hide Variants" : "View Variants"}
         </button>
         <div className="flex items-center gap-2">
@@ -138,7 +140,7 @@ function ProductBlock({ product, expanded, onToggle, onDelete }) {
       </div>
 
       {isExpanded && (
-        <div className="vendor-table-wrap mt-3 border-0 shadow-none">
+        <div className="vendor-table-wrap mt-3 border-0 shadow-none ds-animate-in overflow-x-auto ds-scroll">
           <table className="vendor-table iv-variants-table">
             <thead>
               <tr>
@@ -165,15 +167,16 @@ function ProductBlock({ product, expanded, onToggle, onDelete }) {
 
 export default function InventoryVault() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
-  const pageSize = 10;
+  const [searchInput, setSearchInput] = useState(location.state?.search || "");
+  const [search, setSearch] = useState(location.state?.search || "");
+  const [pageSize, setPageSize] = usePersistedState("vendor:inventory:pageSize", 10);
 
   const fetchProducts = useCallback(async (page = currentPage) => {
     try {
@@ -196,7 +199,7 @@ export default function InventoryVault() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage]);
+  }, [currentPage, pageSize]);
 
   useEffect(() => {
     fetchProducts(currentPage);
@@ -270,7 +273,7 @@ export default function InventoryVault() {
       />
 
       {loading ? (
-        <PageLoader message="Loading products..." />
+        <ProductListSkeleton count={pageSize > 5 ? 5 : pageSize} />
       ) : error ? (
         <PageError message={error} onRetry={() => fetchProducts(currentPage)} />
       ) : filteredProducts.length === 0 ? (
@@ -289,6 +292,7 @@ export default function InventoryVault() {
         />
       ) : (
         <>
+          <div className="ds-stagger space-y-4">
           {filteredProducts.map((product) => (
             <ProductBlock
               key={product.id}
@@ -298,12 +302,16 @@ export default function InventoryVault() {
               onDelete={handleDeleteProduct}
             />
           ))}
+          </div>
           {!search && (
             <PaginationBar
               page={currentPage}
               pageSize={pageSize}
               totalCount={totalCount}
               onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              storageKey="vendor:inventory"
+              itemLabel="products"
             />
           )}
         </>

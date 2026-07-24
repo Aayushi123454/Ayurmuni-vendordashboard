@@ -80,10 +80,13 @@ const TabButton = ({ tab, activeTab, setActiveTab }) => {
 
     return (
         <button
+            type="button"
             onClick={() => setActiveTab(tab)}
-            className={`flex items-center gap-2 py-3 px-5 text-sm font-medium border-b-2 transition-all capitalize ${activeTab === tab
-                ? 'border-[#0D614E] text-[#0D614E]'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            aria-selected={activeTab === tab}
+            role="tab"
+            className={`flex items-center gap-2 py-3 px-5 text-sm font-medium border-b-2 transition-all duration-200 ds-focus capitalize active:scale-[0.98] ${activeTab === tab
+                ? 'border-[#0D614E] text-[#0D614E] bg-[#0D614E]/5'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50/80'
                 }`}
         >
             <Icon size={16} />
@@ -103,7 +106,7 @@ const InputField = ({ label, value, onChange, disabled, type = "text", required 
             onChange={onChange}
             disabled={disabled}
             placeholder={placeholder}
-            className="auth-card__input w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0D614E] disabled:bg-gray-50"
+            className="auth-card__input w-full px-4 py-2.5 border border-gray-200 rounded-xl transition-all duration-200 ds-focus disabled:bg-gray-50 disabled:cursor-not-allowed"
         />
     </div>
 );
@@ -115,7 +118,7 @@ const SelectField = ({ label, value, onChange, disabled, options, placeholder = 
             value={value}
             onChange={onChange}
             disabled={disabled}
-            className="auth-card__input w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0D614E] disabled:bg-gray-50"
+            className="auth-card__input w-full px-4 py-2.5 border border-gray-200 rounded-xl transition-all duration-200 ds-focus disabled:bg-gray-50 disabled:cursor-not-allowed"
         >
             <option value="">{placeholder || `Select ${label}`}</option>
             {options.map(opt => (
@@ -135,7 +138,7 @@ const TextAreaField = ({ label, value, onChange, disabled, rows = 4 }) => (
             value={value}
             onChange={onChange}
             disabled={disabled}
-            className="auth-card__input w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0D614E] disabled:bg-gray-50"
+            className="auth-card__input w-full px-4 py-2.5 border border-gray-200 rounded-xl transition-all duration-200 ds-focus disabled:bg-gray-50 disabled:cursor-not-allowed"
         />
     </div>
 );
@@ -599,11 +602,11 @@ const VendorProfile = () => {
     if (isLoading) return <LoadingSpinner />;
 
     return (
-        <div className="min-h-screen pb-10 mt-10">
+        <div className="min-h-screen pb-10 mt-10 ds-animate-in">
             <div className="mx-auto px-4 sm:px-6 lg:px-8 -mt-8">
 
                 {/* Profile Card */}
-                <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+                <div className="bg-white rounded-2xl shadow-xl overflow-hidden ds-card border-0">
                     <div className="h-32 bg-gradient-to-r from-[#0D614E] to-[#0a4d3e] relative">
                         <Link to="/dashboard" className="flex items-center max-w-[200px] space-x-2 px-4 py-2 bg-white bg-opacity-20 rounded-lg hover:bg-opacity-30 transition text-white absolute top-4 right-4 hover:text-white z-10">
                             <ChevronRight size={18} />

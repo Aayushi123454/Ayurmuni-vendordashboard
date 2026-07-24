@@ -20,6 +20,9 @@ import "./AddProduct.css";
 import { vendorService } from "../../../services/vendorService";
 import toast from "react-hot-toast";
 import UnicommerceNotice from "../../components/shared/UnicommerceNotice";
+import DashboardPageShell from "../../components/shared/DashboardPageShell";
+import Button from "../../components/shared/Button";
+import { PageLoader } from "../../components/shared/PageState";
 import {
   extractApiErrorMessage,
   getSelectedSubcategoryMeta,
@@ -536,7 +539,14 @@ export default function EditProduct() {
 
             if (editingVariant) {
                 setlodervr(true)
-                const response = await vendorService?.updateVariants(id, editingVariant.id, newVariant)
+                const response = await vendorService?.updateVariants(
+                    id,
+                    editingVariant.id,
+                    mapVariantToApiPayload({
+                        ...newVariant,
+                        approval_status: editingVariant.approval_status,
+                    })
+                )
                 if (response.data.success) {
                     setVariants(variants.map(v => v.id === editingVariant.id ? newVariant : v));
                     toast.success("Variant updated successfully");
@@ -544,7 +554,10 @@ export default function EditProduct() {
                 }
             } else {
                 setlodervr(true)
-                const response = await vendorService?.addVariants(id, newVariant)
+                const response = await vendorService?.addVariants(
+                    id,
+                    mapVariantToApiPayload({ ...newVariant, approval_status: "pending" })
+                )
                 if (response.data.success) {
                     toast.success("Variant added successfully");
                     setlodervr(false)
@@ -813,26 +826,31 @@ export default function EditProduct() {
 
     if (loading) {
         return (
-            <div className="add-product-page">
-                <div className="loading-container">
-                    <div className="iv-loader"></div>
-                    <p>Loading product data...</p>
-                </div>
-            </div>
+            <DashboardPageShell
+                title="Edit"
+                accent="Product"
+                subtitle="Loading product details..."
+                breadcrumbs={[{ label: "Dashboard" }, { label: "Products" }, { label: "Edit" }]}
+            >
+                <PageLoader message="Loading product data..." />
+            </DashboardPageShell>
         );
     }
 
     return (
-        <div className="add-product-page">
-            <div className="iv-header">
-                <div className="iv-header-title">
-                    <button className="back-btn" onClick={handleCancel}>
-                        <ChevronLeft size={16} /> Back
-                    </button>
-                    <h1>Edit <span className="inventoryspan">Product</span></h1>
-                    <p>Update your product information, variants, and inventory details.</p>
-                </div>
-            </div>
+        <DashboardPageShell
+            title="Edit"
+            accent="Product"
+            subtitle="Update your product information, variants, and inventory details."
+            breadcrumbs={[{ label: "Dashboard" }, { label: "Products" }, { label: "Edit Product" }]}
+            actions={
+                <Button variant="secondary" onClick={handleCancel}>
+                    <ChevronLeft size={16} className="mr-1" aria-hidden />
+                    Back
+                </Button>
+            }
+            contentClassName="p-4 sm:p-6 lg:p-8 max-w-7xl"
+        >
 
             <UnicommerceNotice>
                 {hasApprovedVariant
@@ -1555,6 +1573,7 @@ export default function EditProduct() {
                     </div>
                 )
             }
-        </div >
+            
+        </DashboardPageShell>
     );
 }
