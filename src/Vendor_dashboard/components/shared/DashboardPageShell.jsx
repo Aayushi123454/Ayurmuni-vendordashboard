@@ -16,7 +16,7 @@ export default function DashboardPageShell({
     const showHeaderBar = showTitle || showBreadcrumbs || subtitle || actions;
 
     return (
-        <div className="min-h-screen bg-gray-50 ds-animate-in">
+        <div className="min-h-screen bg-[#f5f5f5] ds-animate-in">
             {showHeaderBar && (
                 <div className="border-b border-gray-200 bg-white/95 backdrop-blur-sm sticky top-0 z-20 shadow-sm">
                     <div className={`px-4 sm:px-6 lg:px-8 ${hidePageHeader ? "py-4" : "py-5 lg:py-6"}`}>

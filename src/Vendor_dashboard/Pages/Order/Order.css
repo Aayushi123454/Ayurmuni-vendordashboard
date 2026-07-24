@@ -287,11 +287,11 @@
 
 /* COLORS */
 .blue {
-  color: #2563eb;
+  color: #0D614E;
 }
 
 .blue-fill {
-  background: linear-gradient(90deg, #2563eb, #60a5fa);
+  background: linear-gradient(90deg, #0D614E, #16a34a);
 }
 
 .red-text {

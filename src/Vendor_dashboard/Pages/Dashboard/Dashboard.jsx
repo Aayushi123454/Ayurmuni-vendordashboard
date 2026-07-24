@@ -232,7 +232,7 @@ const Dashboard = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#f8faf9] p-4 sm:p-6 lg:p-8 space-y-6">
+            <div className="min-h-screen bg-[#f5f5f5] p-4 sm:p-6 lg:p-8 space-y-6">
                 <div className="h-40 ds-skeleton rounded-2xl" />
                 <MetricSkeleton count={6} />
                 <div className="grid grid-cols-12 gap-6">
@@ -245,14 +245,14 @@ const Dashboard = () => {
 
     if (error) {
         return (
-            <div className="min-h-screen bg-[#f8faf9] p-4 sm:p-6 lg:p-8">
+            <div className="min-h-screen bg-[#f5f5f5] p-4 sm:p-6 lg:p-8">
                 <PageError message={error} onRetry={fetchDashboardData} />
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-[#f8faf9]">
+        <div className="min-h-screen bg-[#f5f5f5]">
             <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-6 lg:space-y-8">
                 {/* Section 1 — Welcome */}
                 <DashboardWelcome

@@ -1,8 +1,26 @@
-/* Enterprise design system — preserves #0D614E brand, 150–250ms motion */
+/* Enterprise design system — AyurMuni brand aligned with Doctor Dashboard */
 
 :root {
     --ds-brand: #0D614E;
     --ds-brand-hover: #094c3d;
+    --ds-brand-alt-hover: #0A4D3E;
+    --ds-brand-soft: rgba(13, 97, 78, 0.08);
+    --ds-brand-soft-hover: rgba(13, 97, 78, 0.15);
+    --ds-focus-green: #1a5c3a;
+    --ds-bg-page: #f5f5f5;
+    --ds-bg-muted: #f9fafb;
+    --ds-bg-subtle: #f3f4f6;
+    --ds-surface: #ffffff;
+    --ds-border: #e5e7eb;
+    --ds-border-light: #f3f4f6;
+    --ds-text-primary: #1f2937;
+    --ds-text-heading: #111827;
+    --ds-text-secondary: #6b7280;
+    --ds-text-muted: #727783;
+    --ds-text-label: #94A3B8;
+    --ds-success: #16a34a;
+    --ds-danger: #dc2626;
+    --ds-warning: #D97706;
     --ds-radius-sm: 0.5rem;
     --ds-radius-md: 0.75rem;
     --ds-radius-lg: 1rem;
@@ -52,8 +70,8 @@
 
 /* Premium card */
 .ds-card {
-    background: #fff;
-    border: 1px solid #f3f4f6;
+    background: var(--ds-surface);
+    border: 1px solid var(--ds-border-light);
     border-radius: var(--ds-radius-lg);
     box-shadow: var(--ds-shadow-sm);
     transition: box-shadow var(--ds-transition), transform var(--ds-transition), border-color var(--ds-transition);
@@ -62,7 +80,7 @@
 .ds-card-interactive:hover {
     box-shadow: var(--ds-shadow-md);
     transform: translateY(-1px);
-    border-color: #e5e7eb;
+    border-color: var(--ds-border);
 }
 
 /* Button press */
@@ -99,11 +117,11 @@
 }
 
 .ds-table-row:hover {
-    background-color: #f9fafb;
+    background-color: var(--ds-bg-muted);
 }
 
 .ds-table-row:focus-within {
-    background-color: #f3f4f6;
+    background-color: var(--ds-bg-subtle);
 }
 
 /* Scrollbar polish */
@@ -113,10 +131,10 @@
 }
 
 .ds-scroll::-webkit-scrollbar-thumb {
-    background: #d1d5db;
+    background: #cbd5e1;
     border-radius: 999px;
 }
 
 .ds-scroll::-webkit-scrollbar-thumb:hover {
-    background: #9ca3af;
+    background: var(--ds-text-label);
 }
