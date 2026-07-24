@@ -66,9 +66,9 @@ function VariantRow({ variant }) {
       </td>
       <td>
         <div className="flex flex-col gap-1">
-          <code className="rounded-md bg-gray-100 px-2 py-1 text-xs">{variant.vendor_sku_code || "—"}</code>
+          <code className="rounded-md bg-gray-100 px-2 py-1 text-sm">{variant.vendor_sku_code || "—"}</code>
           {variant.sku_code && (
-            <code className="text-xs text-gray-500" title="Unicommerce system SKU">
+            <code className="text-sm text-gray-500" title="Unicommerce system SKU">
               {variant.sku_code}
             </code>
           )}
