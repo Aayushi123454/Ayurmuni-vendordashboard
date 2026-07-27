@@ -43,19 +43,22 @@ const Dashboard = () => {
     const [profile, setProfile] = useState(null);
     const [unreadCount, setUnreadCount] = useState(0);
     const [recentNotifications, setRecentNotifications] = useState([]);
+    const [recentOrders, setRecentOrders] = useState([]);
 
     const fetchDashboardData = useCallback(async () => {
         try {
             setLoading(true);
             setError("");
             const notifParams = new URLSearchParams({ view: "list", page: 1, page_size: 5 });
-            const [productsRes, inventoryRes, profileRes, notificationsRes, notifListRes] = await Promise.all([
-                vendorService.getProducts({ page: 1, page_size: 100 }),
-                vendorService.getInventory({ page: 1, page_size: 100 }),
-                vendorService.getProfile(),
-                notificationService.get({ view: "unread_count" }),
-                notificationService.get(notifParams),
-            ]);
+            const [productsRes, inventoryRes, profileRes, notificationsRes, notifListRes, ordersRes] =
+                await Promise.all([
+                    vendorService.getProducts({ page: 1, page_size: 100 }),
+                    vendorService.getInventory({ page: 1, page_size: 100 }),
+                    vendorService.getProfile(),
+                    notificationService.get({ view: "unread_count" }),
+                    notificationService.get(notifParams),
+                    vendorService.getOrders({ page: 1, page_size: 5 }).catch(() => null),
+                ]);
 
             setProducts(productsRes.data?.data?.results || []);
             setInventory(inventoryRes.data?.data?.results || []);
@@ -68,6 +71,7 @@ const Dashboard = () => {
                     timeAgo: n.created_at ? timeAgo(n.created_at) : "",
                 }))
             );
+            setRecentOrders(ordersRes?.data?.data?.results || []);
         } catch (err) {
             setError(err?.response?.data?.message || err.message || "Failed to load dashboard");
         } finally {
@@ -379,6 +383,7 @@ const Dashboard = () => {
                         <div className="xl:sticky xl:top-24">
                             <DashboardRightPanel
                                 notifications={recentNotifications}
+                                recentOrders={recentOrders}
                                 lowStockItems={lowStockPanelItems}
                                 pendingVariants={pendingPanelVariants}
                                 approvalStatus={stats.approvalStatus}
