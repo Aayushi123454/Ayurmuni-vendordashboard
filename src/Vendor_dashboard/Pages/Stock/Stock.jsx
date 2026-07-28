@@ -609,7 +609,10 @@ export default function StockManagement() {
             );
             setItems(optimisticItems);
 
-            await vendorService.updateInventory(editingItem.id, { quantity });
+            await vendorService.updateInventory(editingItem.id, {
+                action: "set",
+                quantity,
+            });
             toast.success("Stock updated successfully");
             setEditingItem(null);
             
@@ -907,6 +910,7 @@ export default function StockManagement() {
                                     autoFocus
                                     value={editQuantity}
                                     onChange={(e) => setEditQuantity(e.target.value)}
+                                    onWheel={(e) => e.currentTarget.blur()}
                                     onKeyDown={(e) => {
                                         if (e.key === "Enter" && !editQuantityUnchanged && !saving) {
                                             e.preventDefault();
