@@ -24,13 +24,13 @@ import DashboardPageShell from "../../components/shared/DashboardPageShell";
 import Button from "../../components/shared/Button";
 import { PageLoader } from "../../components/shared/PageState";
 import {
-  extractApiErrorMessage,
-  getSelectedSubcategoryMeta,
-  getVariantQuantity,
-  isUnicommerceSyncError,
-  mapVariantFromApi,
-  mapVariantToApiPayload,
-  UNICOMMERCE_NOTICES,
+    extractApiErrorMessage,
+    getSelectedSubcategoryMeta,
+    getVariantQuantity,
+    isUnicommerceSyncError,
+    mapVariantFromApi,
+    mapVariantToApiPayload,
+    UNICOMMERCE_NOTICES,
 } from "../../../utils/unicommerceHelpers";
 
 export default function EditProduct() {
@@ -110,6 +110,7 @@ export default function EditProduct() {
         weightage: "g",
         size: "",
         is_default: false,
+        prescription_required: false,
         coverImage: null,
         vendor_price: "",
         is_active: true
@@ -173,7 +174,7 @@ export default function EditProduct() {
                         file: null
                     } : null),
                     vendor_price: variant.vendor_price || calculateVendorPrice(variant),
-                    })
+                })
                 );
 
                 setVariants(processedVariants);
@@ -385,7 +386,7 @@ export default function EditProduct() {
                         id: newCover.id
                     }
                 }));
-                toast.info("New cover image set");
+                // toast.info("New cover image set");
             } else {
                 setVariantForm(prev => ({
                     ...prev,
@@ -402,7 +403,7 @@ export default function EditProduct() {
                 URL.revokeObjectURL(variantForm.coverImage.preview);
             }
             setVariantForm(prev => ({ ...prev, coverImage: null }));
-            toast.info("Cover image removed");
+            // toast.info("Cover image removed");
         }
     };
 
@@ -526,6 +527,7 @@ export default function EditProduct() {
                 weightage: variantForm.weightage,
                 size: variantForm.size,
                 is_default: editingVariant ? variantForm.is_default : (variants.length === 0),
+                prescription_required: variantForm.prescription_required,
                 coverImage: variantForm.coverImage,
                 is_active: true,
                 vendor_price: parseFloat(priceType == "TP" ? variantForm.selling_price : (Number(variantForm.selling_price) -
@@ -539,12 +541,21 @@ export default function EditProduct() {
 
             if (editingVariant) {
                 setlodervr(true)
+                const originalVariant = originalData.variants.find(
+                    (data) => data.id === newVariant.id
+                );
+
+                const onlyupdate = originalVariant
+                    ? getUpdatedFields(newVariant, originalVariant)
+                    : newVariant;
+
+                console.log(originalVariant, onlyupdate);
                 const response = await vendorService?.updateVariants(
                     id,
                     editingVariant.id,
                     mapVariantToApiPayload({
-                        ...newVariant,
-                        approval_status: editingVariant.approval_status,
+                        ...onlyupdate,
+                        approval_status: "pending" || editingVariant.approval_status,
                     })
                 )
                 if (response.data.success) {
@@ -619,6 +630,7 @@ export default function EditProduct() {
             weightage: "g",
             size: "",
             is_default: false,
+            prescription_required: false,
             coverImage: null,
         });
         setErrors({});
@@ -653,6 +665,7 @@ export default function EditProduct() {
             weightage: variant.weightage,
             size: variant.size,
             is_default: variant.is_default,
+            prescription_required: variant.prescription_required,
             coverImage: variant.coverImage || (restoredGallery.find(img => img.is_cover) || restoredGallery[0]),
             calculation_mode: variant.calculation_mode || (priceType == "TP" ? "trade_price" : "selling_price"),
             taxes: variant.taxes || [
@@ -733,6 +746,8 @@ export default function EditProduct() {
     ];
 
     const getUpdatedFields = (current, original) => {
+        console.log(current, original);
+
         const result = {};
         Object.keys(current).forEach((key) => {
             if (EXCLUDED_KEYS.includes(key)) return;
@@ -1150,8 +1165,8 @@ export default function EditProduct() {
                                             <div className="col-variant">
                                                 <img
                                                     src={variant.coverImage?.media_url || variant.coverImage?.preview || "https://via.placeholder.com/50"}
-                                                    alt={variant.title}
-                                                    onError={(e) => e.target.src = "https://via.placeholder.com/50"}
+                                                    alt={variant.title || "Varient Image"}
+                                                // onError={(e) => e.target.src = "https://via.placeholder.com/50"}
                                                 />
                                                 <div>
                                                     <strong>{variant.title}</strong>
@@ -1487,6 +1502,17 @@ export default function EditProduct() {
                                             Set as Default Variant
                                         </label>
                                     </div>
+                                    <div className="form-group">
+                                        <label className="checkbox-label">
+                                            <input
+                                                type="checkbox"
+                                                name="prescription_required"
+                                                checked={variantForm.prescription_required}
+                                                onChange={handleVariantInputChange}
+                                            />
+                                            Prescription Required
+                                        </label>
+                                    </div>
                                 </div>
 
                                 {variantForm?.selling_price > 0 && (
@@ -1573,7 +1599,7 @@ export default function EditProduct() {
                     </div>
                 )
             }
-            
+
         </DashboardPageShell>
     );
 }

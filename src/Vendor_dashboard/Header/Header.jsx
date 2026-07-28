@@ -147,7 +147,7 @@ const Header = () => {
                     </nav>
                 </div>
 
-                <form className="vendor-header__search" onSubmit={handleSearch} role="search">
+                {/* <form className="vendor-header__search" onSubmit={handleSearch} role="search">
                     <Search size={16} className="vendor-header__search-icon" aria-hidden />
                     <input
                         type="search"
@@ -157,7 +157,7 @@ const Header = () => {
                         className="vendor-header__search-input ds-focus"
                         aria-label="Search products"
                     />
-                </form>
+                </form> */}
 
                 <div className="vendor-header__actions">
                     <button

@@ -111,6 +111,7 @@ export default function AddProduct() {
     weightage: "g",
     size: "",
     is_default: false,
+    prescription_required: false,
     coverImage: null,
     vendor_price: "",
     is_active: true
@@ -525,6 +526,7 @@ export default function AddProduct() {
         weightage: variantForm.weightage,
         size: variantForm.size,
         is_default: editingVariant ? variantForm.is_default : (variants.length === 0),
+        prescription_required: variantForm.prescription_required,
         coverImage: variantForm.coverImage,
         is_active: true,
         vendor_price: parseFloat(priceType == "TP" ? variantForm.selling_price : (Number(variantForm.selling_price) -
@@ -594,6 +596,7 @@ export default function AddProduct() {
       weightage: "g",
       size: "",
       is_default: false,
+      prescription_required: false,
       coverImage: null,
     });
     setErrors({});
@@ -608,12 +611,14 @@ export default function AddProduct() {
       preview: img.media_url, // Use existing URL as preview
       file: null, // No file object for existing images
     })) || [];
+    console.log(parseInt(variant.selling_price));
+
 
     setVariantForm({
       vendor_sku_code: variant.vendor_sku_code,
       title: variant.title,
       mrp: variant.mrp,
-      selling_price: variant.selling_price ? variant.selling_price.toFixed(2) : "",
+      selling_price: variant.selling_price ? parseInt(variant.selling_price)?.toFixed(2) : "",
       discount: variant.discount || "",
       cost_per_item: variant.cost_per_item || "",
       stock: variant.stock,
@@ -629,6 +634,7 @@ export default function AddProduct() {
       weightage: variant.weightage,
       size: variant.size,
       is_default: variant.is_default,
+      prescription_required: variant.prescription_required,
       coverImage: variant.coverImage || (restoredGallery.find(img => img.is_cover) || restoredGallery[0]),
       calculation_mode: variant.calculation_mode || (priceType == "TP" ? "trade_price" : "selling_price"),
       taxes: variant.taxes || [
@@ -684,6 +690,7 @@ export default function AddProduct() {
       id: Date.now(),
       vendor_sku_code: `${variant.vendor_sku_code}-COPY-${Date.now().toString().slice(-4)}`,
       is_default: false,
+      prescription_required: false,
       title: `${variant.title} (Copy)`,
       coverImage: variant.coverImage ? { ...variant.coverImage, id: Date.now() } : null,
       galleryImages: duplicatedGallery,
@@ -910,11 +917,11 @@ export default function AddProduct() {
                       ))}
                     </select>
                     {errors.product_subcategory_id && <span className="error-text">{errors.product_subcategory_id}</span>}
-                    {selectedSubcategory && (
+                    {/* {selectedSubcategory && (
                       <span className="field-note">
                         HSN: {selectedSubcategory.hsn_code || "—"} · Tax: {selectedSubcategory.tax_class_code || selectedSubcategory.tax_class_name || "—"}
                       </span>
-                    )}
+                    )} */}
                   </div>
                   <div className="form-group">
                     <label>BRAND NAME <span className="required">*</span></label>
@@ -1535,6 +1542,17 @@ export default function AddProduct() {
                       onChange={handleVariantInputChange}
                     />
                     Set as Default Variant
+                  </label>
+                </div>
+                <div className="form-group">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      name="prescription_required"
+                      checked={variantForm.prescription_required}
+                      onChange={handleVariantInputChange}
+                    />
+                    Prescription Required
                   </label>
                 </div>
               </div>

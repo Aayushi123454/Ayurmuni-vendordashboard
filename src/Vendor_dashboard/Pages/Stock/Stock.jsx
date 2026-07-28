@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import toast from "react-hot-toast";
 import {
     AlertTriangle,
@@ -170,17 +170,21 @@ function StockProductCard({ item, onEdit, onDelete, onBlocked }) {
     const accent = getProductCardAccent(item);
     const { date, time } = formatDateTime(item.updated_at);
     const canEdit = canManageStock(item);
-
     return (
         <article className={`stock-product-card stock-product-card--${accent} ds-animate-in`}>
             <div className="stock-product-card__header">
                 <div className="stock-product-card__title-wrap">
                     <div className="stock-product-icon">
+                        <img
+                            src={item.cover_image?.media_url}
+                            alt={item.media?.media_type || "Varient Image"}
+                        // onError={(e) => e.target.src = "https://via.placeholder.com/50"}
+                        />
                         <Package size={16} aria-hidden />
                     </div>
                     <div className="min-w-0">
-                        <p className="stock-product-name truncate">{item.product_name}</p>
-                        <p className="stock-product-variant truncate">{item.variant_title || "Default variant"}</p>
+                        <p className="stock-product-name truncate iv-product-name">{item.product_name}</p>
+                        <p className="stock-product-variant truncate iv-meta-value">{item.variant_title || "Default variant"}</p>
                     </div>
                 </div>
                 <StatusBadge status={health} label={STOCK_HEALTH_LABELS[health]} />
@@ -267,6 +271,12 @@ export default function StockManagement() {
     const [blockedItem, setBlockedItem] = useState(null);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [productsLoaded, setProductsLoaded] = useState(false);
+
+    // Cache refs to prevent redundant API calls
+    const productsCache = useRef(null);
+    const productsPromiseRef = useRef(null);
+    const fetchTimeoutRef = useRef(null);
 
     const hasActiveQuery = Boolean(search || productFilter);
 
@@ -275,69 +285,230 @@ export default function StockManagement() {
         [products]
     );
 
-    const fetchProducts = useCallback(async () => {
-        const normalized = await fetchAllVendorProducts(vendorService);
-        setProducts(normalized);
-        return normalized;
+    // --- FIX 1: Single source of truth for fetching products with caching ---
+    const fetchProducts = useCallback(async (forceRefresh = false) => {
+        // Return cached products if available and not forcing refresh
+        if (!forceRefresh && productsCache.current) {
+            return productsCache.current;
+        }
+
+        // Prevent multiple concurrent fetch attempts
+        if (productsPromiseRef.current && !forceRefresh) {
+            return productsPromiseRef.current;
+        }
+
+        productsPromiseRef.current = (async () => {
+            try {
+                const normalized = await fetchAllVendorProducts(vendorService);
+                productsCache.current = normalized;
+                setProducts(normalized);
+                setProductsLoaded(true);
+                return normalized;
+            } catch (error) {
+                console.error('Failed to fetch products:', error);
+                throw error;
+            } finally {
+                productsPromiseRef.current = null;
+            }
+        })();
+
+        return productsPromiseRef.current;
     }, []);
 
     const enrichRows = useCallback(async (results, productList, options = {}) => {
         return enrichInventoryWithApproval(results, productList, vendorService, options);
     }, []);
 
-    const fetchSummary = useCallback(async (productList) => {
+    // --- FIX 2: Combined data fetching to avoid multiple calls ---
+    const fetchAllData = useCallback(async (options = {}) => {
+        const { skipInventory = false, skipSummary = false, forceRefresh = false } = options;
+        
         try {
+            // Fetch products first (or get from cache)
+            const productList = await fetchProducts(forceRefresh);
+            
+            // Fetch inventory and summary in parallel
+            const promises = [];
+            
+            if (!skipInventory) {
+                promises.push(
+                    (async () => {
+                        try {
+                            const inventoryRes = await vendorService.getInventory({
+                                page,
+                                page_size: pageSize,
+                                search: search || undefined,
+                                product_id: productFilter || undefined,
+                            });
+                            const { results, count } = parseInventoryListResponse(inventoryRes);
+                            const enrichedItems = await enrichRows(results, productList, { verifyLive: true });
+                            return { items: enrichedItems, count };
+                        } catch (err) {
+                            const status = err?.response?.status;
+                            const message = err?.response?.data?.message || err.message || "Failed to load stock";
+                            setError(
+                                status === 403
+                                    ? message || "Your vendor account must be approved before managing inventory."
+                                    : message
+                            );
+                            throw err;
+                        }
+                    })()
+                );
+            }
+            
+            if (!skipSummary) {
+                promises.push(
+                    (async () => {
+                        try {
+                            setSummaryLoading(true);
+                            const response = await vendorService.getInventory({ page_size: 500 });
+                            const { results } = parseInventoryListResponse(response);
+                            const enrichedSummary = await enrichRows(results, productList);
+                            return enrichedSummary;
+                        } catch (error) {
+                            console.error('Failed to fetch summary:', error);
+                            return [];
+                        } finally {
+                            setSummaryLoading(false);
+                        }
+                    })()
+                );
+            }
+            
+            // Wait for all promises to resolve
+            const results = await Promise.allSettled(promises);
+            
+            // Process results
+            let inventoryResult = null;
+            let summaryResult = null;
+            
+            results.forEach((result, index) => {
+                if (result.status === 'fulfilled') {
+                    if (!skipInventory && index === 0) {
+                        inventoryResult = result.value;
+                    } else if (!skipSummary && (skipInventory ? index === 0 : index === 1)) {
+                        summaryResult = result.value;
+                    }
+                }
+            });
+            
+            // Update state
+            if (inventoryResult) {
+                setItems(inventoryResult.items);
+                setTotalCount(inventoryResult.count);
+            }
+            
+            if (summaryResult) {
+                setSummaryItems(summaryResult);
+            }
+            
+            return { inventory: inventoryResult, summary: summaryResult };
+            
+        } catch (error) {
+            console.error('Failed to fetch all data:', error);
+            throw error;
+        }
+    }, [page, pageSize, search, productFilter, fetchProducts, enrichRows]);
+
+    // --- FIX 3: Dedicated fetch functions that use the combined approach ---
+    const fetchInventory = useCallback(async () => {
+        setLoading(true);
+        setError("");
+        try {
+            await fetchAllData({ skipSummary: true });
+        } catch (error) {
+            console.error('Failed to fetch inventory:', error);
+        } finally {
+            setLoading(false);
+        }
+    }, [fetchAllData]);
+
+    const fetchSummary = useCallback(async () => {
+        try {
+            const productList = await fetchProducts();
             setSummaryLoading(true);
             const response = await vendorService.getInventory({ page_size: 500 });
             const { results } = parseInventoryListResponse(response);
-            setSummaryItems(await enrichRows(results, productList));
-        } catch {
+            const enrichedSummary = await enrichRows(results, productList);
+            setSummaryItems(enrichedSummary);
+        } catch (error) {
+            console.error('Failed to fetch summary:', error);
             setSummaryItems([]);
         } finally {
             setSummaryLoading(false);
         }
-    }, [enrichRows]);
+    }, [fetchProducts, enrichRows]);
 
-    const fetchInventory = useCallback(async () => {
+    // --- FIX 4: Combined reload function ---
+    const reloadAll = useCallback(async (forceRefresh = false) => {
+        setLoading(true);
+        setRefreshing(true);
+        setError("");
         try {
-            setLoading(true);
-            setError("");
-            const productList = products.length ? products : await fetchProducts();
-            const inventoryRes = await vendorService.getInventory({
-                page,
-                page_size: pageSize,
-                search: search || undefined,
-                product_id: productFilter || undefined,
-            });
-            const { results, count } = parseInventoryListResponse(inventoryRes);
-            setItems(await enrichRows(results, productList, { verifyLive: true }));
-            setTotalCount(count);
-        } catch (err) {
-            const status = err?.response?.status;
-            const message = err?.response?.data?.message || err.message || "Failed to load stock";
-            setError(
-                status === 403
-                    ? message || "Your vendor account must be approved before managing inventory."
-                    : message
-            );
+            await fetchAllData({ forceRefresh, skipSummary: false, skipInventory: false });
+        } catch (error) {
+            console.error('Failed to reload all data:', error);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
-    }, [page, pageSize, search, productFilter, products, fetchProducts, enrichRows]);
+    }, [fetchAllData]);
 
-    const reloadAll = useCallback(async () => {
-        const list = await fetchProducts();
-        await Promise.all([fetchSummary(list), fetchInventory()]);
-    }, [fetchProducts, fetchSummary, fetchInventory]);
-
+    // --- FIX 5: Optimized initial load ---
     useEffect(() => {
-        fetchProducts().then((list) => fetchSummary(list));
-    }, [fetchProducts, fetchSummary]);
+        let mounted = true;
+        
+        const initialLoad = async () => {
+            if (!mounted) return;
+            
+            try {
+                const productList = await fetchProducts();
+                if (mounted) {
+                    await fetchSummary();
+                }
+            } catch (error) {
+                console.error('Initial load failed:', error);
+                if (mounted) {
+                    setError('Failed to load initial data');
+                    setLoading(false);
+                }
+            }
+        };
+        
+        initialLoad();
+        
+        return () => {
+            mounted = false;
+            // Clear any pending timeouts
+            if (fetchTimeoutRef.current) {
+                clearTimeout(fetchTimeoutRef.current);
+            }
+        };
+    }, []); // Empty dependency array - run only once
 
+    // --- FIX 6: Debounced inventory fetch for search/filter changes ---
     useEffect(() => {
-        fetchInventory();
-    }, [fetchInventory]);
+        // Clear existing timeout
+        if (fetchTimeoutRef.current) {
+            clearTimeout(fetchTimeoutRef.current);
+        }
 
+        // Only fetch if products are loaded
+        if (productsLoaded) {
+            fetchTimeoutRef.current = setTimeout(() => {
+                fetchInventory();
+            }, 300); // Debounce search/filter changes
+        }
+        
+        return () => {
+            if (fetchTimeoutRef.current) {
+                clearTimeout(fetchTimeoutRef.current);
+            }
+        };
+    }, [page, pageSize, search, productFilter, productsLoaded, fetchInventory]);
+
+    // --- FIX 7: Handle editing item blocked check ---
     useEffect(() => {
         if (editingItem && !canManageStock(editingItem)) {
             setEditingItem(null);
@@ -346,12 +517,7 @@ export default function StockManagement() {
     }, [editingItem]);
 
     const handleRefresh = async () => {
-        setRefreshing(true);
-        try {
-            await reloadAll();
-        } finally {
-            setRefreshing(false);
-        }
+        await reloadAll(true); // Force refresh
     };
 
     const summary = useMemo(() => computeInventorySummary(summaryItems), [summaryItems]);
@@ -398,6 +564,7 @@ export default function StockManagement() {
         setEditQuantity(String(Math.max(0, value)));
     };
 
+    // --- FIX 8: Save quantity with optimistic update ---
     const saveQuantity = async () => {
         if (!editingItem) return;
 
@@ -412,31 +579,46 @@ export default function StockManagement() {
                 );
             } catch {
                 toast.error("Could not verify variant approval status. Please try again.");
+                setSaving(false);
                 return;
             }
 
             if (liveApproval !== "approved") {
                 setEditingItem(null);
                 showApprovalBlocked({ ...editingItem, approval_status: liveApproval });
-                await reloadAll();
+                await reloadAll(true);
+                setSaving(false);
                 return;
             }
 
             const quantity = Number(editQuantity);
             if (Number.isNaN(quantity) || quantity < 0) {
                 toast.error("Enter a valid quantity (0 or greater)");
+                setSaving(false);
                 return;
             }
             if (quantity === (editingItem.quantity ?? 0)) {
                 toast.error("Quantity is unchanged");
+                setSaving(false);
                 return;
             }
+
+            // Optimistic update
+            const optimisticItems = items.map(item => 
+                item.id === editingItem.id ? { ...item, quantity } : item
+            );
+            setItems(optimisticItems);
 
             await vendorService.updateInventory(editingItem.id, { quantity });
             toast.success("Stock updated successfully");
             setEditingItem(null);
-            await reloadAll();
+            
+            // Refresh data in background
+            await reloadAll(true);
         } catch (err) {
+            // Rollback optimistic update
+            await reloadAll(true);
+            
             if (isApprovalRelatedStockError(err)) {
                 setEditingItem(null);
                 showApprovalBlocked(editingItem);
@@ -449,15 +631,25 @@ export default function StockManagement() {
         }
     };
 
+    // --- FIX 9: Delete with optimistic update ---
     const confirmDelete = async () => {
         if (!deletingItem) return;
         try {
             setDeleting(true);
+            
+            // Optimistic delete
+            const optimisticItems = items.filter(item => item.id !== deletingItem.id);
+            setItems(optimisticItems);
+            
             await vendorService.deleteInventory(deletingItem.id);
             toast.success("Inventory record deleted");
             setDeletingItem(null);
-            await reloadAll();
+            
+            // Refresh data in background
+            await reloadAll(true);
         } catch (err) {
+            // Rollback optimistic delete
+            await reloadAll(true);
             toast.error(err?.response?.data?.message || "Failed to delete inventory");
         } finally {
             setDeleting(false);
@@ -505,54 +697,54 @@ export default function StockManagement() {
 
                 <div className="stock-toolbar-panel">
                     <div className="stock-toolbar-shell">
-                    <SearchToolbar
-                        className="stock-toolbar-search"
-                        value={searchInput}
-                        onChange={(e) => setSearchInput(e.target.value)}
-                        onSubmit={() => {
-                            setPage(1);
-                            setSearch(searchInput.trim());
-                        }}
-                        onClear={
-                            search || searchInput || productFilter
-                                ? () => {
-                                      setSearch("");
-                                      setSearchInput("");
-                                      setProductFilter("");
-                                      setStockFilter("all");
-                                      setPage(1);
-                                  }
-                                : undefined
-                        }
-                        placeholder="Search system SKU, vendor SKU, variant, or product name…"
-                    >
-                        <SelectFilter
-                            value={productFilter}
-                            onChange={(e) => {
-                                setProductFilter(e.target.value);
+                        <SearchToolbar
+                            className="stock-toolbar-search"
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            onSubmit={() => {
                                 setPage(1);
+                                setSearch(searchInput.trim());
                             }}
-                            options={productOptions}
-                            placeholder="All products"
-                            aria-label="Filter by product"
-                            className="w-[14rem] min-w-[10rem] max-w-[16rem]"
-                        />
-                    </SearchToolbar>
+                            onClear={
+                                search || searchInput || productFilter
+                                    ? () => {
+                                        setSearch("");
+                                        setSearchInput("");
+                                        setProductFilter("");
+                                        setStockFilter("all");
+                                        setPage(1);
+                                    }
+                                    : undefined
+                            }
+                            placeholder="Search system SKU, vendor SKU, variant, or product name…"
+                        >
+                            <SelectFilter
+                                value={productFilter}
+                                onChange={(e) => {
+                                    setProductFilter(e.target.value);
+                                    setPage(1);
+                                }}
+                                options={productOptions}
+                                placeholder="All products"
+                                aria-label="Filter by product"
+                                className="w-[14rem] min-w-[10rem] max-w-[16rem]"
+                            />
+                        </SearchToolbar>
 
-                    <div className="stock-filter-row">
-                        {STOCK_FILTERS.map((filter) => (
-                            <button
-                                key={filter.key}
-                                type="button"
-                                className={`stock-filter-chip ${stockFilter === filter.key ? "stock-filter-chip--active" : ""}`}
-                                onClick={() => setStockFilter(filter.key)}
-                            >
-                                {filter.label}
-                                <span className="stock-filter-count">{filterCounts[filter.key] ?? 0}</span>
-                            </button>
-                        ))}
-                        <span className="stock-filter-hint">Filters apply to the current page</span>
-                    </div>
+                        <div className="stock-filter-row">
+                            {STOCK_FILTERS.map((filter) => (
+                                <button
+                                    key={filter.key}
+                                    type="button"
+                                    className={`stock-filter-chip ${stockFilter === filter.key ? "stock-filter-chip--active" : ""}`}
+                                    onClick={() => setStockFilter(filter.key)}
+                                >
+                                    {filter.label}
+                                    <span className="stock-filter-count">{filterCounts[filter.key] ?? 0}</span>
+                                </button>
+                            ))}
+                            <span className="stock-filter-hint">Filters apply to the current page</span>
+                        </div>
                     </div>
                 </div>
 
@@ -681,13 +873,12 @@ export default function StockManagement() {
                                 <div className="stock-update-stat">
                                     <p className="stock-update-stat-label">Change</p>
                                     <p
-                                        className={`stock-update-stat-value ${
-                                            editDelta > 0
-                                                ? "stock-update-stat-value--delta-positive"
-                                                : editDelta < 0
-                                                  ? "stock-update-stat-value--delta-negative"
-                                                  : ""
-                                        }`}
+                                        className={`stock-update-stat-value ${editDelta > 0
+                                            ? "stock-update-stat-value--delta-positive"
+                                            : editDelta < 0
+                                                ? "stock-update-stat-value--delta-negative"
+                                                : ""
+                                            }`}
                                     >
                                         {editDelta > 0 ? "+" : ""}
                                         {editDelta}

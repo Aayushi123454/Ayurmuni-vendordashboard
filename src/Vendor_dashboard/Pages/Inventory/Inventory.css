@@ -454,12 +454,13 @@ body {
 /* ─── PRODUCT BLOCK ─── */
 .iv-product-block {
   background: var(--white);
-  border-radius: var(--radius);
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
   margin-bottom: 18px;
   overflow: hidden;
   transition: var(--transition);
+  padding: 1rem;
 }
 
 .iv-product-block:hover {
@@ -482,9 +483,9 @@ body {
 }
 
 .iv-product-avatar {
-  width: 64px;
-  height: 64px;
-  border-radius: var(--radius-md);
+  width: 50px;
+  height: 50px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -520,7 +521,7 @@ body {
 }
 
 .iv-product-name {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
   display: flex;
@@ -558,7 +559,7 @@ body {
   gap: 8px;
   font-size: 13px;
   color: #94a3b8;
-  margin-top: 6px;
+  margin-top: 0px;
   flex-wrap: wrap;
 }
 

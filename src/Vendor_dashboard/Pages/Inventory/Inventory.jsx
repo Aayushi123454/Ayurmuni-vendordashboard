@@ -101,7 +101,7 @@ function ProductBlock({ product, expanded, onToggle, onDelete }) {
         <div className="iv-product-info">
           <div className="iv-product-name">
             {product.name}
-            <span className={`iv-product-tag ${getTagClass(product)}`}>{getTagLabel(product)}</span>
+            {/* <span className={`iv-product-tag ${getTagClass(product)}`}>{getTagLabel(product)}</span> */}
           </div>
           <div className="iv-product-meta">
             <span className="iv-meta-label">Brand:</span>
@@ -128,14 +128,14 @@ function ProductBlock({ product, expanded, onToggle, onDelete }) {
           >
             <FaEdit size={16} />
           </Link>
-          <button
+          {/* <button
             type="button"
             className="rounded-lg border border-red-200 p-2 text-red-600 transition hover:bg-red-50"
             onClick={() => onDelete(product)}
             aria-label="Delete product"
           >
             <FiTrash2 size={16} />
-          </button>
+          </button> */}
         </div>
       </div>
 
