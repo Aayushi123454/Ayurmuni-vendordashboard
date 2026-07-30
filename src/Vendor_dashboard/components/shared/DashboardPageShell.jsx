@@ -8,18 +8,23 @@ export default function DashboardPageShell({
     actions,
     breadcrumbs = [],
     hidePageHeader = false,
+    compact = false,
     children,
-    contentClassName = "p-4 sm:p-6 lg:p-8",
+    contentClassName,
 }) {
-    const showTitle = !hidePageHeader && Boolean(title);
-    const showBreadcrumbs = !hidePageHeader && breadcrumbs.length > 0;
-    const showHeaderBar = showTitle || showBreadcrumbs || subtitle || actions;
+    const showTitle = !hidePageHeader && !compact && Boolean(title);
+    const showBreadcrumbs = !hidePageHeader && !compact && breadcrumbs.length > 0;
+    const showHeaderBar = compact
+        ? Boolean(actions)
+        : (showTitle || showBreadcrumbs || subtitle || actions);
+    const shellPadding = compact ? "px-4 py-2" : hidePageHeader ? "px-4 py-2 sm:px-5" : "px-4 sm:px-6 lg:px-8 py-5 lg:py-6";
+    const bodyClassName = contentClassName ?? (compact ? "px-4 py-3" : "p-4 sm:p-6 lg:p-8");
 
     return (
         <div className="min-h-screen bg-[#f5f5f5] ds-animate-in">
             {showHeaderBar && (
                 <div className="border-b border-gray-200 bg-white/95 backdrop-blur-sm sticky top-0 z-20 shadow-sm">
-                    <div className={`px-4 sm:px-6 lg:px-8 ${hidePageHeader ? "py-4" : "py-5 lg:py-6"}`}>
+                    <div className={shellPadding}>
                         {showBreadcrumbs && (
                             <nav className="mb-3 flex flex-wrap items-center gap-1 text-xs text-gray-500" aria-label="Breadcrumb">
                                 {breadcrumbs.map((crumb, index) => (
@@ -38,7 +43,7 @@ export default function DashboardPageShell({
                                 ))}
                             </nav>
                         )}
-                        <div className={`flex flex-wrap items-center gap-4 ${hidePageHeader ? "justify-between" : "justify-between"}`}>
+                        <div className={`flex flex-wrap items-center gap-4 ${compact ? "justify-end" : "justify-between"}`}>
                             {showTitle ? (
                                 <div className="min-w-0">
                                     <h1 className="text-xl sm:text-2xl font-bold text-gray-800 tracking-tight">
@@ -57,7 +62,7 @@ export default function DashboardPageShell({
                     </div>
                 </div>
             )}
-            <div className={`${contentClassName} ds-animate-in`}>{children}</div>
+            <div className={`${bodyClassName} ds-animate-in`}>{children}</div>
         </div>
     );
 }

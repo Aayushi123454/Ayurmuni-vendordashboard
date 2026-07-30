@@ -15,16 +15,31 @@ export function PageLoader({ message = "Loading..." }) {
     );
 }
 
-export function PageEmpty({ title, description, action, icon: Icon = Inbox }) {
+export function PageEmpty({ title, description, subtitle, action, icon: Icon = Inbox, className = "" }) {
+    const body = subtitle ?? description;
     return (
-        <div className="ds-card text-center py-14 px-6 ds-animate-in">
+        <div className={`ds-card text-center py-14 px-6 ds-animate-in ${className}`}>
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gray-50 flex items-center justify-center">
                 <Icon size={32} className="text-gray-300" strokeWidth={1.5} />
             </div>
             <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-            {description && <p className="text-gray-500 mt-2 max-w-md mx-auto text-sm leading-relaxed">{description}</p>}
+            {body && <p className="text-gray-500 mt-2 max-w-md mx-auto text-sm leading-relaxed">{body}</p>}
             {action && <div className="mt-6">{action}</div>}
         </div>
+    );
+}
+
+/** Alias — icon + title + subtitle empty state */
+export function EmptyState({ icon, title, subtitle, description, action, className }) {
+    return (
+        <PageEmpty
+            icon={icon}
+            title={title}
+            subtitle={subtitle}
+            description={description}
+            action={action}
+            className={className}
+        />
     );
 }
 

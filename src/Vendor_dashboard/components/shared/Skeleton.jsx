@@ -59,9 +59,9 @@ export function ProductListSkeleton({ count = 4 }) {
 
 export function MetricSkeleton({ count = 5 }) {
     return (
-        <div className="flex flex-wrap gap-5 ds-stagger">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 ds-stagger">
             {Array.from({ length: count }).map((_, i) => (
-                <div key={i} className="ds-card flex-1 min-w-[160px] p-5 space-y-3">
+                <div key={i} className="ds-card p-5 space-y-3">
                     <Skeleton className="h-8 w-8 rounded-lg" />
                     <Skeleton className="h-3 w-24" />
                     <Skeleton className="h-7 w-16" />

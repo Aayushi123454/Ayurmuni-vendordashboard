@@ -11,6 +11,10 @@ import {
 } from "lucide-react";
 import { vendorService } from "../../../services/vendorService";
 import { notificationService } from "../../../services/notificationService";
+import { reviewService } from "../../../services/reviewService";
+import { parseReviewsListResponse } from "../Ratings/ratingHelpers";
+import { parseFinanceMetricsResponse } from "../Finance/financeHelpers";
+import { formatCurrency } from "../Order/orderHelpers";
 import { PageError } from "../../components/shared/PageState";
 import { MetricSkeleton } from "../../components/shared/Skeleton";
 import image from "../../../Assests/image 4.png";
@@ -44,13 +48,15 @@ const Dashboard = () => {
     const [unreadCount, setUnreadCount] = useState(0);
     const [recentNotifications, setRecentNotifications] = useState([]);
     const [recentOrders, setRecentOrders] = useState([]);
+    const [recentReviews, setRecentReviews] = useState([]);
+    const [financeMetrics, setFinanceMetrics] = useState(null);
 
     const fetchDashboardData = useCallback(async () => {
         try {
             setLoading(true);
             setError("");
             const notifParams = new URLSearchParams({ view: "list", page: 1, page_size: 5 });
-            const [productsRes, inventoryRes, profileRes, notificationsRes, notifListRes, ordersRes] =
+            const [productsRes, inventoryRes, profileRes, notificationsRes, notifListRes, ordersRes, reviewsRes, financeRes] =
                 await Promise.all([
                     vendorService.getProducts({ page: 1, page_size: 100 }),
                     vendorService.getInventory({ page: 1, page_size: 100 }),
@@ -58,6 +64,8 @@ const Dashboard = () => {
                     notificationService.get({ view: "unread_count" }),
                     notificationService.get(notifParams),
                     vendorService.getOrders({ page: 1, page_size: 5 }).catch(() => null),
+                    reviewService.getVendorReviews({ page: 1, page_size: 5, sort: "newest" }).catch(() => null),
+                    vendorService.getFinanceMetrics({ details_limit: 5 }).catch(() => null),
                 ]);
 
             setProducts(productsRes.data?.data?.results || []);
@@ -72,6 +80,9 @@ const Dashboard = () => {
                 }))
             );
             setRecentOrders(ordersRes?.data?.data?.results || []);
+            const parsedReviews = parseReviewsListResponse(reviewsRes);
+            setRecentReviews(parsedReviews.results.slice(0, 5));
+            setFinanceMetrics(parseFinanceMetricsResponse(financeRes));
         } catch (err) {
             setError(err?.response?.data?.message || err.message || "Failed to load dashboard");
         } finally {
@@ -304,12 +315,10 @@ const Dashboard = () => {
                             variant="muted"
                             icon={ShoppingBag}
                             label="Orders"
-                            value="—"
-                            subtitle="Order management"
-                            badge="Soon"
-                            disabled
+                            value={recentOrders.length > 0 ? recentOrders.length : "0"}
+                            subtitle="Recent order activity"
                             onAction={() => navigate("/vendor/orders")}
-                            actionLabel="Preview"
+                            actionLabel="Orders"
                         />
                     </div>
                     <div className="col-span-12 sm:col-span-6 xl:col-span-3">
@@ -317,11 +326,15 @@ const Dashboard = () => {
                             variant="soft"
                             icon={IndianRupee}
                             label="Revenue"
-                            value="—"
-                            subtitle="Financial overview"
-                            badge="Soon"
-                            disabled
+                            value={formatCurrency(financeMetrics?.total_revenue?.value ?? 0)}
+                            subtitle="Delivered order revenue"
+                            trend={
+                                financeMetrics?.total_revenue?.trend_percent != null
+                                    ? `${financeMetrics.total_revenue.trend_percent > 0 ? "+" : ""}${financeMetrics.total_revenue.trend_percent}% vs last month`
+                                    : undefined
+                            }
                             onAction={() => navigate("/vendor/finance")}
+                            actionLabel="Finance"
                         />
                     </div>
                     <div className="col-span-12 sm:col-span-6 xl:col-span-3">
@@ -384,6 +397,7 @@ const Dashboard = () => {
                             <DashboardRightPanel
                                 notifications={recentNotifications}
                                 recentOrders={recentOrders}
+                                recentReviews={recentReviews}
                                 lowStockItems={lowStockPanelItems}
                                 pendingVariants={pendingPanelVariants}
                                 approvalStatus={stats.approvalStatus}

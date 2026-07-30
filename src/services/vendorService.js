@@ -127,6 +127,15 @@ export const vendorService = {
     getOrdersSummary: () =>
         API.get("/vendors/orders/summary/"),
 
+    getFinanceMetrics: (params = {}) =>
+        API.get(`/vendors/finance/metrics/${buildQuery(params)}`),
+
+    getFinanceTransactions: (params = {}) =>
+        API.get(`/vendors/finance/transactions/${buildQuery(params)}`),
+
+    getWalletTransactions: (params = {}) =>
+        API.get(`/vendors/finance/wallet/transactions/${buildQuery(params)}`),
+
     // delete Product list detail
     deleteVariants: async (id, vid) => {
         try {

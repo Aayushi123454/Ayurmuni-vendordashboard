@@ -14,8 +14,8 @@ const MENU_ITEMS = [
   // { name: "Banners", icon: Image, path: "/vendor/banners" },
   // { name: "Catalog", icon: BookOpen, path: "/vendor/catalog" },
   { name: "Orders", icon: ShoppingCart, path: "/vendor/orders", match: ["/vendor/orders"] },
-  { name: "Finance", icon: Wallet, path: "/vendor/finance", soon: true },
-  { name: "Ratings", icon: Star, path: "/vendor/ratings", soon: true },
+  { name: "Finance", icon: Wallet, path: "/vendor/finance" },
+  { name: "Ratings", icon: Star, path: "/vendor/ratings" },
 ];
 
 const GENERAL_ITEMS = [

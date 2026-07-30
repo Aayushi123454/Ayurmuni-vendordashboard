@@ -230,11 +230,9 @@ export default function Order() {
 
     return (
         <DashboardPageShell
-            title="Orders"
-            accent="Management"
-            subtitle="View customer orders that include your products."
-            breadcrumbs={[]}
-            contentClassName="order-page-content p-4 sm:p-6 lg:p-8"
+            compact
+            hidePageHeader
+            contentClassName="order-page-content"
             actions={
                 <Button
                     variant="secondary"

@@ -41,6 +41,7 @@ function EmptyPanel({ message }) {
 export default function DashboardRightPanel({
     notifications = [],
     recentOrders = [],
+    recentReviews = [],
     lowStockItems = [],
     pendingVariants = [],
     approvalStatus,
@@ -165,10 +166,40 @@ export default function DashboardRightPanel({
             </PanelCard>
 
             <PanelCard title="Recent Reviews" action={() => onNavigate("/vendor/ratings")}>
-                <div className="flex flex-col items-center py-3 text-center">
-                    <Star size={20} className="text-gray-300 mb-2" />
-                    <p className="text-sm text-gray-500">Reviews coming soon</p>
-                </div>
+                {recentReviews.length > 0 ? (
+                    <ul className="space-y-3">
+                        {recentReviews.slice(0, 4).map((review) => (
+                            <li
+                                key={review.id}
+                                className="flex gap-3 group cursor-pointer"
+                                onClick={() => onNavigate("/vendor/ratings")}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        onNavigate("/vendor/ratings");
+                                    }
+                                }}
+                            >
+                                <div className="h-8 w-8 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+                                    <Star size={14} className="text-amber-500 fill-amber-500" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-medium text-gray-800 truncate group-hover:text-[#0D614E] transition-colors">
+                                        {review.reviewer_name || "Customer"}
+                                    </p>
+                                    <p className="text-xs text-gray-400 mt-0.5 truncate">
+                                        {review.product_name || "Product"}
+                                        {review.rating != null ? ` · ${review.rating}★` : ""}
+                                    </p>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <EmptyPanel message="No reviews yet" />
+                )}
             </PanelCard>
 
             <PanelCard title="Quick Links">
