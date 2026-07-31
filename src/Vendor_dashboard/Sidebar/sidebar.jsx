@@ -20,7 +20,6 @@ import {
   Settings,
   BarChart3,
   FileText,
-  Users,
   Tag,
 } from "lucide-react";
 
@@ -35,12 +34,11 @@ const MENU_ITEMS = [
   { name: "Stock Management", icon: Layers, path: "/vendor/stock" },
   { name: "Banners", icon: Image, path: "/vendor/banners" },
   { name: "Catalog", icon: BookOpen, path: "/vendor/catalog" },
-  { name: "Orders", icon: ShoppingCart, path: "/vendor/orders", match: ["/vendor/orders"] },
+  { name: "Orders", icon: ShoppingCart, path: "/vendor/orders", match: ["/vendor/orders", "/vendor/customers"] },
   { name: "Finance", icon: Wallet, path: "/vendor/finance", match: ["/vendor/finance"], soon: true },
   { name: "Ratings", icon: Star, path: "/vendor/ratings" },
   { name: "Analytics", icon: BarChart3, path: "/vendor/analytics", soon: true },
-  { name: "Customers", icon: Users, path: "/vendor/customers", match: ["/vendor/customers"] },
-  { name: "Coupons", icon: Tag, path: "/vendor/coupons" },
+  { name: "Coupons", icon: Tag, path: "/vendor/coupons", soon: true },
   { name: "Reports", icon: FileText, path: "/vendor/reports" },
 ];
 

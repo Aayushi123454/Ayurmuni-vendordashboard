@@ -1,21 +1,18 @@
 import API from "./api";
-import { getMockCustomers, getMockCustomer } from "../Vendor_dashboard/mocks/customers";
 
-const USE_MOCKS = process.env.REACT_APP_USE_MOCKS !== "false";
+const buildQuery = (params = {}) => {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      search.append(key, value);
+    }
+  });
+  const query = search.toString();
+  return query ? `?${query}` : "";
+};
 
 export const customerService = {
-  list: async (params = {}) => {
-    if (USE_MOCKS) {
-      return { data: { success: true, data: getMockCustomers(params) } };
-    }
-    return API.get("/vendors/customers/", { params });
-  },
+  list: (params = {}) => API.get(`/vendors/customers/${buildQuery(params)}`),
 
-  get: async (id) => {
-    if (USE_MOCKS) {
-      const customer = getMockCustomer(id);
-      return { data: { success: true, data: customer } };
-    }
-    return API.get(`/vendors/customers/?id=${id}`);
-  },
+  get: (id) => API.get(`/vendors/customers/${buildQuery({ id })}`),
 };

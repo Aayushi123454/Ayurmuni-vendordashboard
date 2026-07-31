@@ -23,7 +23,6 @@ const MORE_ITEMS = [
   { name: "Categories", path: "/vendor/categories" },
   { name: "Brands", path: "/vendor/brands" },
   { name: "Banners", path: "/vendor/banners" },
-  { name: "Customers", path: "/vendor/customers" },
   { name: "Coupons", path: "/vendor/coupons" },
   { name: "Ratings", path: "/vendor/ratings" },
   { name: "Reports", path: "/vendor/reports" },

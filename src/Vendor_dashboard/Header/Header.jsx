@@ -23,7 +23,6 @@ const VENDOR_TITLES = {
     "/vendor/finance": "Finance",
     "/vendor/analytics": "Analytics",
     "/vendor/reports": "Reports",
-    "/vendor/customers": "Customers",
     "/vendor/coupons": "Coupons",
     "/vendor/ratings": "Ratings",
     "/vendor/notifications": "Notifications",
@@ -36,6 +35,7 @@ const VENDOR_TITLES = {
 function resolveVendorTitle(pathname) {
     if (pathname.startsWith("/vendor/edit-product")) return "Edit Product";
     if (pathname.startsWith("/vendor/orders/")) return "Order Detail";
+    if (pathname.startsWith("/vendor/customers/")) return "Customer Detail";
     return VENDOR_TITLES[pathname] || "Vendor Portal";
 }
 

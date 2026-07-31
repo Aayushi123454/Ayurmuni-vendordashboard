@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
     CheckCircle2,
     Clock3,
     Package,
     RefreshCw,
     ShoppingCart,
+    Users,
     XCircle,
 } from "lucide-react";
 import { vendorService } from "../../../services/vendorService";
@@ -35,8 +36,14 @@ import {
     parseOrdersListResponse,
     parseOrdersSummaryResponse,
 } from "./orderHelpers";
+import OrderCustomersPanel from "./OrderCustomersPanel";
 import "../../components/shared/vendor-shared.css";
 import "./Order.css";
+
+const ORDER_VIEWS = [
+    { id: "orders", label: "Orders", icon: ShoppingCart },
+    { id: "customers", label: "Customers", icon: Users },
+];
 
 const COLUMNS = [
     { key: "order", label: "Order" },
@@ -101,6 +108,9 @@ function OrdersKpiSection({ summary, loading, onStatusSelect }) {
 
 export default function Order() {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const activeView = searchParams.get("view") === "customers" ? "customers" : "orders";
+    const [customersRefreshToken, setCustomersRefreshToken] = useState(0);
     const [items, setItems] = useState([]);
     const [totalCount, setTotalCount] = useState(0);
     const [summary, setSummary] = useState(EMPTY_ORDER_SUMMARY);
@@ -198,9 +208,21 @@ export default function Order() {
     const handleRefresh = async () => {
         setRefreshing(true);
         try {
-            await reloadAll();
+            if (activeView === "customers") {
+                setCustomersRefreshToken((n) => n + 1);
+            } else {
+                await reloadAll();
+            }
         } finally {
             setRefreshing(false);
+        }
+    };
+
+    const setActiveView = (viewId) => {
+        if (viewId === "customers") {
+            setSearchParams({ view: "customers" }, { replace: true });
+        } else {
+            setSearchParams({}, { replace: true });
         }
     };
 
@@ -237,8 +259,8 @@ export default function Order() {
                 <Button
                     variant="secondary"
                     onClick={handleRefresh}
-                    loading={refreshing}
-                    disabled={loading}
+                    loading={refreshing && activeView === "orders"}
+                    disabled={loading && activeView === "orders"}
                     className="!text-sm"
                 >
                     {!refreshing && <RefreshCw size={16} />}
@@ -246,6 +268,26 @@ export default function Order() {
                 </Button>
             }
         >
+            <div className="order-view-tabs" role="tablist" aria-label="Orders and customers">
+                {ORDER_VIEWS.map(({ id, label, icon: Icon }) => (
+                    <button
+                        key={id}
+                        type="button"
+                        role="tab"
+                        aria-selected={activeView === id}
+                        className={`order-view-tab ${activeView === id ? "order-view-tab--active" : ""}`}
+                        onClick={() => setActiveView(id)}
+                    >
+                        <Icon size={16} aria-hidden />
+                        {label}
+                    </button>
+                ))}
+            </div>
+
+            {activeView === "customers" ? (
+                <OrderCustomersPanel refreshToken={customersRefreshToken} />
+            ) : (
+                <>
             <OrdersKpiSection
                 summary={summary}
                 loading={summaryLoading}
@@ -422,6 +464,8 @@ export default function Order() {
                         itemLabel="items"
                     />
                 </TableCard>
+            )}
+                </>
             )}
         </DashboardPageShell>
     );

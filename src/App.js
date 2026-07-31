@@ -52,9 +52,7 @@ const Unauthorized = lazy(() => import("./Vendor_dashboard/Pages/Unauthorized/Un
 const ProductDetail = lazy(() => import("./Vendor_dashboard/Pages/Inventory/ProductDetail/ProductDetail"));
 const UnavailableFeature = lazy(() => import("./Vendor_dashboard/Pages/Unavailable/UnavailableFeature"));
 const VendorReports = lazy(() => import("./Vendor_dashboard/Pages/Reports/Reports"));
-const VendorCustomers = lazy(() => import("./Vendor_dashboard/Pages/Customers/Customers"));
 const CustomerDetail = lazy(() => import("./Vendor_dashboard/Pages/Customers/CustomerDetail"));
-const VendorCoupons = lazy(() => import("./Vendor_dashboard/Pages/Coupons/Coupons"));
 const VendorSettings = lazy(() => import("./Vendor_dashboard/Pages/Settings/Settings"));
 
 const ComingSoonFinance = () => (
@@ -70,6 +68,14 @@ const ComingSoonAnalytics = () => (
     title="Analytics"
     description="Sales and performance insights will be available here."
     backendNote="Analytics is coming soon. Charts and reports will appear once this module is enabled."
+  />
+);
+
+const ComingSoonCoupons = () => (
+  <UnavailableFeature
+    title="Coupons"
+    description="Create and manage discount codes for your store."
+    backendNote="Coupons is coming soon. We'll enable this section once coupon APIs are ready."
   />
 );
 
@@ -214,9 +220,9 @@ function App() {
                 <Route path="finance/withdrawals" element={<ComingSoonFinance />} />
                 <Route path="analytics" element={<ComingSoonAnalytics />} />
                 <Route path="reports" element={<VendorReports />} />
-                <Route path="customers" element={<VendorCustomers />} />
+                <Route path="customers" element={<Navigate to="/vendor/orders?view=customers" replace />} />
                 <Route path="customers/:id" element={<CustomerDetail />} />
-                <Route path="coupons" element={<VendorCoupons />} />
+                <Route path="coupons" element={<ComingSoonCoupons />} />
                 <Route path="ratings" element={<VendorRatings />} />
                 <Route path="help-support" element={<VendorHelpSupport />} />
                 <Route path="settings" element={<VendorSettings />} />

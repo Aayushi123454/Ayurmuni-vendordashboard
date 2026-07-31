@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Users, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
-import toast from "react-hot-toast";
 import { customerService } from "../../../services/customerService";
+import {
+  customerStatusClassName,
+  formatCustomerStatusLabel,
+  parseCustomersListResponse,
+} from "./customerHelpers";
 
 const Customers = () => {
   const navigate = useNavigate();
@@ -17,12 +21,17 @@ const Customers = () => {
   const fetchCustomers = useCallback(async () => {
     try {
       setIsLoading(true);
-      const res = await customerService.list({ page, page_size: pageSize, search });
-      const data = res.data?.data || {};
-      setCustomers(data.results || []);
-      setCount(data.count || 0);
-    } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to load customers");
+      const response = await customerService.list({
+        page,
+        page_size: pageSize,
+        search: search || undefined,
+      });
+      const parsed = parseCustomersListResponse(response);
+      setCustomers(parsed.results);
+      setCount(parsed.count);
+    } catch {
+      setCustomers([]);
+      setCount(0);
     } finally {
       setIsLoading(false);
     }
@@ -56,10 +65,6 @@ const Customers = () => {
       </div>
 
       <div className="p-4 sm:p-6 lg:p-8">
-        <div className="mb-4 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
-          Customer APIs are not available yet. Showing mock data until backend is ready.
-        </div>
-
         <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm mb-6">
           <form
             className="flex flex-wrap gap-3"
@@ -96,7 +101,11 @@ const Customers = () => {
           <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
             <Users size={40} className="mx-auto text-gray-300 mb-3" />
             <h3 className="text-lg font-semibold text-gray-800">No customers found</h3>
-            <p className="text-sm text-gray-500 mt-1">Customers will appear here once orders are placed.</p>
+            <p className="text-sm text-gray-500 mt-1">
+              {search
+                ? "Try a different search term."
+                : "Customers will appear here once orders are placed."}
+            </p>
           </div>
         ) : (
           <>
@@ -119,15 +128,19 @@ const Customers = () => {
                         onClick={() => navigate(`/vendor/customers/${c.id}`)}
                         className="hover:bg-[#0D614E]/[0.03] cursor-pointer transition"
                       >
-                        <td className="px-5 py-3.5 text-sm font-medium text-gray-800">{c.name}</td>
-                        <td className="px-5 py-3.5 text-sm text-gray-600">{c.email}</td>
-                        <td className="px-5 py-3.5 text-sm text-gray-700">{c.orders_count}</td>
+                        <td className="px-5 py-3.5 text-sm font-medium text-gray-800">
+                          {c.name || "—"}
+                        </td>
+                        <td className="px-5 py-3.5 text-sm text-gray-600">{c.email || "—"}</td>
+                        <td className="px-5 py-3.5 text-sm text-gray-700">{c.orders_count ?? 0}</td>
                         <td className="px-5 py-3.5 text-sm text-gray-700">
-                          ₹{c.lifetime_value?.toLocaleString("en-IN")}
+                          ₹{(c.lifetime_value ?? 0).toLocaleString("en-IN")}
                         </td>
                         <td className="px-5 py-3.5">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700">
-                            Active
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${customerStatusClassName(c.status)}`}
+                          >
+                            {formatCustomerStatusLabel(c.status)}
                           </span>
                         </td>
                       </tr>
@@ -139,7 +152,7 @@ const Customers = () => {
 
             <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
               <span>
-                Page {page} of {totalPages}
+                Page {page} of {totalPages} · {count} customer{count === 1 ? "" : "s"}
               </span>
               <div className="flex gap-2">
                 <button
