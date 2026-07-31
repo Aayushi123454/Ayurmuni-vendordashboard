@@ -76,7 +76,7 @@ export default function PremiumKPICard({
 
     return (
         <article
-            className={`group relative rounded-2xl p-5 overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${v.shell} ${disabled ? "opacity-75" : ""} ${className}`}
+            className={`group relative flex h-full flex-col rounded-2xl p-5 overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${v.shell} ${disabled ? "opacity-75" : ""} ${className}`}
         >
             {variant === "hero" && (
                 <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl pointer-events-none" />
@@ -114,7 +114,7 @@ export default function PremiumKPICard({
                 {subtitle && <p className={`mt-1 text-sm ${v.label}`}>{subtitle}</p>}
             </div>
 
-            <div className="relative mt-3 flex items-end justify-between gap-3">
+            <div className="relative mt-auto flex items-end justify-between gap-3 pt-3">
                 {trend && (
                     <div className={`flex items-center gap-1 text-xs font-medium ${trendDirection === "down" ? v.trendDown : v.trend}`}>
                         <TrendIcon size={14} />

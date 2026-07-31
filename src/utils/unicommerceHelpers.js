@@ -40,6 +40,28 @@ export function getVariantQuantity(variant) {
   return Number(value) || 0;
 }
 
+/** Resolve variant cover image URL from common API shapes. */
+export function getVariantCoverImageUrl(variant) {
+  if (!variant) return null;
+
+  const cover = variant.cover_image || variant.coverImage;
+  if (typeof cover === "string" && cover) return cover;
+  if (cover?.media_url) return cover.media_url;
+  if (cover?.url) return cover.url;
+  if (cover?.preview) return cover.preview;
+
+  const media = variant.media || [];
+  const coverMedia = media.find((m) => m?.is_cover) || media[0];
+  if (coverMedia?.media_url) return coverMedia.media_url;
+  if (coverMedia?.url) return coverMedia.url;
+  if (typeof coverMedia === "string") return coverMedia;
+
+  if (variant.image_url) return variant.image_url;
+  if (variant.image) return typeof variant.image === "string" ? variant.image : variant.image?.media_url;
+
+  return null;
+}
+
 export function mapVariantFromApi(variant) {
   if (!variant) return variant;
   return {

@@ -15,6 +15,7 @@ import { reviewService } from "../../../services/reviewService";
 import { parseReviewsListResponse } from "../Ratings/ratingHelpers";
 import { parseFinanceMetricsResponse } from "../Finance/financeHelpers";
 import { formatCurrency } from "../Order/orderHelpers";
+import { getVariantCoverImageUrl } from "../../../utils/unicommerceHelpers";
 import { PageError } from "../../components/shared/PageState";
 import { MetricSkeleton } from "../../components/shared/Skeleton";
 import image from "../../../Assests/image 4.png";
@@ -214,15 +215,16 @@ const Dashboard = () => {
 
     const recentProducts = useMemo(() => {
         return products.slice(0, 12).map((product) => {
-            const variant = product.variants?.[0];
-            const stock = variant?.quantity ?? variant?.stock ?? 0;
+            const variantWithImage =
+                (product.variants || []).find((v) => getVariantCoverImageUrl(v)) || product.variants?.[0];
+            const stock = variantWithImage?.quantity ?? variantWithImage?.stock ?? 0;
             return {
                 id: product.id,
                 name: product.name,
-                price: variant?.selling_price || variant?.mrp || 0,
+                price: variantWithImage?.selling_price || variantWithImage?.mrp || 0,
                 stock,
-                status: variant?.approval_status || "pending",
-                image: variant?.cover_image?.media_url || variant?.media?.[0]?.media_url || image,
+                status: variantWithImage?.approval_status || "pending",
+                image: getVariantCoverImageUrl(variantWithImage) || image,
             };
         });
     }, [products]);
@@ -282,8 +284,8 @@ const Dashboard = () => {
                 />
 
                 {/* Section 2 — KPI Cards */}
-                <section className="grid grid-cols-12 gap-4 lg:gap-5">
-                    <div className="col-span-12 sm:col-span-6 xl:col-span-4">
+                <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 lg:gap-5">
+                    <div className="h-full">
                         <PremiumKPICard
                             variant="hero"
                             icon={Package}
@@ -296,7 +298,7 @@ const Dashboard = () => {
                             actionLabel="Catalog"
                         />
                     </div>
-                    <div className="col-span-12 sm:col-span-6 xl:col-span-4">
+                    <div className="h-full">
                         <PremiumKPICard
                             variant="accent"
                             icon={Layers}
@@ -310,7 +312,7 @@ const Dashboard = () => {
                             actionLabel="Stock"
                         />
                     </div>
-                    <div className="col-span-12 sm:col-span-6 xl:col-span-4">
+                    <div className="h-full sm:col-span-2 xl:col-span-1">
                         <PremiumKPICard
                             variant="muted"
                             icon={ShoppingBag}
@@ -321,7 +323,10 @@ const Dashboard = () => {
                             actionLabel="Orders"
                         />
                     </div>
-                    <div className="col-span-12 sm:col-span-6 xl:col-span-3">
+                </section>
+
+                <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 lg:gap-5">
+                    <div className="h-full">
                         <PremiumKPICard
                             variant="soft"
                             icon={IndianRupee}
@@ -337,7 +342,7 @@ const Dashboard = () => {
                             actionLabel="Finance"
                         />
                     </div>
-                    <div className="col-span-12 sm:col-span-6 xl:col-span-3">
+                    <div className="h-full">
                         <PremiumKPICard
                             variant="alert"
                             icon={Clock}
@@ -350,7 +355,7 @@ const Dashboard = () => {
                             onAction={() => navigate("/vendor/products")}
                         />
                     </div>
-                    <div className="col-span-12 sm:col-span-6 xl:col-span-3">
+                    <div className="h-full">
                         <PremiumKPICard
                             variant="soft"
                             icon={Bell}
@@ -362,7 +367,7 @@ const Dashboard = () => {
                             onAction={() => navigate("/vendor/notifications")}
                         />
                     </div>
-                    <div className="col-span-12 sm:col-span-6 xl:col-span-3">
+                    <div className="h-full">
                         <PremiumKPICard
                             variant="accent"
                             icon={Box}

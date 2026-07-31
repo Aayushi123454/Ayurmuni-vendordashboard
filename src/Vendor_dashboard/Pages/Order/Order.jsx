@@ -232,7 +232,7 @@ export default function Order() {
         <DashboardPageShell
             compact
             hidePageHeader
-            contentClassName="order-page-content"
+            contentClassName="vendor-page-content order-page-content"
             actions={
                 <Button
                     variant="secondary"

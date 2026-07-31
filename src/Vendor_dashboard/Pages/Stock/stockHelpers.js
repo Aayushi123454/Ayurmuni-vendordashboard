@@ -1,5 +1,6 @@
 import {
     canUpdateVariantQuantity,
+    getVariantCoverImageUrl,
     isVariantApproved,
 } from "../../../utils/unicommerceHelpers";
 
@@ -57,18 +58,39 @@ export function buildVariantApprovalMap(products = []) {
     return map;
 }
 
+/** Map variant_id → cover image URL from product list. */
+export function buildVariantCoverImageMap(products = []) {
+    const map = {};
+    products.forEach((product) => {
+        (product.variants || []).forEach((variant) => {
+            const key = normalizeVariantId(variant?.id);
+            const url = getVariantCoverImageUrl(variant);
+            if (key && url) {
+                map[key] = url;
+            }
+        });
+    });
+    return map;
+}
+
 export function registerVariantApproval(map, variant) {
     const key = normalizeVariantId(variant?.id);
     if (!key) return map;
     return { ...map, [key]: variant.approval_status || "pending" };
 }
 
-export function enrichInventoryRows(results = [], approvalByVariantId = {}) {
+export function enrichInventoryRows(results = [], approvalByVariantId = {}, coverByVariantId = {}) {
     return results.map((item) => {
         const key = normalizeVariantId(item.variant_id);
+        const coverUrl =
+            coverByVariantId[key] ||
+            getVariantCoverImageUrl(item) ||
+            item.cover_image?.media_url ||
+            null;
         return {
             ...item,
-            approval_status: approvalByVariantId[key] || "pending",
+            approval_status: approvalByVariantId[key] || item.approval_status || "pending",
+            cover_image_url: coverUrl,
         };
     });
 }
@@ -84,23 +106,40 @@ export async function enrichInventoryWithApproval(
     { verifyLive = false } = {}
 ) {
     let approvalMap = buildVariantApprovalMap(productList);
-    approvalMap = await resolveMissingVariantApprovals(inventoryRows, approvalMap, vendorService);
-    let rows = enrichInventoryRows(inventoryRows, approvalMap);
+    let coverMap = buildVariantCoverImageMap(productList);
+    const resolved = await resolveMissingVariantDetails(inventoryRows, approvalMap, coverMap, vendorService);
+    approvalMap = resolved.approvalMap;
+    coverMap = resolved.coverMap;
+    let rows = enrichInventoryRows(inventoryRows, approvalMap, coverMap);
     if (verifyLive) {
         rows = await verifyInventoryRowApprovals(rows, vendorService);
     }
     return rows;
 }
 
-export async function resolveMissingVariantApprovals(inventoryRows, approvalMap, vendorService) {
-    let map = { ...approvalMap };
+/**
+ * Fetch variant detail once for rows missing approval and/or cover image.
+ * Uses GET /vendors/product/?id=&variant_id=
+ */
+export async function resolveMissingVariantDetails(
+    inventoryRows,
+    approvalMap,
+    coverMap,
+    vendorService
+) {
+    let nextApproval = { ...approvalMap };
+    let nextCover = { ...coverMap };
+
     const missing = inventoryRows.filter((row) => {
         const key = normalizeVariantId(row.variant_id);
-        return key && map[key] == null;
+        if (!key) return false;
+        const needsApproval = nextApproval[key] == null;
+        const needsCover = !nextCover[key] && !getVariantCoverImageUrl(row) && !row.cover_image?.media_url;
+        return needsApproval || needsCover;
     });
 
     if (!missing.length) {
-        return map;
+        return { approvalMap: nextApproval, coverMap: nextCover };
     }
 
     const seen = new Set();
@@ -114,17 +153,31 @@ export async function resolveMissingVariantApprovals(inventoryRows, approvalMap,
                 const response = await vendorService.getSingleProduct(row.product_id, row.variant_id);
                 const variant = response?.data?.data;
                 if (variant?.id) {
-                    map = registerVariantApproval(map, variant);
-                } else {
-                    map[variantKey] = "pending";
+                    nextApproval = registerVariantApproval(nextApproval, variant);
+                    const url = getVariantCoverImageUrl(variant);
+                    if (url) nextCover[variantKey] = url;
+                } else if (nextApproval[variantKey] == null) {
+                    nextApproval[variantKey] = "pending";
                 }
             } catch {
-                map[variantKey] = "pending";
+                if (nextApproval[variantKey] == null) {
+                    nextApproval[variantKey] = "pending";
+                }
             }
         })
     );
 
-    return map;
+    return { approvalMap: nextApproval, coverMap: nextCover };
+}
+
+export async function resolveMissingVariantApprovals(inventoryRows, approvalMap, vendorService) {
+    const { approvalMap: next } = await resolveMissingVariantDetails(
+        inventoryRows,
+        approvalMap,
+        {},
+        vendorService
+    );
+    return next;
 }
 
 /** Authoritative pre-save check against backend variant record. */

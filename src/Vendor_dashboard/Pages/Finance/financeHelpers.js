@@ -1,4 +1,12 @@
-import { formatCount, formatCurrencyStat, formatRateStat, hasFinanceActivity } from "../../components/shared/statFormatters";
+import {
+    formatCount,
+    formatCurrencyStat,
+    formatRateStat,
+    hasFinanceActivity,
+} from "../../components/shared/statFormatters";
+
+// Re-export shared formatters used by Finance.jsx
+export { formatCount, formatCurrencyStat, hasFinanceActivity };
 
 export const FINANCE_STATUS_FILTERS = [
     { key: "all", label: "All Statuses" },
@@ -201,5 +209,3 @@ export function exportTransactionsToCsv(transactions, filename = "finance-transa
     link.click();
     URL.revokeObjectURL(url);
 }
-
-export { formatCount, formatCurrencyStat, hasFinanceActivity };

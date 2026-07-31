@@ -577,7 +577,7 @@ export default function Ratings() {
         <DashboardPageShell
             compact
             hidePageHeader
-            contentClassName="p-4 md:p-5 bg-gray-50 min-h-full"
+            contentClassName="vendor-page-content bg-gray-50 min-h-full"
             actions={
                 <Button variant="secondary" onClick={() => reload(true)} loading={refreshing} disabled={loading && !reviews.length}>
                     {!refreshing && <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />}

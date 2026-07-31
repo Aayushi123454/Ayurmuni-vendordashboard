@@ -2,7 +2,6 @@
     background: var(--ds-bg-page, #f5f5f5);
     min-height: 100%;
     width: 100%;
-    padding: 0.75rem 1rem;
 }
 
 .order-page-content .order-kpi-grid {

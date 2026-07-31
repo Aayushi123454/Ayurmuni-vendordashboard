@@ -298,9 +298,12 @@ export default function Finance() {
         <DashboardPageShell
             compact
             hidePageHeader
-            contentClassName="p-4 md:p-5 bg-gray-50 min-h-full"
+            contentClassName="vendor-page-content bg-gray-50 min-h-full"
             actions={
                 <>
+                    <Button variant="secondary" onClick={() => navigate("/vendor/finance/wallet")}>
+                        Wallet
+                    </Button>
                     <Button variant="secondary" onClick={() => navigate("/vendor/profile")}>
                         Bank Details
                     </Button>

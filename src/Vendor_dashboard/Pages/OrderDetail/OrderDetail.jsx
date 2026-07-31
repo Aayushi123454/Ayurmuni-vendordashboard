@@ -76,7 +76,7 @@ export default function OrderDetail() {
                 { label: "Orders", href: "/vendor/orders" },
                 { label: order?.order_display_code || order?.order_code || "Detail" },
             ]}
-            contentClassName="order-page-content p-4 sm:p-6 lg:p-8"
+            contentClassName="vendor-page-content order-page-content"
             actions={
                 <div className="flex items-center gap-2">
                     <Button variant="secondary" onClick={() => navigate("/vendor/orders")} className="!text-sm">

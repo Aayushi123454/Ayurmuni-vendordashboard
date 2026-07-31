@@ -10,19 +10,25 @@ import {
     User,
 } from "lucide-react";
 import { notificationService } from "../../services/notificationService";
+import { useVendorHeaderActionsSlot } from "../providers/VendorHeaderActionsContext";
 
 const VENDOR_TITLES = {
     "/vendor/dashboard": "Dashboard",
     "/vendor/products": "Products",
     "/vendor/stock": "Stock Management",
-    // "/vendor/banners": "Banners",
-    // "/vendor/catalog": "Catalog Reference",
+    "/vendor/banners": "Banners",
+    "/vendor/catalog": "Catalog Reference",
     "/vendor/new-product": "Add Product",
     "/vendor/orders": "Orders",
     "/vendor/finance": "Finance",
+    "/vendor/analytics": "Analytics",
+    "/vendor/reports": "Reports",
+    "/vendor/customers": "Customers",
+    "/vendor/coupons": "Coupons",
     "/vendor/ratings": "Ratings",
     "/vendor/notifications": "Notifications",
     "/vendor/help-support": "Help & Support",
+    "/vendor/settings": "Settings",
     "/vendor/profile": "Profile",
     "/vendor/onboarding": "Onboarding",
 };
@@ -89,6 +95,7 @@ const Header = () => {
         () => (isVendor ? resolveVendorTitle(location.pathname) : "Dashboard"),
         [isVendor, location.pathname]
     );
+    const pageActions = useVendorHeaderActionsSlot();
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -135,7 +142,7 @@ const Header = () => {
     }
 
     return (
-        <header className="vendor-header fixed top-0 right-0 z-30">
+        <header className="vendor-header z-30">
             <div className="vendor-header__inner">
                 <div className="vendor-header__left">
                     <nav className="vendor-header__breadcrumb" aria-label="Breadcrumb">
@@ -160,6 +167,9 @@ const Header = () => {
                 </form> */}
 
                 <div className="vendor-header__actions">
+                    {pageActions && (
+                        <div className="vendor-header__page-actions">{pageActions}</div>
+                    )}
                     <button
                         type="button"
                         className="vendor-header__icon-btn ds-focus"

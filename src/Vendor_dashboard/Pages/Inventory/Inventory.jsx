@@ -15,6 +15,7 @@ import StatusBadge from "../../components/shared/StatusBadge";
 import SearchToolbar from "../../components/shared/SearchToolbar";
 import usePersistedState from "../../hooks/usePersistedState";
 import {
+  getVariantCoverImageUrl,
   getVariantQuantity,
   mapVariantFromApi,
   UNICOMMERCE_NOTICES,
@@ -48,17 +49,21 @@ const getTagLabel = (product) => {
 function VariantRow({ variant }) {
   const qty = getVariantQuantity(variant);
   const stockStatus = getVariantStatus(qty);
-  const avatarUrl =
-    variant.cover_image?.media_url ||
-    variant.media?.[0]?.media_url ||
-    Ayurvedaimage;
+  const avatarUrl = getVariantCoverImageUrl(variant) || Ayurvedaimage;
 
   return (
     <tr>
       <td>
         <div className="flex items-center gap-3">
           <div className="h-14 w-14 overflow-hidden rounded-lg border bg-white shadow-sm">
-            <img src={avatarUrl} alt={variant.title} className="h-full w-full object-cover" />
+            <img
+              src={avatarUrl}
+              alt={variant.title}
+              className="h-full w-full object-cover"
+              onError={(e) => {
+                e.currentTarget.src = Ayurvedaimage;
+              }}
+            />
           </div>
           <div>
             <h4 className="text-sm font-semibold text-gray-800">{variant.title}</h4>
@@ -86,17 +91,22 @@ function VariantRow({ variant }) {
 }
 
 function ProductBlock({ product, expanded, onToggle, onDelete }) {
-  const avatarUrl =
-    product.variants?.[0]?.cover_image?.media_url ||
-    product.variants?.[0]?.media?.[0]?.media_url ||
-    Ayurvedaimage;
+  const firstVariantWithImage =
+    (product.variants || []).find((v) => getVariantCoverImageUrl(v)) || product.variants?.[0];
+  const avatarUrl = getVariantCoverImageUrl(firstVariantWithImage) || Ayurvedaimage;
   const isExpanded = expanded === product.id;
 
   return (
     <div className="iv-product-block ds-card ds-card-interactive ds-animate-in">
       <div className="iv-product-header">
         <div className="iv-product-avatar shadow-md">
-          <img src={avatarUrl} alt={product.name} />
+          <img
+            src={avatarUrl}
+            alt={product.name}
+            onError={(e) => {
+              e.currentTarget.src = Ayurvedaimage;
+            }}
+          />
         </div>
         <div className="iv-product-info">
           <div className="iv-product-name">
@@ -121,6 +131,12 @@ function ProductBlock({ product, expanded, onToggle, onDelete }) {
           {isExpanded ? "Hide Variants" : "View Variants"}
         </button>
         <div className="flex items-center gap-2">
+          <Link
+            to={`/vendor/products/${product.id}`}
+            className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-gray-600 transition hover:bg-gray-50"
+          >
+            View
+          </Link>
           <Link
             to={`/vendor/edit-product/${product.id}`}
             className="rounded-lg border border-green-200 p-2 !text-green-600 transition hover:bg-green-50"
@@ -262,6 +278,7 @@ export default function InventoryVault() {
       </UnicommerceNotice>
 
       <SearchToolbar
+        className="!mb-4"
         value={searchInput}
         onChange={(e) => setSearchInput(e.target.value)}
         onSubmit={(e) => {

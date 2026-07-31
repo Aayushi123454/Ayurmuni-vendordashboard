@@ -7,6 +7,7 @@ import "./Vendor_dashboard/components/shared/design-system.css";
 // Shared Components
 import Sidebar from "./Vendor_dashboard/Sidebar/sidebar";
 import Header from "./Vendor_dashboard/Header/Header";
+import { VendorHeaderActionsProvider } from "./Vendor_dashboard/providers/VendorHeaderActionsContext";
 import ProtectedRoute from "./Vendor_dashboard/Auth/ProtectedRoute";
 import DoctorSidebar from "./Doctor_dashboard/Sidebar/sidebar";
 import DoctorAvailabilityCalendar2 from "./Doctor_dashboard/components/availability/DoctorAvailabilityCalendar/index";
@@ -41,11 +42,36 @@ const VendorNotification = lazy(() => import("./Vendor_dashboard/Pages/Notificat
 const VendorOnboarding = lazy(() => import("./Vendor_dashboard/Pages/onboarding/Onboarding"));
 const VendorProfile = lazy(() => import("./Vendor_dashboard/Pages/Profile/Profile"));
 const VendorStock = lazy(() => import("./Vendor_dashboard/Pages/Stock/Stock"));
-// const VendorBanners = lazy(() => import("./Vendor_dashboard/Pages/Banners/Banners"));
-// const VendorCatalog = lazy(() => import("./Vendor_dashboard/Pages/Catalog/Catalog"));
+const VendorBanners = lazy(() => import("./Vendor_dashboard/Pages/Banners/Banners"));
+const VendorCatalog = lazy(() => import("./Vendor_dashboard/Pages/Catalog/Catalog"));
 const VendorHelpSupport = lazy(() => import("./Vendor_dashboard/Pages/HelpSupport/HelpSupport"));
-const VendorFinance = lazy(() => import("./Vendor_dashboard/Pages/Finance/Finance"));
 const VendorRatings = lazy(() => import("./Vendor_dashboard/Pages/Ratings/Ratings"));
+const ForgotPassword = lazy(() => import("./Vendor_dashboard/Auth/ForgotPassword"));
+const ResetPassword = lazy(() => import("./Vendor_dashboard/Auth/ResetPassword"));
+const Unauthorized = lazy(() => import("./Vendor_dashboard/Pages/Unauthorized/Unauthorized"));
+const ProductDetail = lazy(() => import("./Vendor_dashboard/Pages/Inventory/ProductDetail/ProductDetail"));
+const UnavailableFeature = lazy(() => import("./Vendor_dashboard/Pages/Unavailable/UnavailableFeature"));
+const VendorReports = lazy(() => import("./Vendor_dashboard/Pages/Reports/Reports"));
+const VendorCustomers = lazy(() => import("./Vendor_dashboard/Pages/Customers/Customers"));
+const CustomerDetail = lazy(() => import("./Vendor_dashboard/Pages/Customers/CustomerDetail"));
+const VendorCoupons = lazy(() => import("./Vendor_dashboard/Pages/Coupons/Coupons"));
+const VendorSettings = lazy(() => import("./Vendor_dashboard/Pages/Settings/Settings"));
+
+const ComingSoonFinance = () => (
+  <UnavailableFeature
+    title="Finance"
+    description="Earnings, settlements, and payouts will be available here."
+    backendNote="Finance is coming soon. We'll enable this section once payout APIs are ready."
+  />
+);
+
+const ComingSoonAnalytics = () => (
+  <UnavailableFeature
+    title="Analytics"
+    description="Sales and performance insights will be available here."
+    backendNote="Analytics is coming soon. Charts and reports will appear once this module is enabled."
+  />
+);
 
 // Loader
 const LoadingFallback = () => (
@@ -119,6 +145,9 @@ function App() {
           <Route path="patvideocall/:token/:consultationId" element={<PatientVideoCallWeb />} />
           {/* PUBLIC ROUTES */}
           <Route path="/login" element={<Login />} />
+          <Route path="/login/forgot-password" element={<ForgotPassword />} />
+          <Route path="/login/reset-password/:token?" element={<ResetPassword />} />
+          <Route path="/unauthorized" element={<Unauthorized />} />
 
           {/* DOCTOR ROUTES */}
           {isAuthenticated && role === "doctor" && (
@@ -171,17 +200,26 @@ function App() {
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="products" element={<InventoryVault />} />
+                <Route path="products/:id" element={<ProductDetail />} />
                 <Route path="stock" element={<VendorStock />} />
-                {/* <Route path="banners" element={<VendorBanners />} /> */}
-                {/* <Route path="catalog" element={<VendorCatalog />} /> */}
+                <Route path="banners" element={<VendorBanners />} />
+                <Route path="catalog" element={<VendorCatalog />} />
                 <Route path="new-product" element={<AddProduct />} />
                 <Route path="edit-product/:id" element={<EditProduct />} />
                 <Route path="orders" element={<Order />} />
                 <Route path="orders/:id" element={<OrderDetail />} />
-                <Route path="finance" element={<VendorFinance />} />
+                <Route path="finance" element={<ComingSoonFinance />} />
+                <Route path="finance/wallet" element={<ComingSoonFinance />} />
+                <Route path="finance/settlements" element={<ComingSoonFinance />} />
+                <Route path="finance/withdrawals" element={<ComingSoonFinance />} />
+                <Route path="analytics" element={<ComingSoonAnalytics />} />
+                <Route path="reports" element={<VendorReports />} />
+                <Route path="customers" element={<VendorCustomers />} />
+                <Route path="customers/:id" element={<CustomerDetail />} />
+                <Route path="coupons" element={<VendorCoupons />} />
                 <Route path="ratings" element={<VendorRatings />} />
                 <Route path="help-support" element={<VendorHelpSupport />} />
-                <Route path="settings" element={<Navigate to="/vendor/profile?tab=settings" replace />} />
+                <Route path="settings" element={<VendorSettings />} />
                 <Route path="profile" element={<VendorProfile />} />
                 <Route path="notifications" element={<VendorNotification />} />
               </Route>
@@ -234,16 +272,18 @@ function DoctorLayout() {
 
 function VendorLayout() {
   return (
-    <div style={{ display: "flex" }}>
-      <Sidebar />
-      <div className="main-content">
-        <Header />
-        <div className="page-content">
-          <Suspense fallback={<LoadingFallback />}>
-            <Outlet />
-          </Suspense>
+    <VendorHeaderActionsProvider>
+      <div className="vendor-layout">
+        <Sidebar />
+        <div className="main-content">
+          <Header />
+          <div className="page-content">
+            <Suspense fallback={<LoadingFallback />}>
+              <Outlet />
+            </Suspense>
+          </div>
         </div>
       </div>
-    </div>
+    </VendorHeaderActionsProvider>
   );
 }

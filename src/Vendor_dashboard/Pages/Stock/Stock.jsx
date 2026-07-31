@@ -18,14 +18,16 @@ import { vendorService } from "../../../services/vendorService";
 import usePersistedState from "../../hooks/usePersistedState";
 import DashboardPageShell from "../../components/shared/DashboardPageShell";
 import { PageEmpty, PageError, PaginationBar, TableCard } from "../../components/shared/PageState";
-import { MetricSkeleton, StockCardGridSkeleton } from "../../components/shared/Skeleton";
+import { StockCardGridSkeleton, Skeleton } from "../../components/shared/Skeleton";
 import StatusBadge from "../../components/shared/StatusBadge";
 import SearchToolbar, { SelectFilter } from "../../components/shared/SearchToolbar";
 import Modal from "../../components/shared/Modal";
 import Button from "../../components/shared/Button";
 import PremiumKPICard from "../Dashboard/components/PremiumKPICard";
+import Ayurvedaimage from "../../../Assests/Ayurvedaimage.png";
 import {
     extractApiErrorMessage,
+    getVariantCoverImageUrl,
     isUnicommerceSyncError,
     isApprovalRelatedStockError,
     isVariantApproved,
@@ -94,7 +96,26 @@ function QuantityUnavailableModal({ item, open, onClose, onViewProduct }) {
 
 function StockKpiSection({ summary, listTotalCount, summaryLoading, hasActiveQuery, onFilterSelect }) {
     if (summaryLoading) {
-        return <MetricSkeleton count={5} />;
+        return (
+            <>
+                <div className="stock-overview-label">
+                    <span className="stock-overview-label__title">Inventory overview</span>
+                    <span className="stock-overview-label__note">Loading snapshot…</span>
+                </div>
+                <div className="stock-kpi-grid stock-kpi-grid--skeleton ds-stagger">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                        <div key={i} className="stock-kpi-cell">
+                            <div className="ds-card space-y-3" style={{ padding: 18, minHeight: 136 }}>
+                                <Skeleton className="h-9 w-9 rounded-lg" />
+                                <Skeleton className="h-3 w-24" />
+                                <Skeleton className="h-7 w-16" />
+                                <Skeleton className="h-3 w-20" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </>
+        );
     }
 
     const catalogNote =
@@ -109,57 +130,67 @@ function StockKpiSection({ summary, listTotalCount, summaryLoading, hasActiveQue
                 <span className="stock-overview-label__note">{catalogNote}</span>
             </div>
             <div className="stock-kpi-grid ds-stagger">
-                <PremiumKPICard
-                    variant="hero"
-                    icon={Warehouse}
-                    label={hasActiveQuery ? "Matching records" : "Inventory records"}
-                    value={listTotalCount}
-                    subtitle={hasActiveQuery ? "Current search / filter" : "Total in your catalog"}
-                    className="stock-kpi-clickable"
-                    onAction={() => onFilterSelect("all")}
-                    actionLabel="View all"
-                />
-                <PremiumKPICard
-                    variant="soft"
-                    icon={Boxes}
-                    label="Total units"
-                    value={summary.totalUnits}
-                    subtitle="On-hand quantity"
-                />
-                <PremiumKPICard
-                    variant={summary.lowStock > 0 ? "alert" : "soft"}
-                    icon={TrendingDown}
-                    label="Low stock"
-                    value={summary.lowStock}
-                    subtitle={`≤ ${LOW_STOCK_THRESHOLD} units`}
-                    trend={summary.lowStock > 0 ? "Needs attention" : "Healthy levels"}
-                    trendDirection={summary.lowStock > 0 ? "down" : "up"}
-                    className="stock-kpi-clickable"
-                    onAction={summary.lowStock > 0 ? () => onFilterSelect("low-stock") : undefined}
-                    actionLabel="Review"
-                />
-                <PremiumKPICard
-                    variant={summary.outOfStock > 0 ? "alert" : "muted"}
-                    icon={AlertTriangle}
-                    label="Out of stock"
-                    value={summary.outOfStock}
-                    subtitle="Zero units on hand"
-                    trend={summary.outOfStock > 0 ? "Restock needed" : "None flagged"}
-                    trendDirection={summary.outOfStock > 0 ? "down" : "up"}
-                    className="stock-kpi-clickable"
-                    onAction={summary.outOfStock > 0 ? () => onFilterSelect("out-of-stock") : undefined}
-                    actionLabel="Review"
-                />
-                <PremiumKPICard
-                    variant="accent"
-                    icon={Package}
-                    label="Pending approval"
-                    value={summary.pendingApproval}
-                    subtitle="Updates locked until approved"
-                    className="stock-kpi-clickable"
-                    onAction={summary.pendingApproval > 0 ? () => onFilterSelect("pending") : undefined}
-                    actionLabel="Review"
-                />
+                <div className="stock-kpi-cell">
+                    <PremiumKPICard
+                        variant="hero"
+                        icon={Warehouse}
+                        label={hasActiveQuery ? "Matching records" : "Inventory records"}
+                        value={listTotalCount}
+                        subtitle={hasActiveQuery ? "Current search / filter" : "Total in your catalog"}
+                        className="stock-kpi-clickable"
+                        onAction={() => onFilterSelect("all")}
+                        actionLabel="View all"
+                    />
+                </div>
+                <div className="stock-kpi-cell">
+                    <PremiumKPICard
+                        variant="soft"
+                        icon={Boxes}
+                        label="Total units"
+                        value={summary.totalUnits}
+                        subtitle="On-hand quantity"
+                    />
+                </div>
+                <div className="stock-kpi-cell">
+                    <PremiumKPICard
+                        variant={summary.lowStock > 0 ? "alert" : "soft"}
+                        icon={TrendingDown}
+                        label="Low stock"
+                        value={summary.lowStock}
+                        subtitle={`≤ ${LOW_STOCK_THRESHOLD} units`}
+                        trend={summary.lowStock > 0 ? "Needs attention" : "Healthy levels"}
+                        trendDirection={summary.lowStock > 0 ? "down" : "up"}
+                        className="stock-kpi-clickable"
+                        onAction={summary.lowStock > 0 ? () => onFilterSelect("low-stock") : undefined}
+                        actionLabel="Review"
+                    />
+                </div>
+                <div className="stock-kpi-cell">
+                    <PremiumKPICard
+                        variant={summary.outOfStock > 0 ? "alert" : "muted"}
+                        icon={AlertTriangle}
+                        label="Out of stock"
+                        value={summary.outOfStock}
+                        subtitle="Zero units on hand"
+                        trend={summary.outOfStock > 0 ? "Restock needed" : "None flagged"}
+                        trendDirection={summary.outOfStock > 0 ? "down" : "up"}
+                        className="stock-kpi-clickable"
+                        onAction={summary.outOfStock > 0 ? () => onFilterSelect("out-of-stock") : undefined}
+                        actionLabel="Review"
+                    />
+                </div>
+                <div className="stock-kpi-cell">
+                    <PremiumKPICard
+                        variant="accent"
+                        icon={Package}
+                        label="Pending approval"
+                        value={summary.pendingApproval}
+                        subtitle="Updates locked until approved"
+                        className="stock-kpi-clickable"
+                        onAction={summary.pendingApproval > 0 ? () => onFilterSelect("pending") : undefined}
+                        actionLabel="Review"
+                    />
+                </div>
             </div>
         </>
     );
@@ -170,49 +201,55 @@ function StockProductCard({ item, onEdit, onDelete, onBlocked }) {
     const accent = getProductCardAccent(item);
     const { date, time } = formatDateTime(item.updated_at);
     const canEdit = canManageStock(item);
+    const coverUrl =
+        item.cover_image_url ||
+        getVariantCoverImageUrl(item) ||
+        item.cover_image?.media_url ||
+        Ayurvedaimage;
+
     return (
         <article className={`stock-product-card stock-product-card--${accent} ds-animate-in`}>
-            <div className="stock-product-card__header">
-                <div className="stock-product-card__title-wrap">
-                    <div className="stock-product-icon">
-                        <img
-                            src={item.cover_image?.media_url}
-                            alt={item.media?.media_type || "Varient Image"}
-                        // onError={(e) => e.target.src = "https://via.placeholder.com/50"}
-                        />
-                        <Package size={16} aria-hidden />
-                    </div>
-                    <div className="min-w-0">
-                        <p className="stock-product-name truncate iv-product-name">{item.product_name}</p>
-                        <p className="stock-product-variant truncate iv-meta-value">{item.variant_title || "Default variant"}</p>
-                    </div>
+            <div className="stock-product-card__product">
+                <div className="stock-product-icon stock-product-icon--image">
+                    <img
+                        src={coverUrl}
+                        alt={item.variant_title || item.product_name || "Variant"}
+                        onError={(e) => {
+                            e.currentTarget.src = Ayurvedaimage;
+                        }}
+                    />
                 </div>
+                <div className="stock-product-card__identity min-w-0">
+                    <p className="stock-product-name truncate iv-product-name">{item.product_name}</p>
+                    <p className="stock-product-variant truncate iv-meta-value">{item.variant_title || "Default variant"}</p>
+                    <p className="stock-product-card__updated">
+                        Updated {date}{time ? ` · ${time}` : ""}
+                    </p>
+                </div>
+            </div>
+
+            <div className="stock-product-card__health">
                 <StatusBadge status={health} label={STOCK_HEALTH_LABELS[health]} />
             </div>
 
-            <div className="stock-product-card__metrics">
-                <div className="stock-product-card__metric">
-                    <p className="stock-product-card__metric-label">Quantity</p>
-                    <p className="stock-product-card__metric-value">{item.quantity ?? 0}</p>
-                </div>
-                <div className="stock-product-card__metric">
-                    <p className="stock-product-card__metric-label">Approval</p>
-                    <StatusBadge status={item.approval_status || "pending"} />
-                </div>
-                <div className="stock-product-card__metric">
-                    <p className="stock-product-card__metric-label">Sync</p>
-                    <SyncBadge item={item} />
-                </div>
+            <div className="stock-product-card__col stock-product-card__col--qty">
+                <p className="stock-product-card__metric-label">Quantity</p>
+                <p className="stock-product-card__metric-value">{item.quantity ?? 0}</p>
             </div>
 
-            <div className="stock-product-card__meta">
-                <div className="stock-product-card__sku">
-                    <span className="stock-product-card__metric-label">Vendor SKU</span>
-                    <code className="stock-product-card__sku-value">{item.vendor_sku_code || "—"}</code>
-                </div>
-                <p className="stock-product-card__updated">
-                    Updated {date}{time ? ` · ${time}` : ""}
-                </p>
+            <div className="stock-product-card__col stock-product-card__col--approval">
+                <p className="stock-product-card__metric-label">Approval</p>
+                <StatusBadge status={item.approval_status || "pending"} />
+            </div>
+
+            <div className="stock-product-card__col stock-product-card__col--sync">
+                <p className="stock-product-card__metric-label">Sync</p>
+                <SyncBadge item={item} />
+            </div>
+
+            <div className="stock-product-card__col stock-product-card__col--sku">
+                <p className="stock-product-card__metric-label">Vendor SKU</p>
+                <code className="stock-product-card__sku-value">{item.vendor_sku_code || "—"}</code>
             </div>
 
             <div className="stock-product-card__actions">
@@ -672,24 +709,22 @@ export default function StockManagement() {
     return (
         <div className="stock-page">
             <DashboardPageShell
-                title="Stock"
-                accent="Management"
-                subtitle="View and manage on-hand inventory across your product variants."
-                breadcrumbs={[]}
-                contentClassName="stock-page-content p-4 sm:p-6 lg:p-8"
+                contentClassName="stock-page-content vendor-page-content"
                 actions={
                     <Button
                         variant="secondary"
                         onClick={handleRefresh}
                         loading={refreshing}
                         disabled={loading}
-                        className="!text-sm"
+                        className="stock-page-refresh !h-9 !py-0 !text-sm"
                     >
-                        {!refreshing && <RefreshCw size={16} />}
+                        {!refreshing && <RefreshCw size={15} />}
                         Refresh
                     </Button>
                 }
             >
+                <div className="stock-page-sections">
+                <section className="stock-page-section stock-page-section--kpi">
                 <StockKpiSection
                     summary={summary}
                     listTotalCount={totalCount}
@@ -697,7 +732,9 @@ export default function StockManagement() {
                     hasActiveQuery={hasActiveQuery}
                     onFilterSelect={applyStockFilter}
                 />
+                </section>
 
+                <section className="stock-page-section stock-page-section--toolbar">
                 <div className="stock-toolbar-panel">
                     <div className="stock-toolbar-shell">
                         <SearchToolbar
@@ -730,7 +767,7 @@ export default function StockManagement() {
                                 options={productOptions}
                                 placeholder="All products"
                                 aria-label="Filter by product"
-                                className="w-[14rem] min-w-[10rem] max-w-[16rem]"
+                                className="stock-product-filter w-[11rem] min-w-[9rem] shrink-0"
                             />
                         </SearchToolbar>
 
@@ -750,8 +787,9 @@ export default function StockManagement() {
                         </div>
                     </div>
                 </div>
+                </section>
 
-                <div className={`stock-content-shell ${refreshing ? "stock-content-shell--refreshing" : ""}`}>
+                <section className={`stock-page-section stock-page-section--list stock-content-shell ${refreshing ? "stock-content-shell--refreshing" : ""}`}>
                     {loading ? (
                         <StockCardGridSkeleton count={Math.min(pageSize, 6)} />
                     ) : error ? (
@@ -794,6 +832,16 @@ export default function StockManagement() {
                                 )}
                             </div>
 
+                            <div className="stock-list-header" aria-hidden="true">
+                                <span className="stock-list-header__product">Product</span>
+                                <span className="stock-list-header__status">Status</span>
+                                <span>Quantity</span>
+                                <span>Approval</span>
+                                <span>Sync</span>
+                                <span>Vendor SKU</span>
+                                <span className="stock-list-header__actions">Actions</span>
+                            </div>
+
                             <div className="stock-card-grid">
                                 {filteredItems.map((item) => (
                                     <StockProductCard
@@ -817,6 +865,7 @@ export default function StockManagement() {
                             />
                         </TableCard>
                     )}
+                </section>
                 </div>
 
                 <QuantityUnavailableModal

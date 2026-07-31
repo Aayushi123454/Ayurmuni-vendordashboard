@@ -5,22 +5,26 @@
 }
 
 .vendor-sidebar {
+  flex-shrink: 0;
   width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
   height: 100vh;
-  position: fixed;
-  left: 0;
+  position: sticky;
   top: 0;
+  align-self: flex-start;
   z-index: 100;
   background: var(--ds-surface, #ffffff);
   border-right: 1px solid var(--ds-border, #e5e7eb);
   display: flex;
   flex-direction: column;
-  transition: width 220ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 220ms cubic-bezier(0.4, 0, 0.2, 1), min-width 220ms cubic-bezier(0.4, 0, 0.2, 1);
   overflow: visible;
 }
 
 .vendor-sidebar--collapsed {
   --sidebar-width: 72px;
+  width: 72px;
+  min-width: 72px;
 }
 
 .vendor-sidebar__logo {

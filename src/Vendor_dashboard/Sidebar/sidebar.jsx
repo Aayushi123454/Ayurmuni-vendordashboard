@@ -1,25 +1,50 @@
-
 import React, { useEffect, useState } from "react";
 import "./sidebar.css";
 import "../components/shared/vendor-shared.css";
 import logo from "../../Assests/logo/logo.svg";
 import shortLogo from "../../Assests/logo/short_logo.svg";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Clock3, Bell, Layers, /* Image, BookOpen, */ Package, LayoutDashboard, ShoppingCart, Wallet, Star, LifeBuoy, Settings } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Layers,
+  Image,
+  BookOpen,
+  Package,
+  LayoutDashboard,
+  ShoppingCart,
+  Wallet,
+  Star,
+  LifeBuoy,
+  Settings,
+  BarChart3,
+  FileText,
+  Users,
+  Tag,
+} from "lucide-react";
 
 const MENU_ITEMS = [
   { name: "Dashboard", icon: LayoutDashboard, path: "/vendor/dashboard" },
-  { name: "Products", icon: Package, path: "/vendor/products", match: ["/vendor/products", "/vendor/new-product", "/vendor/edit-product"] },
+  {
+    name: "Products",
+    icon: Package,
+    path: "/vendor/products",
+    match: ["/vendor/products", "/vendor/new-product", "/vendor/edit-product"],
+  },
   { name: "Stock Management", icon: Layers, path: "/vendor/stock" },
-  // { name: "Banners", icon: Image, path: "/vendor/banners" },
-  // { name: "Catalog", icon: BookOpen, path: "/vendor/catalog" },
+  { name: "Banners", icon: Image, path: "/vendor/banners" },
+  { name: "Catalog", icon: BookOpen, path: "/vendor/catalog" },
   { name: "Orders", icon: ShoppingCart, path: "/vendor/orders", match: ["/vendor/orders"] },
-  { name: "Finance", icon: Wallet, path: "/vendor/finance" },
+  { name: "Finance", icon: Wallet, path: "/vendor/finance", match: ["/vendor/finance"], soon: true },
   { name: "Ratings", icon: Star, path: "/vendor/ratings" },
+  { name: "Analytics", icon: BarChart3, path: "/vendor/analytics", soon: true },
+  { name: "Customers", icon: Users, path: "/vendor/customers", match: ["/vendor/customers"] },
+  { name: "Coupons", icon: Tag, path: "/vendor/coupons" },
+  { name: "Reports", icon: FileText, path: "/vendor/reports" },
 ];
 
 const GENERAL_ITEMS = [
-  { name: "Notifications", icon: Bell, path: "/vendor/notifications" },
   { name: "Help & Support", icon: LifeBuoy, path: "/vendor/help-support" },
   { name: "Settings", icon: Settings, path: "/vendor/settings" },
 ];
@@ -31,23 +56,33 @@ function isItemActive(location, item) {
   return location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
 }
 
+function getInitialSidebarCollapsed() {
+  try {
+    return localStorage.getItem("vendor:sidebar:collapsed") === "1";
+  } catch {
+    return false;
+  }
+}
+
+if (typeof document !== "undefined") {
+  document.documentElement.style.setProperty(
+    "--sidebar-width",
+    getInitialSidebarCollapsed() ? "72px" : "260px"
+  );
+}
+
 const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [itsverify, setitsverify] = useState(false);
-  const [collapsed, setCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem("vendor:sidebar:collapsed") === "1";
-    } catch {
-      return false;
-    }
-  });
+  const [collapsed, setCollapsed] = useState(getInitialSidebarCollapsed);
 
   useEffect(() => {
     setitsverify(JSON.parse(sessionStorage.getItem("profile"))?.verify);
   }, []);
 
   useEffect(() => {
+    // Size from commit 800a03c (HEAD~1): 260px / 72px
     const width = collapsed ? "72px" : "260px";
     document.documentElement.style.setProperty("--sidebar-width", width);
     try {
