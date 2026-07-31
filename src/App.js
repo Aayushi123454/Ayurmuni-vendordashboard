@@ -51,7 +51,6 @@ const ResetPassword = lazy(() => import("./Vendor_dashboard/Auth/ResetPassword")
 const Unauthorized = lazy(() => import("./Vendor_dashboard/Pages/Unauthorized/Unauthorized"));
 const ProductDetail = lazy(() => import("./Vendor_dashboard/Pages/Inventory/ProductDetail/ProductDetail"));
 const UnavailableFeature = lazy(() => import("./Vendor_dashboard/Pages/Unavailable/UnavailableFeature"));
-const VendorReports = lazy(() => import("./Vendor_dashboard/Pages/Reports/Reports"));
 const CustomerDetail = lazy(() => import("./Vendor_dashboard/Pages/Customers/CustomerDetail"));
 const VendorSettings = lazy(() => import("./Vendor_dashboard/Pages/Settings/Settings"));
 
@@ -219,7 +218,6 @@ function App() {
                 <Route path="finance/settlements" element={<ComingSoonFinance />} />
                 <Route path="finance/withdrawals" element={<ComingSoonFinance />} />
                 <Route path="analytics" element={<ComingSoonAnalytics />} />
-                <Route path="reports" element={<VendorReports />} />
                 <Route path="customers" element={<Navigate to="/vendor/orders?view=customers" replace />} />
                 <Route path="customers/:id" element={<CustomerDetail />} />
                 <Route path="coupons" element={<ComingSoonCoupons />} />

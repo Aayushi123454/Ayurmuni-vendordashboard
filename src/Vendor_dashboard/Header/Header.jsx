@@ -22,7 +22,6 @@ const VENDOR_TITLES = {
     "/vendor/orders": "Orders",
     "/vendor/finance": "Finance",
     "/vendor/analytics": "Analytics",
-    "/vendor/reports": "Reports",
     "/vendor/coupons": "Coupons",
     "/vendor/ratings": "Ratings",
     "/vendor/notifications": "Notifications",

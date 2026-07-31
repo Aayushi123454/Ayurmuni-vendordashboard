@@ -25,7 +25,6 @@ const MORE_ITEMS = [
   { name: "Banners", path: "/vendor/banners" },
   { name: "Coupons", path: "/vendor/coupons" },
   { name: "Ratings", path: "/vendor/ratings" },
-  { name: "Reports", path: "/vendor/reports" },
   { name: "Settings", path: "/vendor/settings" },
   { name: "Help", path: "/vendor/help-support" },
 ];

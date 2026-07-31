@@ -19,7 +19,6 @@ import {
   LifeBuoy,
   Settings,
   BarChart3,
-  FileText,
   Tag,
 } from "lucide-react";
 
@@ -39,7 +38,6 @@ const MENU_ITEMS = [
   { name: "Ratings", icon: Star, path: "/vendor/ratings" },
   { name: "Analytics", icon: BarChart3, path: "/vendor/analytics", soon: true },
   { name: "Coupons", icon: Tag, path: "/vendor/coupons", soon: true },
-  { name: "Reports", icon: FileText, path: "/vendor/reports" },
 ];
 
 const GENERAL_ITEMS = [
