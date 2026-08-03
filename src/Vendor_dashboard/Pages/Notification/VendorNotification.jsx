@@ -75,6 +75,11 @@ function resolveVendorRoute(notification) {
     return "/vendor/dashboard";
 }
 
+function filterByTab(notifications, tab) {
+    if (tab === "all") return notifications;
+    return notifications.filter((n) => n.notification_type === tab);
+}
+
 export default function VendorNotification() {
     const navigate = useNavigate();
     const [notifications, setNotifications] = useState([]);
@@ -90,19 +95,23 @@ export default function VendorNotification() {
     const fetchNotifications = useCallback(async (pageNum = 1, append = false) => {
         try {
             setLoading(true);
-            const params = new URLSearchParams({ view: "list", page: pageNum, page_size: 20 });
-            if (selectedTab !== "all") params.append("notification_type", selectedTab);
+            const useClientFilter = selectedTab !== "all";
+            const pageSize = useClientFilter ? 100 : 20;
+            const params = new URLSearchParams({ view: "list", page: pageNum, page_size: pageSize });
 
             const response = await notificationService.get(params);
             const data = response?.data?.data;
-            const results = data?.results || [];
+            const results = filterByTab(data?.results || [], selectedTab);
 
             setNotifications((prev) => (append ? [...prev, ...results] : results));
-            setTotalCount(data?.count || 0);
-            setHasMore(Boolean(data?.next));
+            setTotalCount(useClientFilter ? results.length : (data?.count || 0));
+            setHasMore(!useClientFilter && Boolean(data?.next));
             setUnreadCount(results.filter((n) => !n.is_read).length);
         } catch {
-            toast.error("Failed to load notifications");
+            setNotifications([]);
+            setTotalCount(0);
+            setHasMore(false);
+            setUnreadCount(0);
         } finally {
             setLoading(false);
         }
@@ -110,6 +119,7 @@ export default function VendorNotification() {
 
     useEffect(() => {
         setPage(1);
+        setNotifications([]);
         fetchNotifications(1, false);
     }, [selectedTab, fetchNotifications]);
 

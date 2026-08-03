@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import useFocusTrap from "../../hooks/useFocusTrap";
 
@@ -49,14 +50,13 @@ export default function Modal({ open, onClose, title, subtitle, children, footer
 
     if (!open) return null;
 
-    return (
+    return createPortal(
         <div
-            className="fixed inset-0 z-50 overflow-y-auto ds-modal-backdrop"
-            style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
+            className="ds-modal-root overflow-y-auto ds-modal-backdrop"
             onClick={onClose}
             role="presentation"
         >
-            <div className="flex min-h-full items-center justify-center p-4">
+            <div className="ds-modal-root__center">
                 <div
                     ref={panelRef}
                     className={`ds-modal-panel bg-white rounded-2xl w-full ${SIZE_CLASS[size] || SIZE_CLASS.md} max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden shadow-2xl`}
@@ -93,6 +93,7 @@ export default function Modal({ open, onClose, title, subtitle, children, footer
                     )}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

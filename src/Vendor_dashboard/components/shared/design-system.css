@@ -35,7 +35,7 @@
 /* Page enter */
 @keyframes ds-fade-up {
     from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
+    to { opacity: 1; }
 }
 
 @keyframes ds-fade-in {
@@ -54,7 +54,7 @@
 }
 
 .ds-animate-in {
-    animation: ds-fade-up 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
+    animation: ds-fade-up 220ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 .ds-stagger > * {
@@ -102,7 +102,22 @@
     border-radius: var(--ds-radius-sm);
 }
 
-/* Modal backdrop */
+/* Modal — portaled to body, above sidebar/header */
+.ds-modal-root {
+    position: fixed;
+    inset: 0;
+    z-index: 10050;
+    background-color: rgba(0, 0, 0, 0.45);
+}
+
+.ds-modal-root__center {
+    display: flex;
+    min-height: 100%;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
 .ds-modal-backdrop {
     animation: ds-fade-in 180ms ease-out both;
 }
