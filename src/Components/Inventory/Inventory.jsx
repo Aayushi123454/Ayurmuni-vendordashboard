@@ -322,10 +322,10 @@ export default function InventoryVault() {
          </button>
        </div>
       </div>
-
+{/* 
       {PRODUCTS.map((p) => (
         <ProductBlock key={p.id} product={p} />
-      ))}
+      ))} */}
 
       <Pagination />
 

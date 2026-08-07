@@ -345,7 +345,7 @@ font-weight: 500;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 24px;
+  /* padding: 24px; */
   
 }
 .iv-product-avatar {
@@ -435,12 +435,12 @@ font-weight: 500;
   color: #64748B;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  padding: 26px 24px;
+  padding: 16px 14px;
   text-align: left;
   border-bottom: 1px solid var(--border);
 }
 .iv-variants-table td {
-  padding: 26px 24px;
+  padding: 16px 14px;
   font-size: 14px;
   color:#191C1B;
   border-bottom: 1px solid #f0f3ee;
@@ -448,7 +448,20 @@ font-weight: 500;
 }
 .iv-variants-table tr:last-child td { border-bottom: none; }
 .iv-variants-table tr:hover td { background: #fafcf9; }
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
+.animate-slideDown {
+  animation: slideDown 0.2s ease-out;
+}
 .iv-sku-badge {
   font-size: 14px;
   color: #3F4945;

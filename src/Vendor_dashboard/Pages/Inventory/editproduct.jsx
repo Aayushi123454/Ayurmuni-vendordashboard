@@ -8,24 +8,34 @@ import {
     Star,
     Plus,
     AlertCircle,
-    StarsIcon,
     Check,
     Trash2,
-    Copy,
     Package,
     Layers,
     IndianRupee,
     Edit,
-    AlertTriangle,
-    Save
+    Save,
 } from "lucide-react";
 import "./AddProduct.css";
 import { vendorService } from "../../../services/vendorService";
 import toast from "react-hot-toast";
+import UnicommerceNotice from "../../components/shared/UnicommerceNotice";
+import DashboardPageShell from "../../components/shared/DashboardPageShell";
+import Button from "../../components/shared/Button";
+import { PageLoader } from "../../components/shared/PageState";
+import {
+    extractApiErrorMessage,
+    getSelectedSubcategoryMeta,
+    getVariantQuantity,
+    isUnicommerceSyncError,
+    mapVariantFromApi,
+    mapVariantToApiPayload,
+    UNICOMMERCE_NOTICES,
+} from "../../../utils/unicommerceHelpers";
 
 export default function EditProduct() {
     const navigate = useNavigate();
-    const { id } = useParams(); // Get product ID from URL
+    const { id } = useParams();
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState("product");
     const [errors, setErrors] = useState({});
@@ -45,9 +55,10 @@ export default function EditProduct() {
     const [coverImage, setCoverImage] = useState(null);
     const [galleryImages, setGalleryImages] = useState([]);
     const [draggedIndex, setDraggedIndex] = useState(null);
+    const [lodervr, setlodervr] = useState(false)
 
     const [formData, setFormData] = useState({
-        category_id: "",
+        product_subcategory_id: "",
         brand_name_id: "",
         manufacturer: "",
         origin: "",
@@ -67,6 +78,7 @@ export default function EditProduct() {
         is_active: true,
     });
 
+    const [originalData, setOriginalData] = useState(null);
     const [healthConcerns, setHealthConcerns] = useState([]);
 
     // Variants State
@@ -74,7 +86,7 @@ export default function EditProduct() {
     const [editingVariant, setEditingVariant] = useState(null);
     const [showVariantModal, setShowVariantModal] = useState(false);
     const [variantForm, setVariantForm] = useState({
-        variant_code: "",
+        vendor_sku_code: "",
         title: "",
         mrp: "",
         selling_price: "",
@@ -98,12 +110,12 @@ export default function EditProduct() {
         weightage: "g",
         size: "",
         is_default: false,
+        prescription_required: false,
         coverImage: null,
         vendor_price: "",
         is_active: true
     });
 
-    // Fetch product data on mount
     useEffect(() => {
         fetchProductData();
         fetchdatabrandcat();
@@ -112,15 +124,13 @@ export default function EditProduct() {
     const fetchProductData = async () => {
         try {
             setLoading(true);
-            const response = await vendorService.getsingleProducts(id);
+            const response = await vendorService.getSingleProduct(id);
 
             if (response.data.success) {
                 const product = response.data.data;
-
-                // Set product information
                 setName(product.name || "");
                 setFormData({
-                    category_id: product.product_category_id || "",
+                    product_subcategory_id: product.product_subcategory_id || "",
                     brand_name_id: product.brand_name_id || "",
                     manufacturer: product.manufacturer || "",
                     origin: product.origin || "",
@@ -140,10 +150,8 @@ export default function EditProduct() {
                     is_active: product.is_active !== undefined ? product.is_active : true,
                 });
 
-                // Set health concerns
                 setHealthConcerns(product.health_disease_ids || []);
 
-                // Process variants with their images
                 const processedVariants = product.variants.map(variant => ({
                     ...variant,
                     galleryImages: variant.media?.map(media => ({
@@ -151,7 +159,7 @@ export default function EditProduct() {
                         media_url: media.media_url,
                         media_type: media.media_type,
                         is_cover: media.is_cover,
-                        preview: media.media_url, // Use URL as preview
+                        preview: media.media_url,
                         file: null
                     })) || [],
                     coverImage: variant.cover_image ? {
@@ -166,23 +174,45 @@ export default function EditProduct() {
                         file: null
                     } : null),
                     vendor_price: variant.vendor_price || calculateVendorPrice(variant),
-                }));
+                })
+                );
 
                 setVariants(processedVariants);
+                setOriginalData({
+                    product: {
+                        name: product.name || "",
+                        health_disease_ids: product.health_disease_ids || "",
+                        product_subcategory_id: product.product_subcategory_id || "",
+                        brand_name_id: product.brand_name_id || "",
+                        manufacturer: product.manufacturer || "",
+                        origin: product.origin || "",
+                        short_description: product.short_description || "",
+                        full_description: product.full_description || "",
+                        how_to_use: product.how_to_use || "",
+                        benifits: product.benifits || "",
+                        treatment_type: product.treatment_type || "",
+                        compositions: product.compositions || "",
+                        side_effects: product.side_effects || "",
+                        dosages: product.dosages || "",
+                        ayushLicense: product.ayushLicense || "",
+                        safety_information: product.safety_information || "",
+                        model_number: product.model_number || "",
+                        is_nutrition: product.is_nutrition || true,
+                        is_featured: product.is_featured || false,
+                        is_active: product.is_active !== undefined ? product.is_active : true,
+                    },
+                    variants: processedVariants
+                });
 
-                // Determine price type from first variant
                 if (processedVariants.length > 0) {
                     const firstVariant = processedVariants[0];
                     setPriceType(firstVariant.calculation_mode === "trade_price" ? "TP" : "SP");
                 }
             } else {
                 toast.error("Failed to load product data");
-                navigate("/inventory");
             }
         } catch (error) {
-            console.error("Error fetching product:", error);
             toast.error(error.message || "Failed to load product data");
-            navigate("/inventory");
         } finally {
             setLoading(false);
         }
@@ -201,27 +231,23 @@ export default function EditProduct() {
 
     const fetchdatabrandcat = async () => {
         try {
-            const [brand, productcat, maincat, diseasescat] = await Promise.all([
+            const [brand, productcat, diseasescat] = await Promise.all([
                 vendorService.getbrandandcategory("brand-name"),
-                vendorService.getbrandandcategory("product-category"),
-                vendorService.getbrandandcategory("category"),
+                vendorService.getbrandandcategory("product-subcategory"),
                 vendorService.getbrandandcategory("health-diseases"),
             ]);
 
             const brandData = brand?.data?.data || brand?.data || [];
             const catData = productcat?.data?.data || productcat?.data || [];
-            const maincategory = maincat?.data?.data || maincat?.data || [];
             const diseasescate = diseasescat?.data?.data || diseasescat?.data || [];
 
             setlists(prev => ({
                 ...prev,
                 brand: brandData,
                 productcat: catData,
-                maincategory,
                 diseasescate,
             }));
         } catch (error) {
-            console.error("Error fetching data:", error);
             toast.error(error?.message || "Failed to fetch data");
         }
     };
@@ -278,7 +304,6 @@ export default function EditProduct() {
                     };
                 } catch (error) {
                     toast.error(`Failed to upload ${file.name}`);
-                    console.error("Upload error:", error);
                     return null;
                 }
             })
@@ -361,7 +386,7 @@ export default function EditProduct() {
                         id: newCover.id
                     }
                 }));
-                toast.info("New cover image set");
+                // toast.info("New cover image set");
             } else {
                 setVariantForm(prev => ({
                     ...prev,
@@ -378,7 +403,7 @@ export default function EditProduct() {
                 URL.revokeObjectURL(variantForm.coverImage.preview);
             }
             setVariantForm(prev => ({ ...prev, coverImage: null }));
-            toast.info("Cover image removed");
+            // toast.info("Cover image removed");
         }
     };
 
@@ -451,14 +476,6 @@ export default function EditProduct() {
             toast.error("MRP is required");
             return false;
         }
-        if (!variantForm.hsn_code) {
-            toast.error("HSN Number is required");
-            return false;
-        }
-        if (!variantForm.stock) {
-            toast.error("Quantity/stock is required");
-            return false;
-        }
         if (!variantForm.size) {
             toast.error("Size is required");
             return false;
@@ -477,7 +494,6 @@ export default function EditProduct() {
     const addVariant = async () => {
         if (!validateVariantForm()) return;
         setVarient(true);
-
         try {
             const mediaurls = variantForm.galleryImages.map((item) => ({
                 media_url: item.media_url,
@@ -487,7 +503,7 @@ export default function EditProduct() {
 
             const newVariant = {
                 id: editingVariant ? editingVariant.id : Date.now(),
-                variant_code: variantForm.variant_code || generateSKU(),
+                vendor_sku_code: variantForm.vendor_sku_code || generateSKU(),
                 title: variantForm.title,
                 mrp: parseFloat(variantForm.mrp),
                 discount: variantForm.discount || "",
@@ -497,7 +513,7 @@ export default function EditProduct() {
                 is_free_shipping: variantForm.is_free_shipping || false,
                 shipping_amount: variantForm.shipping_amount || "",
                 is_returnable: variantForm.is_returnable,
-                returnable_days: variantForm.is_returnable ? variantForm.returnable_days : "",
+                returnable_days: variantForm.is_returnable ? variantForm.returnable_days : null,
                 pay_on_delivery: variantForm.pay_on_delivery,
                 media: mediaurls,
                 galleryImages: variantForm.galleryImages,
@@ -511,6 +527,7 @@ export default function EditProduct() {
                 weightage: variantForm.weightage,
                 size: variantForm.size,
                 is_default: editingVariant ? variantForm.is_default : (variants.length === 0),
+                prescription_required: variantForm.prescription_required,
                 coverImage: variantForm.coverImage,
                 is_active: true,
                 vendor_price: parseFloat(priceType == "TP" ? variantForm.selling_price : (Number(variantForm.selling_price) -
@@ -523,18 +540,54 @@ export default function EditProduct() {
             };
 
             if (editingVariant) {
-                setVariants(variants.map(v => v.id === editingVariant.id ? newVariant : v));
-                toast.success("Variant updated successfully");
+                setlodervr(true)
+                const originalVariant = originalData.variants.find(
+                    (data) => data.id === newVariant.id
+                );
+
+                const onlyupdate = originalVariant
+                    ? getUpdatedFields(newVariant, originalVariant)
+                    : newVariant;
+
+                console.log(originalVariant, onlyupdate);
+                const response = await vendorService?.updateVariants(
+                    id,
+                    editingVariant.id,
+                    mapVariantToApiPayload({
+                        ...onlyupdate,
+                        approval_status: "pending" || editingVariant.approval_status,
+                    })
+                )
+                if (response.data.success) {
+                    setVariants(variants.map(v => v.id === editingVariant.id ? newVariant : v));
+                    toast.success("Variant updated successfully");
+                    setlodervr(false)
+                }
             } else {
-                setVariants([...variants, newVariant]);
-                toast.success("Variant added successfully");
+                setlodervr(true)
+                const response = await vendorService?.addVariants(
+                    id,
+                    mapVariantToApiPayload({ ...newVariant, approval_status: "pending" })
+                )
+                if (response.data.success) {
+                    toast.success("Variant added successfully");
+                    setlodervr(false)
+                    setVariants((prevVariants) => [
+                        ...prevVariants,
+                        {
+                            ...newVariant,
+                            id: response.data?.data?.id,
+                        },
+                    ]);
+                }
             }
 
             resetVariantForm();
             setShowVariantModal(false);
         } catch (error) {
-            console.error("Error saving variant:", error);
+            console.log(error);
             toast.error("Failed to save variant");
+            setlodervr(false)
         } finally {
             setVarient(false);
         }
@@ -553,7 +606,7 @@ export default function EditProduct() {
         }
 
         setVariantForm({
-            variant_code: "",
+            vendor_sku_code: "",
             title: "",
             mrp: "",
             selling_price: "",
@@ -577,6 +630,7 @@ export default function EditProduct() {
             weightage: "g",
             size: "",
             is_default: false,
+            prescription_required: false,
             coverImage: null,
         });
         setErrors({});
@@ -592,7 +646,7 @@ export default function EditProduct() {
         })) || [];
 
         setVariantForm({
-            variant_code: variant.variant_code,
+            vendor_sku_code: variant.vendor_sku_code,
             title: variant.title,
             mrp: variant.mrp,
             selling_price: variant.selling_price,
@@ -611,6 +665,7 @@ export default function EditProduct() {
             weightage: variant.weightage,
             size: variant.size,
             is_default: variant.is_default,
+            prescription_required: variant.prescription_required,
             coverImage: variant.coverImage || (restoredGallery.find(img => img.is_cover) || restoredGallery[0]),
             calculation_mode: variant.calculation_mode || (priceType == "TP" ? "trade_price" : "selling_price"),
             taxes: variant.taxes || [
@@ -623,37 +678,18 @@ export default function EditProduct() {
         setShowVariantModal(true);
     };
 
-    const deleteVariant = (id) => {
+    const deleteVariant = async (vid) => {
         if (window.confirm("Are you sure you want to delete this variant?")) {
-            const updatedVariants = variants.filter(v => v.id !== id);
-            if (updatedVariants.length > 0 && !updatedVariants.some(v => v.is_default)) {
-                updatedVariants[0].is_default = true;
+            const updatedVariants = variants.filter(v => v.id !== vid);
+            const response = await vendorService.deleteVariants(id, vid);
+            if (response.data.success) {
+                if (updatedVariants.length > 0 && !updatedVariants.some(v => v.is_default)) {
+                    updatedVariants[0].is_default = true;
+                }
+                setVariants(updatedVariants);
+                toast.success("Variant deleted successfully");
             }
-            setVariants(updatedVariants);
-            toast.success("Variant deleted successfully");
         }
-    };
-
-    const duplicateVariant = (variant) => {
-        const duplicatedGallery = variant.galleryImages?.map(img => ({
-            ...img,
-            id: Date.now() + Math.random(),
-            is_cover: false,
-        })) || [];
-
-        const newVariant = {
-            ...variant,
-            id: Date.now(),
-            variant_code: `${variant.variant_code}-COPY-${Date.now().toString().slice(-4)}`,
-            is_default: false,
-            title: `${variant.title} (Copy)`,
-            coverImage: variant.coverImage ? { ...variant.coverImage, id: Date.now() } : null,
-            galleryImages: duplicatedGallery,
-            media: variant.media?.map(m => ({ ...m })) || [],
-        };
-
-        setVariants([...variants, newVariant]);
-        toast.success("Variant duplicated successfully");
     };
 
     const setDefaultVariant = (id) => {
@@ -666,7 +702,7 @@ export default function EditProduct() {
             toast.error("Product name is required");
             return false;
         }
-        if (!formData.category_id) {
+        if (!formData.product_subcategory_id) {
             toast.error("Category is required");
             return false;
         }
@@ -695,12 +731,58 @@ export default function EditProduct() {
         setActiveTab("product");
     };
 
-    const handleSubmit = async () => {
-        if (activeTab === "product") {
-            if (!validateProductInfo()) return;
-            setActiveTab("variant");
-            return;
-        }
+    const EXCLUDED_KEYS = [
+        "sku_code",
+        "status",
+        "approval_status",
+        "approved_at",
+        "created_at",
+        "updated_at",
+        "reason",
+        "cover_image",
+        "coverImage",
+        "stock",
+        "low_stock_threshold",
+    ];
+
+    const getUpdatedFields = (current, original) => {
+        console.log(current, original);
+
+        const result = {};
+        Object.keys(current).forEach((key) => {
+            if (EXCLUDED_KEYS.includes(key)) return;
+            const value = current[key];
+            const oldValue = original?.[key];
+
+            if (
+                value === "" ||
+                value === null ||
+                value === undefined ||
+                (Array.isArray(value) && value.length === 0)
+            ) {
+                return;
+            }
+
+            if (
+                typeof value === "object" &&
+                value !== null
+            ) {
+                if (JSON.stringify(value) !== JSON.stringify(oldValue)) {
+                    result[key] = value;
+                }
+                return;
+            }
+
+            if (value !== oldValue) {
+                result[key] = value;
+            }
+        });
+
+        return result;
+    };
+
+    const handleSubmit = async (type) => {
+        if (!validateProductInfo()) return;
 
         if (variants.length === 0) {
             toast.error("At least one variant is required");
@@ -708,45 +790,50 @@ export default function EditProduct() {
         }
 
         const productData = {
-            product: {
+            product: getUpdatedFields({
                 name,
                 ...formData,
                 health_disease_ids: healthConcerns,
-            },
-            variants: variants.map(v => ({
-                ...v,
-                media: v.media || v.galleryImages?.map(img => ({
-                    media_url: img.media_url,
-                    media_type: "image",
-                    is_cover: img.is_cover || (v.coverImage?.id === img.id)
-                })) || [],
-                galleryImages: undefined
-            })),
+            }, originalData.product),
+            variants: variants
+                .map((variant, index) => {
+                    const updated = getUpdatedFields(
+                        variant,
+                        originalData.variants[index]
+                    );
+                    if (variant.id) {
+                        updated.id = variant.id;
+                    }
+                    return Object.keys(updated).length > 1 ? updated : null;
+                })
+                .filter(Boolean),
         };
 
-        console.log("Update Product Data:", productData);
-
         try {
-            const response = await vendorService.updateProduct(id, productData);
+            const response = await vendorService.updateProduct(id, (type === "product" ? productData.product : productData?.variants));
             if (response.data.success) {
                 toast.success(response.data.message || "Product updated successfully");
                 setTimeout(() => {
-                    navigate("/inventory");
+                    window.location.reload()
                 }, 1000);
             }
         } catch (error) {
-            console.error("Error updating product:", error);
             toast.error(error.response?.data?.message || "Failed to update product. Please try again.");
         }
     };
 
     const handleCancel = () => {
         if (window.confirm("Are you sure you want to cancel? All unsaved changes will be lost.")) {
-            navigate("/inventory");
+            navigate("/vendor/products");
         }
     };
 
-    const totalStock = variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+    const totalStock = variants.reduce((sum, v) => sum + getVariantQuantity(v), 0);
+    const selectedSubcategory = getSelectedSubcategoryMeta(
+        lists.productcat,
+        formData.product_subcategory_id
+    );
+    const hasApprovedVariant = variants.some((v) => v.approval_status === "approved");
     const priceRange = variants.length > 0 ? {
         min: Math.min(...variants.map(v => v.selling_price)),
         max: Math.max(...variants.map(v => v.selling_price))
@@ -754,26 +841,38 @@ export default function EditProduct() {
 
     if (loading) {
         return (
-            <div className="add-product-page">
-                <div className="loading-container">
-                    <div className="iv-loader"></div>
-                    <p>Loading product data...</p>
-                </div>
-            </div>
+            <DashboardPageShell
+                title="Edit"
+                accent="Product"
+                subtitle="Loading product details..."
+                breadcrumbs={[{ label: "Dashboard" }, { label: "Products" }, { label: "Edit" }]}
+            >
+                <PageLoader message="Loading product data..." />
+            </DashboardPageShell>
         );
     }
 
     return (
-        <div className="add-product-page">
-            <div className="iv-header">
-                <div className="iv-header-title">
-                    <button className="back-btn" onClick={handleCancel}>
-                        <ChevronLeft size={16} /> Back
-                    </button>
-                    <h1>Edit <span className="inventoryspan">Product</span></h1>
-                    <p>Update your product information, variants, and inventory details.</p>
-                </div>
-            </div>
+        <DashboardPageShell
+            title="Edit"
+            accent="Product"
+            subtitle="Update your product information, variants, and inventory details."
+            breadcrumbs={[{ label: "Dashboard" }, { label: "Products" }, { label: "Edit Product" }]}
+            actions={
+                <Button variant="secondary" onClick={handleCancel}>
+                    <ChevronLeft size={16} className="mr-1" aria-hidden />
+                    Back
+                </Button>
+            }
+            contentClassName="p-4 sm:p-6 lg:p-8 max-w-8xl"
+        >
+
+            <UnicommerceNotice>
+                {hasApprovedVariant
+                    ? UNICOMMERCE_NOTICES.approvedStock
+                    : UNICOMMERCE_NOTICES.pendingVariant}{" "}
+                {UNICOMMERCE_NOTICES.systemSku}
+            </UnicommerceNotice>
 
             <div className="product-tabs">
                 <button
@@ -822,8 +921,8 @@ export default function EditProduct() {
                                     <div className="form-group">
                                         <label>CATEGORY <span className="required">*</span></label>
                                         <select
-                                            name="category_id"
-                                            value={formData.category_id}
+                                            name="product_subcategory_id"
+                                            value={formData.product_subcategory_id}
                                             onChange={handleInputChange}
                                         >
                                             <option value="">Select Category</option>
@@ -831,6 +930,11 @@ export default function EditProduct() {
                                                 <option key={data?.id} value={data?.id}>{data?.name}</option>
                                             ))}
                                         </select>
+                                        {selectedSubcategory && (
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                HSN: {selectedSubcategory.hsn_code || "—"} · Tax: {selectedSubcategory.tax_class_code || selectedSubcategory.tax_class_name || "—"}
+                                            </p>
+                                        )}
                                     </div>
                                     <div className="form-group">
                                         <label>BRAND NAME <span className="required">*</span></label>
@@ -1051,7 +1155,8 @@ export default function EditProduct() {
                                         <div className="col-price">Selling Price</div>
                                         <div className="col-price">Receive Amount</div>
                                         <div className="col-stock">Stock</div>
-                                        <div className="col-sku">SKU</div>
+                                        <div className="col-sku">Vendor SKU</div>
+                                        {/* <div className="col-sku">System SKU</div> */}
                                         <div className="col-default">Default</div>
                                         <div className="col-actions">Actions</div>
                                     </div>
@@ -1060,8 +1165,8 @@ export default function EditProduct() {
                                             <div className="col-variant">
                                                 <img
                                                     src={variant.coverImage?.media_url || variant.coverImage?.preview || "https://via.placeholder.com/50"}
-                                                    alt={variant.title}
-                                                    onError={(e) => e.target.src = "https://via.placeholder.com/50"}
+                                                    alt={variant.title || "Varient Image"}
+                                                // onError={(e) => e.target.src = "https://via.placeholder.com/50"}
                                                 />
                                                 <div>
                                                     <strong>{variant.title}</strong>
@@ -1072,11 +1177,17 @@ export default function EditProduct() {
                                             <div className="col-price">₹{Number(variant.selling_price).toFixed(2)}</div>
                                             <div className="col-price">₹{Number(variant.vendor_price).toFixed(2) || "N/A"}</div>
                                             <div className="col-stock">
-                                                <span className={`stock-badge ${variant.stock <= (variant.low_stock_threshold || 5) ? 'low-stock' : ''}`}>
-                                                    {variant.stock} in stock
+                                                <span className={`stock-badge ${getVariantQuantity(variant) <= (variant.low_stock_threshold || 5) ? 'low-stock' : ''}`}>
+                                                    {getVariantQuantity(variant)} in stock
                                                 </span>
+                                                {variant.approval_status !== "approved" && (
+                                                    <span className="block text-xs text-amber-700 mt-1">Pending approval</span>
+                                                )}
                                             </div>
-                                            <div className="col-sku">{variant.variant_code}</div>
+                                            <div className="col-sku">{variant?.vendor_sku_code || "—"}</div>
+                                            {/* <div className="col-sku">
+                                                <code className="text-xs">{variant?.sku_code || "Assigned after approval"}</code>
+                                            </div> */}
                                             <div className="col-default">
                                                 <button
                                                     className={`default-checkbox ${variant.is_default ? "active" : ""}`}
@@ -1088,9 +1199,6 @@ export default function EditProduct() {
                                             <div className="col-actions">
                                                 <button onClick={() => editVariant(variant)} title="Edit">
                                                     <Edit size={16} />
-                                                </button>
-                                                <button onClick={() => duplicateVariant(variant)} title="Duplicate">
-                                                    <Copy size={16} />
                                                 </button>
                                                 <button onClick={() => deleteVariant(variant.id)} title="Delete">
                                                     <Trash2 size={16} />
@@ -1109,399 +1217,389 @@ export default function EditProduct() {
                         Cancel
                     </button>
                     {activeTab === "product" ? (
-                        <button className="btn-next" onClick={handleNextTab}>
-                            Next: Add Variants →
-                        </button>
+                        <>
+                            <button className="btn-next" onClick={handleNextTab}>
+                                Next: Add Variants →
+                            </button>
+                            <button disabled={Object.keys(getUpdatedFields({
+                                name,
+                                ...formData,
+                                health_disease_ids: healthConcerns,
+                            }, originalData.product)).length === 0} className="btn-submit flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400 disabled:text-gray-800 disabled:border-gray-300 disabled:shadow-none disabled:hover:scale-100" onClick={e => handleSubmit("product")}>
+                                <Save size={16} /> Update Product
+                            </button>
+                        </>
                     ) : (
                         <div className="action-buttons">
                             <button className="btn-prev" onClick={handlePrevTab}>
                                 ← Back to Product Info
                             </button>
-                            <button className="btn-submit" onClick={handleSubmit}>
-                                <Save size={16} /> Update Product
-                            </button>
+                            {
+                                activeTab === "product" &&
+                                <button className="btn-submit flex items-center gap-2" onClick={e => handleSubmit("variants")}>
+                                    <Save size={16} /> Update Variants
+                                </button>
+                            }
                         </div>
                     )}
                 </div>
             </div>
 
             {/* Variant Modal */}
-            {showVariantModal && (
-                <div className="modal-overlay" onClick={() => setShowVariantModal(false)}>
-                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h3>{editingVariant ? "Edit Variant" : "Add New Variant"}</h3>
-                            <button className="modal-close" onClick={() => setShowVariantModal(false)}>
-                                <X size={20} />
-                            </button>
-                        </div>
-                        <div className="modal-body">
-                            <div className="images-section">
-                                <div className="flex justify-between items-end mb-4">
-                                    <div>
-                                        <h4>Variant Images</h4>
-                                        <p className="section-desc">Upload high-quality images of your Variant. The first image will be your cover image.</p>
+            {
+                showVariantModal && (
+                    <div className="modal-overlay" onClick={() => setShowVariantModal(false)}>
+                        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h3>{editingVariant ? "Edit Variant" : "Add New Variant"}</h3>
+                                <button className="modal-close" onClick={() => setShowVariantModal(false)}>
+                                    <X size={20} />
+                                </button>
+                            </div>
+                            <div className="modal-body">
+                                <div className="images-section">
+                                    <div className="flex justify-between items-end mb-4">
+                                        <div>
+                                            <h4>Variant Images</h4>
+                                            <p className="section-desc">Upload high-quality images of your Variant. The first image will be your cover image.</p>
+                                        </div>
+                                        <div className="image-requirements">
+                                            <span>Max 8 images | JPG, PNG up to 5MB</span>
+                                        </div>
                                     </div>
-                                    <div className="image-requirements">
-                                        <span>Max 8 images | JPG, PNG up to 5MB</span>
-                                    </div>
-                                </div>
 
-                                <div className="image-grid !mb-0">
-                                    <div className="cover-image-section">
-                                        <div className="cover-image-area variant-cover-area">
-                                            <div>
-                                                {!variantForm?.coverImage ? (
-                                                    <label className="upload-cover-area">
-                                                        <Upload size={32} />
-                                                        <span>Cover Image</span>
-                                                        <input type="file" accept="image/*" onChange={e => handleGalleryUpload(e, 'variant')} hidden />
-                                                    </label>
-                                                ) : (
-                                                    <div className="cover-image-preview">
-                                                        <img src={variantForm.coverImage.media_url || variantForm.coverImage.preview} alt="Cover" />
-                                                        <button className="remove-image" onClick={() => handleRemoveCoverImage('variant')}>
-                                                            <X size={16} />
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div>
-                                                <div className="image-tips !mt-0">
-                                                    <StarsIcon size={14} className="icons" />
-                                                    <div>
-                                                        <strong className="text-[#0D614E]">Cover Image</strong>
-                                                        <p className="image-desc !mb-0">This image will be displayed as the main product image for this variant.</p>
-                                                    </div>
+                                    <div className="image-grid !mb-0">
+                                        <div className="cover-image-section">
+                                            <div className="cover-image-area variant-cover-area">
+                                                <div>
+                                                    {!variantForm?.coverImage ? (
+                                                        <label className="upload-cover-area">
+                                                            <Upload size={32} />
+                                                            <span>Cover Image</span>
+                                                            <input type="file" accept="image/*" onChange={e => handleGalleryUpload(e, 'variant')} hidden />
+                                                        </label>
+                                                    ) : (
+                                                        <div className="cover-image-preview">
+                                                            <img src={variantForm.coverImage.media_url || variantForm.coverImage.preview} alt="Cover" />
+                                                            <button className="remove-image" onClick={() => handleRemoveCoverImage('variant')}>
+                                                                <X size={16} />
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                <div className="image-tips">
-                                                    <AlertCircle size={14} className="icons !text-[#1E40AF]" />
-                                                    <div>
-                                                        <strong className="text-[#1E40AF]">TIPS FOR BEST RESULTS</strong>
-                                                        <ul>
-                                                            <li><Check size={16} /> Use high resolution images</li>
-                                                            <li><Check size={16} /> Good lighting and clear background</li>
-                                                            <li><Check size={16} /> Show the product clearly</li>
-                                                            <li><Check size={16} /> Recommended background (100% white)</li>
-                                                        </ul>
+                                                <div>
+                                                    <div className="image-tips !mt-0">
+                                                        <Star size={14} className="icons" />
+                                                        <div>
+                                                            <strong className="text-[#0D614E]">Cover Image</strong>
+                                                            <p className="image-desc !mb-0">This image will be displayed as the main product image for this variant.</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="image-tips">
+                                                        <AlertCircle size={14} className="icons !text-[#1E40AF]" />
+                                                        <div>
+                                                            <strong className="text-[#1E40AF]">TIPS FOR BEST RESULTS</strong>
+                                                            <ul>
+                                                                <li><Check size={16} /> Use high resolution images</li>
+                                                                <li><Check size={16} /> Good lighting and clear background</li>
+                                                                <li><Check size={16} /> Show the product clearly</li>
+                                                                <li><Check size={16} /> Recommended background (100% white)</li>
+                                                            </ul>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div className="product-gallery">
-                                    <div className="flex gap-3 items-center mb-2">
-                                        <h4>Variant Gallery</h4>
-                                        <p className="gallery-desc">(You can drag to reorder images)</p>
-                                    </div>
+                                    <div className="product-gallery">
+                                        <div className="flex gap-3 items-center mb-2">
+                                            <h4>Variant Gallery</h4>
+                                            <p className="gallery-desc">(You can drag to reorder images)</p>
+                                        </div>
 
-                                    <div className="gallery-grid variant-gallery-items">
-                                        {variantForm?.galleryImages?.map((image, index) => (
-                                            <div
-                                                key={image.id}
-                                                className="gallery-item"
-                                                draggable
-                                                onDragStart={(e) => handleDragStart(e, index)}
-                                                onDragOver={(e) => handleDragOver(e, index, 'variant')}
-                                                onDragEnd={handleDragEnd}
-                                            >
-                                                <button className="remove-gallery-btn" onClick={() => handleRemoveImage(image.id, 'variant')}>
-                                                    <X size={14} />
-                                                </button>
-                                                <img src={image.preview || image.media_url} alt={`Gallery ${index + 1}`} />
-                                                <div className="gallery-actions">
-                                                    <button className="set-cover-btn" onClick={() => handleSetAsCover(image.id, 'variant')}>
-                                                        <Star size={14} />
-                                                        Set as Cover
+                                        <div className="gallery-grid variant-gallery-items">
+                                            {variantForm?.galleryImages?.map((image, index) => (
+                                                <div
+                                                    key={image.id}
+                                                    className="gallery-item"
+                                                    draggable
+                                                    onDragStart={(e) => handleDragStart(e, index)}
+                                                    onDragOver={(e) => handleDragOver(e, index, 'variant')}
+                                                    onDragEnd={handleDragEnd}
+                                                >
+                                                    <button className="remove-gallery-btn" onClick={() => handleRemoveImage(image.id, 'variant')}>
+                                                        <X size={14} />
                                                     </button>
+                                                    <img src={image.preview || image.media_url} alt={`Gallery ${index + 1}`} />
+                                                    <div className="gallery-actions">
+                                                        <button className="set-cover-btn" onClick={() => handleSetAsCover(image.id, 'variant')}>
+                                                            <Star size={14} />
+                                                            Set as Cover
+                                                        </button>
+                                                    </div>
+                                                    {image.is_cover && <div className="gallery-cover-badge"><Star size={14} className="fill-[#EAB308]" /> Cover</div>}
                                                 </div>
-                                                {image.is_cover && <div className="gallery-cover-badge"><Star size={14} className="fill-[#EAB308]" /> Cover</div>}
-                                            </div>
-                                        ))}
+                                            ))}
 
-                                        {variantForm?.galleryImages?.length < 8 && (
-                                            <label className="upload-more-area">
-                                                <Plus size={24} />
-                                                <span>Upload More</span>
-                                                <input type="file" accept="image/*" multiple onChange={e => handleGalleryUpload(e, 'variant')} hidden />
-                                            </label>
-                                        )}
+                                            {variantForm?.galleryImages?.length < 8 && (
+                                                <label className="upload-more-area">
+                                                    <Plus size={24} />
+                                                    <span>Upload More</span>
+                                                    <input type="file" accept="image/*" multiple onChange={e => handleGalleryUpload(e, 'variant')} hidden />
+                                                </label>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Title <span className="required">*</span></label>
-                                    <input
-                                        type="text"
-                                        name="title"
-                                        placeholder="Enter Title"
-                                        value={variantForm.title}
-                                        onChange={handleVariantInputChange}
-                                    />
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Title <span className="required">*</span></label>
+                                        <input
+                                            type="text"
+                                            name="title"
+                                            placeholder="Enter Title"
+                                            value={variantForm.title}
+                                            onChange={handleVariantInputChange}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>SKU <span className="required">*</span></label>
+                                        <input
+                                            type="text"
+                                            name="vendor_sku_code"
+                                            placeholder="Enter SKU"
+                                            value={variantForm.vendor_sku_code}
+                                            onChange={handleVariantInputChange}
+                                        />
+                                    </div>
                                 </div>
-                                <div className="form-group">
-                                    <label>SKU <span className="required">*</span></label>
-                                    <input
-                                        type="text"
-                                        name="sku"
-                                        placeholder="Enter SKU"
-                                        value={variantForm.variant_code}
-                                        onChange={handleVariantInputChange}
-                                    />
-                                    <button type="button" className="generate-sku" onClick={() => setVariantForm(prev => ({ ...prev, variant_code: generateSKU() }))}>
-                                        Generate SKU
-                                    </button>
-                                </div>
-                            </div>
 
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Selling Price <span className="required">*</span></label>
-                                    <input
-                                        type="number"
-                                        name="selling_price"
-                                        placeholder="0.00"
-                                        value={variantForm.selling_price}
-                                        onChange={handleVariantInputChange}
-                                        step="0.01"
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Maximum Retail Price (MRP) <span className="required">*</span></label>
-                                    <input
-                                        type="number"
-                                        name="mrp"
-                                        placeholder="0.00"
-                                        value={variantForm.mrp}
-                                        onChange={handleVariantInputChange}
-                                        step="0.01"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Cost per item</label>
-                                    <input
-                                        type="number"
-                                        name="cost_per_item"
-                                        placeholder="0.00"
-                                        value={variantForm.cost_per_item}
-                                        onChange={handleVariantInputChange}
-                                        step="0.01"
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>HSN Number <span className="required">*</span></label>
-                                    <input
-                                        type="text"
-                                        name="hsn_code"
-                                        placeholder="HSN code"
-                                        value={variantForm.hsn_code}
-                                        onChange={handleVariantInputChange}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Quantity / Stock <span className="required">*</span></label>
-                                    <input
-                                        type="number"
-                                        name="stock"
-                                        placeholder="0"
-                                        value={variantForm.stock}
-                                        onChange={handleVariantInputChange}
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Size/Weight <span className="required">*</span></label>
-                                    <div className="weight-input">
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Selling Price <span className="required">*</span></label>
                                         <input
                                             type="number"
-                                            name="size"
-                                            placeholder="size"
-                                            value={variantForm.size}
+                                            name="selling_price"
+                                            placeholder="0.00"
+                                            value={variantForm.selling_price}
                                             onChange={handleVariantInputChange}
                                             step="0.01"
                                         />
-                                        <select name="weightage" value={variantForm.weightage} onChange={handleVariantInputChange}>
-                                            <option value="g">g</option>
-                                            <option value="kg">kg</option>
-                                            <option value="ml">ml</option>
-                                            <option value="L">L</option>
-                                            <option value="pcs">Pieces</option>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Maximum Retail Price (MRP) <span className="required">*</span></label>
+                                        <input
+                                            type="number"
+                                            name="mrp"
+                                            placeholder="0.00"
+                                            value={variantForm.mrp}
+                                            onChange={handleVariantInputChange}
+                                            step="0.01"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Cost per item</label>
+                                        <input
+                                            type="number"
+                                            name="cost_per_item"
+                                            placeholder="0.00"
+                                            value={variantForm.cost_per_item}
+                                            onChange={handleVariantInputChange}
+                                            step="0.01"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Type <span className="required">*</span></label>
+                                        <select name="physical_state" value={variantForm.physical_state} onChange={handleVariantInputChange}>
+                                            <option value="">Select Type</option>
+                                            {[
+                                                { value: "tablet", label: "Tablet" },
+                                                { value: "capsule", label: "Capsule" },
+                                                { value: "powder", label: "Powder" },
+                                                { value: "syrup", label: "Syrup" },
+                                                { value: "oil", label: "Oil" },
+                                                { value: "cream", label: "Cream" },
+                                                { value: "gel", label: "Gel" },
+                                                { value: "drops", label: "Drops" },
+                                                { value: "juice", label: "Juice" },
+                                                { value: "other", label: "Other" }
+                                            ].map((data) => (
+                                                <option key={data.value} value={data.value}>{data.label}</option>
+                                            ))}
                                         </select>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label>Type <span className="required">*</span></label>
-                                    <select name="physical_state" value={variantForm.physical_state} onChange={handleVariantInputChange}>
-                                        <option value="">Select Type</option>
-                                        {[
-                                            { value: "tablet", label: "Tablet" },
-                                            { value: "capsule", label: "Capsule" },
-                                            { value: "powder", label: "Powder" },
-                                            { value: "syrup", label: "Syrup" },
-                                            { value: "oil", label: "Oil" },
-                                            { value: "cream", label: "Cream" },
-                                            { value: "gel", label: "Gel" },
-                                            { value: "drops", label: "Drops" },
-                                            { value: "juice", label: "Juice" },
-                                            { value: "other", label: "Other" }
-                                        ].map((data) => (
-                                            <option key={data.value} value={data.value}>{data.label}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="form-group">
-                                    <label>Low stock threshold</label>
-                                    <input
-                                        type="number"
-                                        name="low_stock_threshold"
-                                        placeholder="Alert when stock below"
-                                        value={variantForm.low_stock_threshold}
-                                        onChange={handleVariantInputChange}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="checkbox-label">
-                                        <input
-                                            type="checkbox"
-                                            name="is_returnable"
-                                            checked={variantForm.is_returnable}
-                                            onChange={handleVariantInputChange}
-                                        />
-                                        Returnable
-                                    </label>
-                                    {variantForm.is_returnable && (
-                                        <input
-                                            type="number"
-                                            name="returnable_days"
-                                            placeholder="Returnable days (e.g., 7)"
-                                            value={variantForm.returnable_days}
-                                            onChange={handleVariantInputChange}
-                                            className="mt-2"
-                                        />
-                                    )}
-                                </div>
-                                <div className="form-group">
-                                    <label className="checkbox-label">
-                                        <input
-                                            type="checkbox"
-                                            name="pay_on_delivery"
-                                            checked={variantForm.pay_on_delivery}
-                                            onChange={handleVariantInputChange}
-                                        />
-                                        COD Available
-                                    </label>
-                                </div>
-                                <div className="form-group">
-                                    <label className="checkbox-label">
-                                        <input
-                                            type="checkbox"
-                                            name="is_default"
-                                            checked={variantForm.is_default}
-                                            onChange={handleVariantInputChange}
-                                        />
-                                        Set as Default Variant
-                                    </label>
-                                </div>
-                            </div>
-
-                            {variantForm?.selling_price > 0 && (
-                                <div className="price-calculator">
-                                    <div className="calculator-header">
-                                        <h4>Price Calculator</h4>
-                                        <div className="calculator-mode">
-                                            <button
-                                                className={`mode-btn ${priceType === "TP" ? "active" : ""}`}
-                                                onClick={() => setPriceType("TP")}
-                                            >
-                                                Trade Price → Selling Price
-                                            </button>
-                                            <button
-                                                className={`mode-btn ${priceType === "SP" ? "active" : ""}`}
-                                                onClick={() => setPriceType("SP")}
-                                            >
-                                                Selling Price → Trade Price
-                                            </button>
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Size/Weight <span className="required">*</span></label>
+                                        <div className="weight-input">
+                                            <input
+                                                type="number"
+                                                name="size"
+                                                placeholder="size"
+                                                value={variantForm.size}
+                                                onChange={handleVariantInputChange}
+                                                step="0.01"
+                                            />
+                                            <select name="weightage" value={variantForm.weightage} onChange={handleVariantInputChange}>
+                                                <option value="g">g</option>
+                                                <option value="kg">kg</option>
+                                                <option value="ml">ml</option>
+                                                <option value="L">L</option>
+                                                <option value="pcs">Pieces</option>
+                                            </select>
                                         </div>
                                     </div>
-
-                                    <div className="calculator-content">
-                                        {priceType === "TP" ? (
-                                            <>
-                                                <div className="calc-row">
-                                                    <span>💰 Vendor Price (Trade Price):</span>
-                                                    <strong>₹{Number(variantForm.selling_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
-                                                </div>
-                                                <div className="calc-row">
-                                                    <span>🎯 Platform Fee ({platformFee}%):</span>
-                                                    <span className="text-amber-600">+ ₹{((variantForm.selling_price * platformFee) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                                                </div>
-                                                <div className="calc-row">
-                                                    <span>📊 GST on Fee ({gst}%):</span>
-                                                    <span className="text-amber-600">+ ₹{(((variantForm.selling_price * platformFee) / 100) * gst / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                                                </div>
-                                                <div className="calc-row total">
-                                                    <span>💰 Final Selling Price:</span>
-                                                    <strong className="text-emerald-600">
-                                                        ₹{(Number(variantForm.selling_price) +
-                                                            (variantForm.selling_price * platformFee / 100) +
-                                                            ((variantForm.selling_price * platformFee / 100) * gst / 100)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                                    </strong>
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <div className="calc-row">
-                                                    <span>💰 Selling Price:</span>
-                                                    <strong>₹{Number(variantForm.selling_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
-                                                </div>
-                                                <div className="calc-row">
-                                                    <span>🎯 Platform Fee ({platformFee}%):</span>
-                                                    <span className="text-red-500">- ₹{((variantForm.selling_price * platformFee) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                                                </div>
-                                                <div className="calc-row">
-                                                    <span>📊 GST on Fee ({gst}%):</span>
-                                                    <span className="text-red-500">- ₹{(((variantForm.selling_price * platformFee) / 100) * gst / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                                                </div>
-                                                <div className="calc-row total">
-                                                    <span>💰 Vendor Price:</span>
-                                                    <strong className="text-blue-600">
-                                                        ₹{(Number(variantForm.selling_price) -
-                                                            (variantForm.selling_price * platformFee / 100) -
-                                                            ((variantForm.selling_price * platformFee / 100) * gst / 100)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                                    </strong>
-                                                </div>
-                                            </>
+                                    <div className="form-group">
+                                        <label className="checkbox-label">
+                                            <input
+                                                type="checkbox"
+                                                name="is_returnable"
+                                                checked={variantForm.is_returnable}
+                                                onChange={handleVariantInputChange}
+                                            />
+                                            Returnable
+                                        </label>
+                                        {variantForm.is_returnable && (
+                                            <input
+                                                type="number"
+                                                name="returnable_days"
+                                                placeholder="Returnable days (e.g., 7)"
+                                                value={variantForm.returnable_days}
+                                                onChange={handleVariantInputChange}
+                                                className="mt-2"
+                                            />
                                         )}
                                     </div>
                                 </div>
-                            )}
-                        </div>
-                        <div className="modal-footer">
-                            <button className="btn-cancel" onClick={() => setShowVariantModal(false)}>
-                                Cancel
-                            </button>
-                            <button className="btn-submit" onClick={addVariant} disabled={varient}>
-                                {varient ? "Processing..." : editingVariant ? "Update Variant" : "Add Variant"}
-                            </button>
+
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label className="checkbox-label">
+                                            <input
+                                                type="checkbox"
+                                                name="pay_on_delivery"
+                                                checked={variantForm.pay_on_delivery}
+                                                onChange={handleVariantInputChange}
+                                            />
+                                            COD Available
+                                        </label>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="checkbox-label">
+                                            <input
+                                                type="checkbox"
+                                                name="is_default"
+                                                checked={variantForm.is_default}
+                                                onChange={handleVariantInputChange}
+                                            />
+                                            Set as Default Variant
+                                        </label>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="checkbox-label">
+                                            <input
+                                                type="checkbox"
+                                                name="prescription_required"
+                                                checked={variantForm.prescription_required}
+                                                onChange={handleVariantInputChange}
+                                            />
+                                            Prescription Required
+                                        </label>
+                                    </div>
+                                </div>
+
+                                {variantForm?.selling_price > 0 && (
+                                    <div className="price-calculator">
+                                        <div className="calculator-header">
+                                            <h4>Price Calculator</h4>
+                                            <div className="calculator-mode">
+                                                <button
+                                                    className={`mode-btn ${priceType === "TP" ? "active" : ""}`}
+                                                    onClick={() => setPriceType("TP")}
+                                                >
+                                                    Trade Price → Selling Price
+                                                </button>
+                                                <button
+                                                    className={`mode-btn ${priceType === "SP" ? "active" : ""}`}
+                                                    onClick={() => setPriceType("SP")}
+                                                >
+                                                    Selling Price → Trade Price
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="calculator-content">
+                                            {priceType === "TP" ? (
+                                                <>
+                                                    <div className="calc-row">
+                                                        <span>💰 Vendor Price (Trade Price):</span>
+                                                        <strong>₹{Number(variantForm.selling_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
+                                                    </div>
+                                                    <div className="calc-row">
+                                                        <span>🎯 Platform Fee ({platformFee}%):</span>
+                                                        <span className="text-amber-600">+ ₹{((variantForm.selling_price * platformFee) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                                    </div>
+                                                    <div className="calc-row">
+                                                        <span>📊 GST on Fee ({gst}%):</span>
+                                                        <span className="text-amber-600">+ ₹{(((variantForm.selling_price * platformFee) / 100) * gst / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                                    </div>
+                                                    <div className="calc-row total">
+                                                        <span>💰 Final Selling Price:</span>
+                                                        <strong className="text-emerald-600">
+                                                            ₹{(Number(variantForm.selling_price) +
+                                                                (variantForm.selling_price * platformFee / 100) +
+                                                                ((variantForm.selling_price * platformFee / 100) * gst / 100)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                        </strong>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <div className="calc-row">
+                                                        <span>💰 Selling Price:</span>
+                                                        <strong>₹{Number(variantForm.selling_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
+                                                    </div>
+                                                    <div className="calc-row">
+                                                        <span>🎯 Platform Fee ({platformFee}%):</span>
+                                                        <span className="text-red-500">- ₹{((variantForm.selling_price * platformFee) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                                    </div>
+                                                    <div className="calc-row">
+                                                        <span>📊 GST on Fee ({gst}%):</span>
+                                                        <span className="text-red-500">- ₹{(((variantForm.selling_price * platformFee) / 100) * gst / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                                                    </div>
+                                                    <div className="calc-row total">
+                                                        <span>💰 Vendor Price:</span>
+                                                        <strong className="text-blue-600">
+                                                            ₹{(Number(variantForm.selling_price) -
+                                                                (variantForm.selling_price * platformFee / 100) -
+                                                                ((variantForm.selling_price * platformFee / 100) * gst / 100)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                        </strong>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="modal-footer">
+                                <button className="btn-cancel" onClick={() => setShowVariantModal(false)}>
+                                    Cancel
+                                </button>
+                                <button className="btn-submit" onClick={addVariant} disabled={varient || lodervr}>
+                                    {varient || lodervr ? "Processing..." : editingVariant ? "Update Variant" : "Add Variant"}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+
+        </DashboardPageShell>
     );
 }

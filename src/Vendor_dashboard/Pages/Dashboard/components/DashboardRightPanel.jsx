@@ -1,0 +1,222 @@
+import React from "react";
+import {
+    AlertTriangle,
+    ArrowRight,
+    Bell,
+    // BookOpen,
+    Clock,
+    // Image,
+    Layers,
+    Package,
+    ShoppingBag,
+    Star,
+} from "lucide-react";
+import StatusBadge from "../../../components/shared/StatusBadge";
+
+function PanelCard({ title, action, actionLabel, children, className = "" }) {
+    return (
+        <div className={`rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md ${className}`}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-50 bg-gray-50/50">
+                <h3 className="text-sm font-semibold text-gray-800">{title}</h3>
+                {action && (
+                    <button
+                        type="button"
+                        onClick={action}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-[#0D614E] hover:text-[#094c3d] transition-colors duration-200 ds-focus rounded-md px-1 py-0.5"
+                    >
+                        {actionLabel || "View all"}
+                        <ArrowRight size={12} />
+                    </button>
+                )}
+            </div>
+            <div className="p-4">{children}</div>
+        </div>
+    );
+}
+
+function EmptyPanel({ message }) {
+    return <p className="text-sm text-gray-400 text-center py-6">{message}</p>;
+}
+
+export default function DashboardRightPanel({
+    notifications = [],
+    recentOrders = [],
+    recentReviews = [],
+    lowStockItems = [],
+    pendingVariants = [],
+    approvalStatus,
+    onNavigate,
+}) {
+    const quickLinks = [
+        { label: "Add Product", icon: Package, path: "/vendor/new-product" },
+        { label: "Stock Management", icon: Layers, path: "/vendor/stock" },
+        // { label: "Banners", icon: Image, path: "/vendor/banners" },
+        // { label: "Catalog Reference", icon: BookOpen, path: "/vendor/catalog" },
+    ];
+
+    return (
+        <aside className="space-y-4 lg:space-y-5">
+            <PanelCard title="Recent Orders" action={() => onNavigate("/vendor/orders")} actionLabel="Orders">
+                {recentOrders.length > 0 ? (
+                    <ul className="space-y-3">
+                        {recentOrders.slice(0, 5).map((order) => (
+                            <li
+                                key={order.order_item_id || `${order.order_id}-${order.sku_code}`}
+                                className="flex gap-3 group cursor-pointer"
+                                onClick={() => onNavigate(`/vendor/orders/${order.order_id}`)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        onNavigate(`/vendor/orders/${order.order_id}`);
+                                    }
+                                }}
+                                role="button"
+                                tabIndex={0}
+                            >
+                                <div className="h-8 w-8 rounded-lg bg-[#0D614E]/10 flex items-center justify-center flex-shrink-0">
+                                    <ShoppingBag size={14} className="text-[#0D614E]" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className="text-sm font-medium text-gray-800 truncate group-hover:text-[#0D614E] transition-colors">
+                                            {order.order_display_code || order.order_code || "Order"}
+                                        </p>
+                                        <StatusBadge status={order.status} className="!px-2 !py-0.5 shrink-0" />
+                                    </div>
+                                    <p className="text-xs text-gray-400 mt-0.5 truncate">
+                                        {order.product_name || "Product"}
+                                        {order.quantity != null ? ` · Qty ${order.quantity}` : ""}
+                                    </p>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <EmptyPanel message="No recent orders" />
+                )}
+            </PanelCard>
+
+            <PanelCard title="Notifications" action={() => onNavigate("/vendor/notifications")}>
+                {notifications.length > 0 ? (
+                    <ul className="space-y-3">
+                        {notifications.slice(0, 4).map((n) => (
+                            <li key={n.id} className="flex gap-3 group cursor-pointer" onClick={() => onNavigate("/vendor/notifications")} role="button" tabIndex={0}>
+                                <div className="h-8 w-8 rounded-lg bg-[#0D614E]/10 flex items-center justify-center flex-shrink-0">
+                                    <Bell size={14} className="text-[#0D614E]" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-medium text-gray-800 truncate group-hover:text-[#0D614E] transition-colors">{n.title || n.message?.slice(0, 40)}</p>
+                                    <p className="text-xs text-gray-400 mt-0.5">{n.timeAgo}</p>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <EmptyPanel message="You're all caught up" />
+                )}
+            </PanelCard>
+
+            <PanelCard title="Approval Timeline">
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">Account status</span>
+                        <StatusBadge status={approvalStatus} />
+                    </div>
+                    {pendingVariants.length > 0 ? (
+                        <ul className="space-y-2 border-l-2 border-[#0D614E]/20 pl-3">
+                            {pendingVariants.slice(0, 3).map((v) => (
+                                <li key={v.id} className="relative">
+                                    <span className="absolute -left-[17px] top-1.5 h-2 w-2 rounded-full bg-amber-400 ring-2 ring-white" />
+                                    <p className="text-sm font-medium text-gray-800 truncate">{v.title}</p>
+                                    <p className="text-xs text-gray-400">Pending review</p>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-sm text-gray-500 flex items-center gap-2">
+                            <Clock size={14} className="text-emerald-500" />
+                            No pending variant approvals
+                        </p>
+                    )}
+                </div>
+            </PanelCard>
+
+            <PanelCard title="Inventory Alerts">
+                {lowStockItems.length > 0 ? (
+                    <ul className="space-y-2">
+                        {lowStockItems.slice(0, 4).map((item) => (
+                            <li
+                                key={item.id || item.sku}
+                                className="flex items-center justify-between gap-2 rounded-xl bg-amber-50/80 border border-amber-100 px-3 py-2 cursor-pointer hover:bg-amber-50 transition-colors duration-200"
+                                onClick={() => onNavigate("/vendor/stock")}
+                                role="button"
+                                tabIndex={0}
+                            >
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <AlertTriangle size={14} className="text-amber-600 flex-shrink-0" />
+                                    <span className="text-sm text-gray-800 truncate">{item.name}</span>
+                                </div>
+                                <span className="text-xs font-semibold text-amber-700">{item.qty} left</span>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <EmptyPanel message="All stock levels healthy" />
+                )}
+            </PanelCard>
+
+            <PanelCard title="Recent Reviews" action={() => onNavigate("/vendor/ratings")}>
+                {recentReviews.length > 0 ? (
+                    <ul className="space-y-3">
+                        {recentReviews.slice(0, 4).map((review) => (
+                            <li
+                                key={review.id}
+                                className="flex gap-3 group cursor-pointer"
+                                onClick={() => onNavigate("/vendor/ratings")}
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        onNavigate("/vendor/ratings");
+                                    }
+                                }}
+                            >
+                                <div className="h-8 w-8 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+                                    <Star size={14} className="text-amber-500 fill-amber-500" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-medium text-gray-800 truncate group-hover:text-[#0D614E] transition-colors">
+                                        {review.reviewer_name || "Customer"}
+                                    </p>
+                                    <p className="text-xs text-gray-400 mt-0.5 truncate">
+                                        {review.product_name || "Product"}
+                                        {review.rating != null ? ` · ${review.rating}★` : ""}
+                                    </p>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <EmptyPanel message="No reviews yet" />
+                )}
+            </PanelCard>
+
+            <PanelCard title="Quick Links">
+                <div className="grid grid-cols-2 gap-2">
+                    {quickLinks.map((link) => (
+                        <button
+                            key={link.path}
+                            type="button"
+                            onClick={() => onNavigate(link.path)}
+                            className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50/50 px-3 py-2.5 text-left text-xs font-medium text-gray-700 hover:bg-[#0D614E]/5 hover:border-[#0D614E]/20 hover:text-[#0D614E] transition-all duration-200 active:scale-[0.98] ds-focus"
+                        >
+                            <link.icon size={14} />
+                            {link.label}
+                        </button>
+                    ))}
+                </div>
+            </PanelCard>
+        </aside>
+    );
+}

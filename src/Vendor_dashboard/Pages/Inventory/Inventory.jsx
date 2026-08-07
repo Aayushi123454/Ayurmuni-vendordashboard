@@ -1,214 +1,139 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./Inventory.css";
-import InventoryIcon from "../../../Assests/InventoryIcon.png";
-import Brahmiicon from "../../../Assests/Brahmniicon.png";
-import TimerIcon from "../../../Assests/TimerIcon1.png";
-import filter from "../../../Assests/filter.png";
 import Ayurvedaimage from "../../../Assests/Ayurvedaimage.png";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FaEdit } from "react-icons/fa";
 import { FiTrash2 } from "react-icons/fi";
-import { IoInformation } from "react-icons/io5";
 import toast from "react-hot-toast";
 import { vendorService } from "../../../services/vendorService";
+import UnicommerceNotice from "../../components/shared/UnicommerceNotice";
+import DashboardPageShell from "../../components/shared/DashboardPageShell";
+import Button from "../../components/shared/Button";
+import { PageEmpty, PageError, PaginationBar } from "../../components/shared/PageState";
+import { ProductListSkeleton } from "../../components/shared/Skeleton";
+import StatusBadge from "../../components/shared/StatusBadge";
+import SearchToolbar from "../../components/shared/SearchToolbar";
+import usePersistedState from "../../hooks/usePersistedState";
+import {
+  getVariantCoverImageUrl,
+  getVariantQuantity,
+  mapVariantFromApi,
+  UNICOMMERCE_NOTICES,
+} from "../../../utils/unicommerceHelpers";
+import "../../components/shared/vendor-shared.css";
 
-// Helper function to get status based on stock and threshold
-const getVariantStatus = (stock, threshold) => {
-  if (stock <= 0) return "outofstock";
-  if (stock <= threshold) return "lowstock";
+const LOW_STOCK_THRESHOLD = 10;
+
+const getVariantStatus = (stock) => {
+  if (stock == null || stock <= 0) return "out-of-stock";
+  if (stock <= LOW_STOCK_THRESHOLD) return "low-stock";
   return "instock";
 };
 
-// Helper to format quantity display
-const formatQuantity = (stock, threshold) => {
-  if (stock <= 0) return "0 Units";
-  return `${stock} Units`;
-};
-
-// Helper to get tag class based on product category or name
 const getTagClass = (product) => {
-  const name = product.name.toLowerCase();
+  const name = (product.name || "").toLowerCase();
   if (name.includes("ashwagandha") || name.includes("herb")) return "iv-tag-ayurveda";
   if (name.includes("tea") || name.includes("beverage")) return "iv-tag-beverage";
   if (product.is_nutrition) return "iv-tag-nutrition";
   return "iv-tag-ayurveda";
 };
 
-// Helper to get tag label
 const getTagLabel = (product) => {
-  const name = product.name.toLowerCase();
+  const name = (product.name || "").toLowerCase();
   if (name.includes("ashwagandha") || name.includes("herb")) return "Ayurveda Herbs";
   if (name.includes("tea") || name.includes("beverage")) return "Beverage";
   if (product.is_nutrition) return "Nutrition";
   return "Ayurveda Herbs";
 };
 
-// Mock alerts data - in real app this would come from API
-const ALERTS = [
-  { id: 1, icon: InventoryIcon, name: "Ashwagandha Extract (Grade A)", meta: "4 units left · Min: 25" },
-  { id: 2, icon: Brahmiicon, name: "Organic Brahmi Powder", meta: "12 units left · Min: 50" },
-];
-
-const EXPIRY_ROWS = [
-  { label: "Expiring in 30 days", count: "14 Batches", width: "65%", badgeClass: "iv-badge-red", fillClass: "iv-fill-red" },
-  { label: "Expiring in 90 days", count: "40 Batches", width: "48%", badgeClass: "iv-badge-orange", fillClass: "iv-fill-orange" },
-];
-
-const STATUS_MAP = {
-  instock: { label: "In Stock", cls: "iv-chip-instock" },
-  lowstock: { label: "Low Stock", cls: "iv-chip-lowstock" },
-  outofstock: { label: "Out of Stock", cls: "iv-chip-outofstock" },
-};
-
-function CriticalAlerts() {
-  return (
-    <div className="iv-card iv-card-alerts">
-      <div className="iv-alerts-header">
-        <div className="iv-alert-badge">
-          <IoInformation size={16} className="iv-dot-red" />
-          Critical Alerts
-        </div>
-      </div>
-
-      <div className="iv-alerts-title">12 Items Below Safety Threshold</div>
-
-      {ALERTS.map((a) => (
-        <div key={a.id} className="iv-alert-item">
-          <div className="iv-alert-icon">
-            <img src={a.icon} className="inventoryicon" alt="" />
-          </div>
-          <div className="iv-alert-info">
-            <div className="iv-alert-name">{a.name}</div>
-            <div className="iv-alert-meta">{a.meta}</div>
-          </div>
-          <button className="iv-btn-restock">Restock</button>
-        </div>
-      ))}
-
-      <span className="iv-show-more">Show More</span>
-    </div>
-  );
-}
-
-function ExpiryPipeline() {
-  return (
-    <div className="iv-card">
-      <div className="iv-expiry-top-row">
-        <div>
-          <div className="iv-expiry-label">Batch Health</div>
-          <div className="iv-expiry-title">Expiry Pipeline</div>
-        </div>
-        <div className="iv-circle-icon">
-          <img className="InventoryTimer" src={TimerIcon} alt="" />
-        </div>
-      </div>
-
-      {EXPIRY_ROWS.map((row) => (
-        <div key={row.label} className="iv-expiry-row">
-          <div className="iv-expiry-row-top">
-            <div className="iv-expiry-row-label">{row.label}</div>
-            <span className={`iv-expiry-badge ${row.badgeClass}`}>{row.count}</span>
-          </div>
-          <div className="iv-progress-bar-wrap">
-            <div className={`iv-progress-bar-fill ${row.fillClass}`} style={{ width: row.width }} />
-          </div>
-        </div>
-      ))}
-
-      <div className="iv-pro-tip">
-        <div className="iv-pro-tip-label">PRO-TIP</div>
-        <div className="iv-pro-tip-text">
-          Ayurvedic oils have extended shelf life if stored in Level 3 darkness. Check temperature logs.
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Toggle({ checked, onChange }) {
-  return (
-    <label className="iv-toggle">
-      <input type="checkbox" checked={checked} onChange={onChange} />
-      <span className="iv-toggle-slider" />
-    </label>
-  );
-}
-
-function VariantRow({ variant, productName }) {
-  const [active, setActive] = useState(variant.is_active);
-  const status = getVariantStatus(variant.stock, variant.low_stock_threshold);
-  const statusConfig = STATUS_MAP[status];
-
-  // Get cover image URL or use default
-  const avatarUrl = variant.cover_image?.media_url || variant.media?.[0]?.media_url || Ayurvedaimage;
+function VariantRow({ variant }) {
+  const qty = getVariantQuantity(variant);
+  const stockStatus = getVariantStatus(qty);
+  const avatarUrl = getVariantCoverImageUrl(variant) || Ayurvedaimage;
 
   return (
     <tr>
       <td>
-        <div className="iv-variant-cell flex items-center gap-4">
-          <div className="iv-variant-avatar shadow-md">
-            <img src={avatarUrl} className=" max-w-[50px] w-full h-full max-h-[50px] " alt={variant.title} />
+        <div className="flex items-center gap-3">
+          <div className="h-14 w-14 overflow-hidden rounded-lg border bg-white shadow-sm">
+            <img
+              src={avatarUrl}
+              alt={variant.title}
+              className="h-full w-full object-cover"
+              onError={(e) => {
+                e.currentTarget.src = Ayurvedaimage;
+              }}
+            />
           </div>
-          <span className="font-[600]">{variant.title}</span>
+          <div>
+            <h4 className="text-sm font-semibold text-gray-800">{variant.title}</h4>
+            <StatusBadge status={variant.approval_status} className="mt-1" />
+          </div>
         </div>
       </td>
+<<<<<<< HEAD
       <td><span className="iv-sku-badge">{variant.variant_code}</span></td>
       <td><span className="iv-price-mrp">Rs.{parseFloat(variant.mrp).toLocaleString()}</span></td>
       <td><span className="iv-price-sell">Rs.{parseFloat(variant.selling_price).toLocaleString()}</span></td>
+=======
+>>>>>>> 8f191bbe844823d0bd23134c03498929df78b772
       <td>
-        <span className={`iv-qty ${status}`}>
-          {formatQuantity(variant.stock, variant.low_stock_threshold)}
-        </span>
-      </td>
-      <td>
-        <span className={`iv-status-chip ${statusConfig.cls}`}>
-          <span className="iv-status-dot" />
-          {statusConfig.label}
-        </span>
-      </td>
-      <td>
-        <Toggle checked={active} onChange={() => setActive((v) => !v)} />
-      </td>
-      <td>
-        <div className="iv-actions-cell">
-          <Link to={"edit-product/:id"} className="iv-act-btn"><span className="greenicon"><FaEdit /></span></Link>
-          <Link className="iv-act-btn"><span className="redicon"><FiTrash2 /></span></Link>
+        <div className="flex flex-col gap-1">
+          <code className="rounded-md bg-gray-100 px-2 py-1 text-sm">{variant.vendor_sku_code || "—"}</code>
+          {variant.sku_code && (
+            <code className="text-sm text-gray-500" title="Unicommerce system SKU">
+              {variant.sku_code}
+            </code>
+          )}
         </div>
       </td>
+      <td>₹{Number(variant.mrp || 0).toLocaleString()}</td>
+      <td className="font-semibold text-[#0D614E]">₹{Number(variant.selling_price || 0).toLocaleString()}</td>
+      <td>{qty} units</td>
+      <td><StatusBadge status={stockStatus} /></td>
+      <td><StatusBadge status={variant.status || "draft"} /></td>
     </tr>
   );
 }
 
-function ProductBlock({ product, collaps, setcollaps }) {
-  const tagClass = getTagClass(product);
-  const tagLabel = getTagLabel(product);
-  const avatarUrl = product.variants[0]?.cover_image?.media_url ||
-    product.variants[0]?.media?.[0]?.media_url ||
-    Ayurvedaimage;
+function ProductBlock({ product, expanded, onToggle, onDelete }) {
+  const firstVariantWithImage =
+    (product.variants || []).find((v) => getVariantCoverImageUrl(v)) || product.variants?.[0];
+  const avatarUrl = getVariantCoverImageUrl(firstVariantWithImage) || Ayurvedaimage;
+  const isExpanded = expanded === product.id;
 
   return (
-    <div className="iv-product-block">
+    <div className="iv-product-block ds-card ds-card-interactive ds-animate-in">
       <div className="iv-product-header">
         <div className="iv-product-avatar shadow-md">
-          <img src={avatarUrl} alt={product.name} />
+          <img
+            src={avatarUrl}
+            alt={product.name}
+            onError={(e) => {
+              e.currentTarget.src = Ayurvedaimage;
+            }}
+          />
         </div>
         <div className="iv-product-info">
           <div className="iv-product-name">
             {product.name}
-            <span className={`iv-product-tag ${tagClass}`}>{tagLabel}</span>
+            {/* <span className={`iv-product-tag ${getTagClass(product)}`}>{getTagLabel(product)}</span> */}
           </div>
           <div className="iv-product-meta">
             <span className="iv-meta-label">Brand:</span>
-            <span className="iv-meta-value">{product.brand_name}</span>
-
+            <span className="iv-meta-value">{product.brand_name || "—"}</span>
             <span className="iv-meta-dot">•</span>
-
             <span className="iv-meta-label">Variants:</span>
-            <span className="iv-meta-value">
-              {product.variants.length} available
-            </span>
+            <span className="iv-meta-value">{product.variants?.length || 0}</span>
+            {product.product_subcategory_name && (
+              <>
+                <span className="iv-meta-dot">•</span>
+                <span className="iv-meta-value">{product.product_subcategory_name}</span>
+              </>
+            )}
           </div>
         </div>
+<<<<<<< HEAD
         <button className="iv-btn-view-all" onClick={e => setcollaps(product.id)}>View Variants</button>
       </div>
       {
@@ -254,34 +179,37 @@ function Pagination({ currentPage, totalCount, onPageChange }) {
           disabled={currentPage === 1}
         >
           ‹
+=======
+        <button type="button" className="iv-btn-view-all ds-focus active:scale-[0.98] transition-transform duration-200" onClick={() => onToggle(product.id)}>
+          {isExpanded ? "Hide Variants" : "View Variants"}
+>>>>>>> 8f191bbe844823d0bd23134c03498929df78b772
         </button>
-        {Array.from({ length: Math.min(3, totalPages) }, (_, i) => i + 1).map((n) => (
-          <button
-            key={n}
-            className={`iv-page-btn${currentPage === n ? " active" : ""}`}
-            onClick={() => onPageChange(n)}
+        <div className="flex items-center gap-2">
+          <Link
+            to={`/vendor/products/${product.id}`}
+            className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-gray-600 transition hover:bg-gray-50"
           >
-            {n}
-          </button>
-        ))}
-        {totalPages > 3 && <span className="iv-page-dots">...</span>}
-        {totalPages > 3 && (
-          <button className="iv-page-btn" onClick={() => onPageChange(totalPages)}>
-            {totalPages}
-          </button>
-        )}
-        <button
-          className="iv-page-btn"
-          onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-          disabled={currentPage === totalPages}
-        >
-          ›
-        </button>
+            View
+          </Link>
+          <Link
+            to={`/vendor/edit-product/${product.id}`}
+            className="rounded-lg border border-green-200 p-2 !text-green-600 transition hover:bg-green-50"
+            aria-label="Edit product"
+          >
+            <FaEdit size={16} />
+          </Link>
+          {/* <button
+            type="button"
+            className="rounded-lg border border-red-200 p-2 text-red-600 transition hover:bg-red-50"
+            onClick={() => onDelete(product)}
+            aria-label="Delete product"
+          >
+            <FiTrash2 size={16} />
+          </button> */}
+        </div>
       </div>
-    </div>
-  );
-}
 
+<<<<<<< HEAD
 function BatchOrigin() {
   return (
     <div className="iv-card iv-batch-origin">
@@ -309,114 +237,186 @@ function StockIntelligence() {
         'Ashwagandha Elixir' has reached 500 sales this
         week. Consider featuring it on your homepage."
       </p>
+=======
+      {isExpanded && (
+        <div className="vendor-table-wrap mt-3 border-0 shadow-none ds-animate-in overflow-x-auto ds-scroll">
+          <table className="vendor-table iv-variants-table">
+            <thead>
+              <tr>
+                <th>Variant</th>
+                <th>SKU (Vendor / System)</th>
+                <th>MRP</th>
+                <th>Selling Price</th>
+                <th>Quantity</th>
+                <th>Stock</th>
+                <th>Lifecycle</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(product.variants || []).map((variant) => (
+                <VariantRow key={variant.id} variant={variant} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+>>>>>>> 8f191bbe844823d0bd23134c03498929df78b772
     </div>
   );
 }
 
 export default function InventoryVault() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [collaps, setcollaps] = useState("");
+  const [error, setError] = useState("");
+  const [expanded, setExpanded] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [searchInput, setSearchInput] = useState(location.state?.search || "");
+  const [search, setSearch] = useState(location.state?.search || "");
+  const [pageSize, setPageSize] = usePersistedState("vendor:inventory:pageSize", 10);
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async (page = currentPage) => {
     try {
       setLoading(true);
-      // const response2 = await vendorService.getsingleProducts();
-      const response = await vendorService.getProducts();
+      setError("");
+      const response = await vendorService.getProducts({ page, page_size: pageSize });
 
       if (response.data.success) {
-        setProducts(response.data.data.results);
-        setTotalCount(response.data.data.count);
+        const results = (response.data.data.results || []).map((product) => ({
+          ...product,
+          variants: (product.variants || []).map(mapVariantFromApi),
+        }));
+        setProducts(results);
+        setTotalCount(response.data.data.count || 0);
       } else {
-        toast.error("Failed to load products");
+        setError("Failed to load products");
       }
-    } catch (error) {
-      console.error("Error fetching products:", error);
-      toast.error(error.message || "Failed to load products");
+    } catch (err) {
+      setError(err?.response?.data?.message || err.message || "Failed to load products");
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, pageSize]);
 
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    fetchProducts(currentPage);
+  }, [fetchProducts, currentPage]);
 
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-    // In a real implementation, you would fetch the specific page here
-    // For now, we're just updating the UI state
+  const filteredProducts = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return products;
+    return products.filter((product) => {
+      const inName = product.name?.toLowerCase().includes(term);
+      const inBrand = product.brand_name?.toLowerCase().includes(term);
+      const inVariant = (product.variants || []).some(
+        (v) =>
+          v.title?.toLowerCase().includes(term) ||
+          v.vendor_sku_code?.toLowerCase().includes(term) ||
+          v.sku_code?.toLowerCase().includes(term)
+      );
+      return inName || inBrand || inVariant;
+    });
+  }, [products, search]);
+
+  const lowStockCount = useMemo(() => {
+    return products.reduce((count, product) => {
+      const low = (product.variants || []).filter(
+        (v) => getVariantQuantity(v) <= LOW_STOCK_THRESHOLD
+      ).length;
+      return count + low;
+    }, 0);
+  }, [products]);
+
+  const handleDeleteProduct = async (product) => {
+    if (!window.confirm(`Delete "${product.name}" and all its variants?`)) return;
+    try {
+      await vendorService.deleteProduct(product.id);
+      toast.success("Product deleted");
+      fetchProducts(currentPage);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to delete product");
+    }
   };
 
   return (
-    <div className="notification-page">
-      <div className="iv-header">
-        <div className="iv-header-title">
-          <h1>Inventory <span className="inventoryspan">Vault</span></h1>
-          <p>
-            Manage your botanical stock with precision. Real-time expiry tracking and batch
-            integrity for premium Ayurvedic distribution.
-          </p>
-        </div>
-        <button className="iv-btn-add" onClick={() => navigate("/vendor/new-product")}>
-          <span className="iv-btn-add-icon">+</span> Add Product
-        </button>
-      </div>
+    <DashboardPageShell
+      title="Product"
+      accent="Catalog"
+      subtitle="Manage your product catalog, variants, and approval status. Stock quantities are updated via Stock Management."
+      breadcrumbs={[{ label: "Dashboard" }, { label: "Products" }]}
+      actions={
+        <>
+          {lowStockCount > 0 && (
+            <Button variant="pill">{lowStockCount} low stock variant{lowStockCount > 1 ? "s" : ""}</Button>
+          )}
+          <Button onClick={() => navigate("/vendor/new-product")}>+ Add Product</Button>
+        </>
+      }
+    >
 
-      <div className="iv-top-grid">
-        <CriticalAlerts />
-        <ExpiryPipeline />
-      </div>
+      <UnicommerceNotice>
+        {UNICOMMERCE_NOTICES.pendingVariant} Use Stock Management to update quantities for approved variants — changes sync to Unicommerce.
+      </UnicommerceNotice>
 
-      {/* <div className="iv-ledger-header">
-        <div className="iv-ledger-title">Batch Inventory Ledger</div>
-        <div className="orders-filter">
-          <button className="filter-btn">
-            <img src={filter} alt="filter" />
-            Filter
-          </button>
-
-          <button className="filter-btn">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            Export
-          </button>
-        </div>
-      </div> */}
+      <SearchToolbar
+        className="!mb-4"
+        value={searchInput}
+        onChange={(e) => setSearchInput(e.target.value)}
+        onSubmit={(e) => {
+          e.preventDefault();
+          setSearch(searchInput.trim());
+        }}
+        onClear={searchInput ? () => { setSearch(""); setSearchInput(""); } : undefined}
+        placeholder="Search products, brands, SKUs..."
+      />
 
       {loading ? (
-        <div className="iv-loading-state">
-          <div className="iv-loader"></div>
-          <p>Loading inventory...</p>
-        </div>
-      ) : products.length === 0 ? (
-        <div className="iv-empty-state">
-          <p>No products found. Click "Add Product" to get started.</p>
-        </div>
-      ) : (
-        products.map((product) => (
-          <ProductBlock key={product.id} product={product} collaps={collaps} setcollaps={setcollaps} />
-        ))
-      )}
-
-      {!loading && products.length > 0 && (
-        <Pagination
-          currentPage={currentPage}
-          totalCount={totalCount}
-          onPageChange={handlePageChange}
+        <ProductListSkeleton count={pageSize > 5 ? 5 : pageSize} />
+      ) : error ? (
+        <PageError message={error} onRetry={() => fetchProducts(currentPage)} />
+      ) : filteredProducts.length === 0 ? (
+        <PageEmpty
+          title={search ? "No matching products" : "No products yet"}
+          description={
+            search
+              ? "Try a different search term or clear the filter."
+              : "Start building your catalog by adding your first product."
+          }
+          action={
+            !search && (
+              <Button onClick={() => navigate("/vendor/new-product")}>+ Add Product</Button>
+            )
+          }
         />
+      ) : (
+        <>
+          <div className="ds-stagger space-y-4">
+          {filteredProducts.map((product) => (
+            <ProductBlock
+              key={product.id}
+              product={product}
+              expanded={expanded}
+              onToggle={(id) => setExpanded((prev) => (prev === id ? "" : id))}
+              onDelete={handleDeleteProduct}
+            />
+          ))}
+          </div>
+          {!search && (
+            <PaginationBar
+              page={currentPage}
+              pageSize={pageSize}
+              totalCount={totalCount}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              storageKey="vendor:inventory"
+              itemLabel="products"
+            />
+          )}
+        </>
       )}
-
-      <div className="iv-bottom-grid">
-        <BatchOrigin />
-        <StockIntelligence />
-      </div>
-    </div>
+    </DashboardPageShell>
   );
 }

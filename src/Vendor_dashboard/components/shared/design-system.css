@@ -1,0 +1,155 @@
+/* Enterprise design system — AyurMuni brand aligned with Doctor Dashboard */
+
+:root {
+    --ds-brand: #0D614E;
+    --ds-brand-hover: #094c3d;
+    --ds-brand-alt-hover: #0A4D3E;
+    --ds-brand-soft: rgba(13, 97, 78, 0.08);
+    --ds-brand-soft-hover: rgba(13, 97, 78, 0.15);
+    --ds-focus-green: #1a5c3a;
+    --ds-bg-page: #f5f5f5;
+    --ds-bg-muted: #f9fafb;
+    --ds-bg-subtle: #f3f4f6;
+    --ds-surface: #ffffff;
+    --ds-border: #e5e7eb;
+    --ds-border-light: #f3f4f6;
+    --ds-text-primary: #1f2937;
+    --ds-text-heading: #111827;
+    --ds-text-secondary: #6b7280;
+    --ds-text-muted: #727783;
+    --ds-text-label: #94A3B8;
+    --ds-success: #16a34a;
+    --ds-danger: #dc2626;
+    --ds-warning: #D97706;
+    --ds-radius-sm: 0.5rem;
+    --ds-radius-md: 0.75rem;
+    --ds-radius-lg: 1rem;
+    --ds-radius-xl: 1rem;
+    --ds-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+    --ds-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    --ds-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+    --ds-transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    --ds-focus-ring: 0 0 0 3px rgba(13, 97, 78, 0.22);
+}
+
+/* Page enter */
+@keyframes ds-fade-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; }
+}
+
+@keyframes ds-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes ds-scale-in {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes ds-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.ds-animate-in {
+    animation: ds-fade-up 220ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.ds-stagger > * {
+    animation: ds-fade-up 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.ds-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.ds-stagger > *:nth-child(2) { animation-delay: 40ms; }
+.ds-stagger > *:nth-child(3) { animation-delay: 80ms; }
+.ds-stagger > *:nth-child(4) { animation-delay: 120ms; }
+.ds-stagger > *:nth-child(5) { animation-delay: 160ms; }
+.ds-stagger > *:nth-child(6) { animation-delay: 200ms; }
+
+/* Premium card */
+.ds-card {
+    background: var(--ds-surface);
+    border: 1px solid var(--ds-border-light);
+    border-radius: var(--ds-radius-lg);
+    box-shadow: var(--ds-shadow-sm);
+    transition: box-shadow var(--ds-transition), transform var(--ds-transition), border-color var(--ds-transition);
+}
+
+.ds-card-interactive:hover {
+    box-shadow: var(--ds-shadow-md);
+    transform: translateY(-1px);
+    border-color: var(--ds-border);
+}
+
+/* Button press */
+.ds-btn-press:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+/* Focus visible */
+.ds-focus:focus-visible {
+    outline: none;
+    box-shadow: var(--ds-focus-ring);
+}
+
+/* Skeleton */
+.ds-skeleton {
+    background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+    background-size: 200% 100%;
+    animation: ds-shimmer 1.5s ease-in-out infinite;
+    border-radius: var(--ds-radius-sm);
+}
+
+/* Modal — portaled to body, above sidebar/header */
+.ds-modal-root {
+    position: fixed;
+    inset: 0;
+    z-index: 10050;
+    background-color: rgba(0, 0, 0, 0.45);
+}
+
+.ds-modal-root__center {
+    display: flex;
+    min-height: 100%;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.ds-modal-backdrop {
+    animation: ds-fade-in 180ms ease-out both;
+}
+
+.ds-modal-panel {
+    animation: ds-scale-in 200ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Table row */
+.ds-table-row {
+    transition: background-color var(--ds-transition);
+}
+
+.ds-table-row:hover {
+    background-color: var(--ds-bg-muted);
+}
+
+.ds-table-row:focus-within {
+    background-color: var(--ds-bg-subtle);
+}
+
+/* Scrollbar polish */
+.ds-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.ds-scroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px;
+}
+
+.ds-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--ds-text-label);
+}

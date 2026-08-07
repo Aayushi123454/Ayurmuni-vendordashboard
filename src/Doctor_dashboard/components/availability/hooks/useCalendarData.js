@@ -2,12 +2,13 @@
 import { useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { doctorService } from '../../../../services/doctorService';
+import { parseMonthlyAvailabilityResponse } from '../utils/calendarDataParser';
 
 export const useCalendarData = () => {
     const [slots, setSlots] = useState({});
     const [appointments, setAppointments] = useState({});
     const [isLoading, setIsLoading] = useState(false);
-    const [baseamount, setbaseamount] = useState(0)
+    const [baseamount, setbaseamount] = useState(0);
 
     const fetchMonthData = useCallback(async (date) => {
         setIsLoading(true);
@@ -15,30 +16,10 @@ export const useCalendarData = () => {
             const year = date.getFullYear();
             const month = date.getMonth() + 1;
             const response = await doctorService.getMonthlyAvailability(year, month);
-            const data = response?.data?.data || {};
-            setbaseamount(response?.data?.data[0]?.amount)
-            // console.log(response?.data?.data[0]?.amount);
+            const rawData = response?.data?.data;
+            const { slotsMap, appointmentsMap, baseamount: amount } = parseMonthlyAvailabilityResponse(rawData);
 
-
-            const slotsMap = {};
-            const appointmentsMap = {};
-
-            data?.forEach((dateItem) => {
-                dateItem?.slots?.forEach((slot) => {
-                    const dateKey = slot.date;
-                    if (!slotsMap[dateKey]) {
-                        slotsMap[dateKey] = [];
-                    }
-                    slotsMap[dateKey].push(slot);
-                });
-            });
-
-            data.appointments?.forEach(apt => {
-                const dateKey = apt.date;
-                if (!appointmentsMap[dateKey]) appointmentsMap[dateKey] = [];
-                appointmentsMap[dateKey].push(apt);
-            });
-
+            setbaseamount(amount);
             setSlots(slotsMap);
             setAppointments(appointmentsMap);
         } catch (error) {

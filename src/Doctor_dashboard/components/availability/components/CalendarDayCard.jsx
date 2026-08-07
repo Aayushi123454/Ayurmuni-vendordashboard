@@ -64,7 +64,9 @@ const CalendarDayCard = ({ date, isCurrentMonth, isToday, isPast, slots, appoint
             {/* Time Slots */}
             <div className="space-y-1.5 mt-1">
 
-                {(showAllSlots ? slots : slots.slice(0, 2)).map((slot) => slot?.is_active && (
+                {(showAllSlots ? slots : slots.slice(0, 2)).map((slot) =>
+                // slot?.is_active &&
+                (
                     <SlotCard
                         key={slot.id}
                         slot={slot}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     Users,
     Search,
@@ -34,14 +34,12 @@ import {
     IndianRupeeIcon
 } from 'lucide-react';
 import { doctorService } from '../../../services/doctorService';
-
-// Import the PatientDetails component
-import PatientDetails from './PatientDetails';
 import { BiFemale, BiMale, BiUser } from 'react-icons/bi';
 import { Link } from 'react-router-dom';
 
 const PatientManagement = () => {
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [filterPrakriti, setFilterPrakriti] = useState('all');
     const [filterGender, setFilterGender] = useState('all');
     const [sortBy, setSortBy] = useState('name');
@@ -57,11 +55,21 @@ const PatientManagement = () => {
 
     const itemsPerPage = 10;
 
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchTerm);
+            setCurrentPage(1);
+        }, 400);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
     // Fetch patients from API
     const fetchPatients = async () => {
         setIsLoading(true);
         try {
-            const response = await doctorService.getPatient?.("patient", currentPage, itemsPerPage, searchTerm, filterPrakriti, filterGender);
+            const response = await doctorService.getPatient(
+                'patient', currentPage, itemsPerPage, debouncedSearch, filterPrakriti, filterGender
+            );
             const apiData = response?.data?.data || response?.data;
 
             setPatientsData({
@@ -87,11 +95,23 @@ const PatientManagement = () => {
 
     useEffect(() => {
         fetchPatients();
-    }, [currentPage, searchTerm, filterPrakriti, filterGender, sortBy]);
+    }, [currentPage, debouncedSearch, filterPrakriti, filterGender]);
+
+    const sortedResults = useMemo(() => {
+        const results = [...patientsData.results];
+        if (sortBy === 'name') {
+            results.sort((a, b) => (a.patient_name || '').localeCompare(b.patient_name || ''));
+        } else if (sortBy === 'lastAppointment') {
+            results.sort((a, b) => new Date(b.last_appointment_date || 0) - new Date(a.last_appointment_date || 0));
+        } else if (sortBy === 'totalAppointments') {
+            results.sort((a, b) => (b.total_appointments || 0) - (a.total_appointments || 0));
+        }
+        return results;
+    }, [patientsData.results, sortBy]);
 
     // Statistics calculations from API data
     const stats = {
-        total: patientsData.count,
+        total: patientsData.results.length,
         active: patientsData.results.filter(p => p.total_appointments > 0).length,
         newThisMonth: patientsData.results.filter(p => {
             const lastMonth = new Date();
@@ -218,7 +238,7 @@ const PatientManagement = () => {
                 {/* Main Content */}
                 <div className="p-8">
                     {/* Statistics Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                         <div className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-all border border-gray-100">
                             <div className="flex justify-between items-start">
                                 <div>
@@ -261,7 +281,7 @@ const PatientManagement = () => {
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                        {/* <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
                             <div className="flex justify-between items-start">
                                 <div>
                                     <p className="text-gray-500 text-sm">Total Revenue</p>
@@ -272,7 +292,7 @@ const PatientManagement = () => {
                                     <IndianRupeeIcon size={20} className="text-yellow-600" />
                                 </div>
                             </div>
-                        </div>
+                        </div> */}
 
                         {/* <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
                                 <div className="flex justify-between items-start">
@@ -394,7 +414,7 @@ const PatientManagement = () => {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-100">
-                                            {patientsData.results.map((patient) => {
+                                            {sortedResults.map((patient) => {
                                                 const prakritiInfo = getPrakritiInfo(patient.prakriti_result);
                                                 const PrakritiIcon = prakritiInfo.icon;
                                                 const age = calculateAge(patient.dob);
@@ -463,6 +483,7 @@ const PatientManagement = () => {
                                                         <td className="px-6 py-4">
                                                             <div className="flex items-center space-x-2">
                                                                 <Link
+                                                                    // to={`/doctor/patients/detail/${patient.id}`}
                                                                     to={`patient/${patient.id}`}
                                                                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors group"
                                                                     title="View Full Details"

@@ -22,7 +22,7 @@ const VideoPip = ({ videoRef, isCameraOff, isMuted, onDragEnd }) => {
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
       >
-        <div ref={videoRef} className="w-full aspect-video bg-gray-800" />
+        <div ref={videoRef} className="w-full aspect-video bg-gray-800 [&_video]:object-cover [&_video]:w-full [&_video]:h-full" />
         
         {isCameraOff && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-800/90">

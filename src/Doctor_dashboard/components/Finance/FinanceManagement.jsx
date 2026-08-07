@@ -94,7 +94,7 @@ import { doctorService } from '../../../services/doctorService';
 const FinanceDashboard = () => {
     const [activeTab, setActiveTab] = useState('overview');
     const [dateRange, setDateRange] = useState('month');
-    const [selectedYear, setSelectedYear] = useState(2024);
+    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [selectedMonth, setSelectedMonth] = useState(1);
     const [showTransactionModal, setShowTransactionModal] = useState(false);
     const [showPayoutModal, setShowPayoutModal] = useState(false);
@@ -532,8 +532,7 @@ const FinanceDashboard = () => {
                 </div>
 
                 {/* Charts Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                    {/* Revenue Chart */}
+                {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                     <div className="bg-white rounded-xl shadow-sm p-6">
                         <div className="flex justify-between items-center mb-4">
                             <div>
@@ -568,7 +567,6 @@ const FinanceDashboard = () => {
                         </div>
                     </div>
 
-                    {/* Upcoming Payouts */}
                     <div className="bg-white rounded-xl shadow-sm p-6">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-semibold text-gray-800">Recent Transactions</h3>
@@ -606,7 +604,7 @@ const FinanceDashboard = () => {
                             )}
                         </div>
                     </div>
-                </div>
+                </div> */}
 
                 {/* Transactions Table */}
                 <div className="bg-white rounded-xl shadow-sm">

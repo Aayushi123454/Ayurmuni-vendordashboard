@@ -80,12 +80,12 @@ const VideoControls = ({
               />
 
               {/* Switch Camera (if multiple cameras) */}
-              {availableCameras && availableCameras.length > 1 && (
+              {/* {availableCameras && availableCameras.length > 1 && (
                 <ControlButton
                   icon={Camera}
                   onClick={onSwitchCamera}
                 />
-              )}
+              )} */}
 
               {/* Recording Control */}
               {/* <ControlButton
@@ -102,10 +102,10 @@ const VideoControls = ({
               />
 
               {/* Settings Control */}
-              <ControlButton
+              {/* <ControlButton
                 icon={Settings}
                 onClick={onOpenSettings}
-              />
+              /> */}
 
               {/* Divider */}
               <div className="w-px h-6 bg-white/20 mx-1" />
