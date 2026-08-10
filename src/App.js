@@ -264,7 +264,7 @@ export default App;
 
 function DoctorLayout() {
   return (
-    <div style={{ display: "flex" }}>
+    <div style={{ display: "flex",paddingLeft: "250px" }}>
       <DoctorSidebar />
       <div className="main-content">
         <Header />

@@ -22,6 +22,7 @@ const DoctorSidebar = () => {
   const location = useLocation();
   const [itsverify, setitsverify] = useState(false);
   const [collapsed] = useState(false);
+  const isdietitian = sessionStorage.getItem("profile") ? JSON.parse(sessionStorage.getItem("profile")).is_dietitian : false;
 
   const menuItems = [
     { name: "Dashboard", icon: <DashboardIcon />, path: "/doctor/dashboard" },
@@ -29,13 +30,18 @@ const DoctorSidebar = () => {
     { name: "Appointment", icon: <Appointment />, path: "/doctor/appointments" },
     { name: "Patients", icon: <Patients />, path: "/doctor/patients" },
     { name: "Messanger", icon: <Message />, path: "/doctor/messenger" },
-    // { name: "Assessments", icon: <Assessments />, path: "/doctor/assessments" },
     { name: "Earnings", icon: <FinanceIcon />, path: "/doctor/earnings" },
-    { name: "Diets", icon: <Bowlrice />, path: "/doctor/diets" },
+    isdietitian && {
+      name: "Diets",
+      icon: <Bowlrice />,
+      path: "/doctor/diets",
+    },
     {
-      name: "Reviews & Feedback", icon: <FinanceIcon />, path: "/doctor/reviews"
-    }
-  ];
+      name: "Reviews & Feedback",
+      icon: <FinanceIcon />,
+      path: "/doctor/reviews",
+    },
+  ].filter(Boolean);
 
   const generalItems = [
     // { name: "Help & Support", icon: <HelpIcons />, path: "/doctor/help-support" },
