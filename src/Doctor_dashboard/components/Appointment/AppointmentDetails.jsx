@@ -22,7 +22,8 @@ import {
     Notebook,
     CheckCircle2,
     UserX,
-    RefreshCw
+    RefreshCw,
+    DeleteIcon
 } from 'lucide-react';
 import { BsLungs, BsPrescription } from 'react-icons/bs';
 import toast from 'react-hot-toast';
@@ -30,6 +31,7 @@ import { FaAllergies } from 'react-icons/fa';
 import { MdFamilyRestroom } from 'react-icons/md';
 import DoctorQAPanelPremium from './questionsforpatient';
 import DoctorVideoCall from '../videocall/DoctorVideoCall';
+import { BiFoodMenu } from 'react-icons/bi';
 // import html2canvas from 'html2canvas';
 // import jsPDF from 'jspdf';
 
@@ -699,7 +701,11 @@ const AppointmentDetail = ({ videodetails }) => {
     const navigate = useNavigate();
 
     const [loading, setLoading] = useState(true);
+    const [dietloading, setdietloading] = useState(true);
     const [appointment, setAppointment] = useState(null);
+    const [doDonts, setdoDonts] = useState(null);
+    const [filterdoDonts, setFilterdoDonts] = useState(null);
+    const [filterdietplans, setFilterdietplans] = useState(null);
     const [activeTab, setActiveTab] = useState(type == "patient" ? "history" : 'prescription');
     const [updating, setUpdating] = useState(false);
     const [showAddMed, setShowAddMed] = useState(false);
@@ -727,6 +733,8 @@ const AppointmentDetail = ({ videodetails }) => {
         donts: ""
     });
 
+    const [selecteddietplan, setSelecteddietplan] = useState(null);
+
     const [newMed, setNewMed] = useState({
         medicine_name: '',
         medicinedata: "",
@@ -737,10 +745,16 @@ const AppointmentDetail = ({ videodetails }) => {
         instruction: ''
     });
 
+
     const [documents, setDocuments] = useState([]);
     const [search, setSearch] = useState("");
-    const [medicines, setMedicines] = useState([]);
     const [showDropdown, setShowDropdown] = useState(false);
+
+    // const [searchdodonts, setSearchdodonts] = useState("");
+    const [showDropdowndo, setShowDropdowndo] = useState(false);
+    const [showDropdowndiet, setShowDropdowndiet] = useState(false);
+
+    const [medicines, setMedicines] = useState([]);
     const [uploading, setUploading] = useState(false);
     const [patientHistory, setPatientHistory] = useState([]);
     const [patientDocument, setPatientDocument] = useState([]);
@@ -757,7 +771,12 @@ const AppointmentDetail = ({ videodetails }) => {
             setLoading(true);
             const response = await doctorService.getAppointmentDetails?.(type, appointmentId);
             const apiData = response?.data?.data || response?.data || response
+            let prakriti = appointment?.patient?.prakriti || appointment?.prakriti || "";
+            const dodonts = await doctorService.getDosDonts?.(prakriti);
+
             setAppointment(apiData);
+            setdoDonts(dodonts?.data.data || dodonts?.data || dodonts);
+            setFilterdoDonts(dodonts?.data.data || dodonts?.data || dodonts);
             // setDocuments(apiData?.documents || []);
             // setFormData({
             //     symptom_description: apiData?.symptom_description || '',
@@ -843,6 +862,41 @@ const AppointmentDetail = ({ videodetails }) => {
         setSearch(medicine.product_name);
         setShowDropdown(false);
     };
+
+    const searchDoDonts = (keyword) => {
+        if (keyword.trim().length >= 2) {
+            const filtered = doDonts?.filter(item => item.prakriti.toLowerCase().includes(keyword.toLowerCase()) || item.dos.some(dos => dos.toLowerCase().includes(keyword.toLowerCase())) || item.donts.some(dont => dont.toLowerCase().includes(keyword.toLowerCase())) || item.health_diseases.some(disease => disease?.name.toLowerCase().includes(keyword.toLowerCase())));
+            setFilterdoDonts(filtered);
+        } else if (keyword.trim().length == 2 || keyword == "") {
+            setFilterdoDonts(doDonts);
+        }
+    };
+
+    const dietSearchTimeout = useRef(null);
+
+    const searchdietplans = (keyword) => {
+        clearTimeout(dietSearchTimeout.current);
+        dietSearchTimeout.current = setTimeout(async () => {
+            try {
+                if (keyword.trim().length < 2) {
+                    setFilterdietplans([]);
+                    return;
+                }
+                setdietloading(true);
+                const res = await doctorService.getDietPlans(keyword);
+                const dietplans = res?.data?.data || [];
+
+                setFilterdietplans(dietplans);
+            } catch (error) {
+                console.error(error);
+            } finally {
+                setdietloading(false);
+            }
+        }, 500);
+    };
+
+
+
     const getStatusColor = (status) => {
         switch (status?.toLowerCase()) {
             case 'sent': return 'bg-blue-50 border-blue-200 text-blue-700';
@@ -939,9 +993,20 @@ const AppointmentDetail = ({ videodetails }) => {
             donts: convertBulletTextToArray(formData?.donts)
         };
 
+        const dietplanData = {
+            "patient_id": appointment?.patient?.id,
+            "diet_plan_id": selecteddietplan?.id,
+            // "additional_notes": [
+            //     "Avoid cold drinks",
+            //     "Drink warm water in the morning"
+            // ],
+            "plan_json": {}
+        }
+
         try {
+            const getdietplan = await doctorService.getdietbyid(selecteddietplan?.id)
             const res = await doctorService.postprescription(appointment?.patient?.id, prescriptionData)
-            console.log('Prescription saved:', prescriptionData, res);
+            const responsedietsave = await doctorService.postdietplan({ ...dietplanData, plan_json: getdietplan?.data?.data?.schedule })
             if (res.data.success) {
                 toast.success('Prescription saved successfully!');
                 setShowPreview(false);
@@ -1071,14 +1136,13 @@ const AppointmentDetail = ({ videodetails }) => {
         const end = textarea.selectionEnd;
 
         const value = formData[field];
+        console.log('Current value:', value, 'Start:', start, 'End:', end);
 
         const newValue =
-            value.substring(0, start) +
+            value?.substring(0, start) +
             "\n• " +
-            value.substring(end);
-
+            value?.substring(end);
         handleInputChange(field, newValue);
-
         setTimeout(() => {
             textarea.selectionStart = textarea.selectionEnd = start + 3;
         }, 0);
@@ -1566,110 +1630,169 @@ const AppointmentDetail = ({ videodetails }) => {
                                                         </div>
                                                     </div>
                                                 )}
-
                                                 {formData.prescriptions.length > 0 ? (
-                                                    <div className="space-y-3">
+                                                    <div className="space-y-2">
                                                         {formData.prescriptions.map(med => (
-                                                            <div key={med.id} className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-100 group hover:shadow-md transition-all">
-                                                                {editingPrescription === med.id ? (
-                                                                    <div className="flex-1 space-y-2">
-                                                                        <input type="text" value={med.medicine_name}
-                                                                            onChange={e => setEditingPrescription({ ...med, medicine_name: e.target.value })}
-                                                                            className="w-full px-3 py-2 text-sm border rounded-lg" />
-                                                                        <div className="grid grid-cols-2 gap-2">
-                                                                            <input type="text" value={med.dosage}
-                                                                                onChange={e => setEditingPrescription({ ...med, dosage: e.target.value })}
-                                                                                placeholder="Dosage" className="px-3 py-2 text-sm border rounded-lg" />
-                                                                            <input type="text" value={med.frequency}
-                                                                                onChange={e => setEditingPrescription({ ...med, frequency: e.target.value })}
-                                                                                placeholder="Frequency" className="px-3 py-2 text-sm border rounded-lg" />
-                                                                        </div>
-                                                                        <input type="text" value={med.duration}
-                                                                            onChange={e => setEditingPrescription({ ...med, duration: e.target.value })}
-                                                                            placeholder="Duration" className="w-full px-3 py-2 text-sm border rounded-lg" />
-                                                                        <textarea value={med.instruction}
-                                                                            onChange={e => setEditingPrescription({ ...med, instruction: e.target.value })}
-                                                                            placeholder="Instructions" rows={2} className="w-full px-3 py-2 text-sm border rounded-lg" />
-                                                                        <div className="flex gap-2">
-                                                                            <button onClick={() => handleUpdatePrescription(med.id, editingPrescription)}
-                                                                                className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-sm">Save</button>
-                                                                            <button onClick={() => setEditingPrescription(null)}
-                                                                                className="px-3 py-1 bg-gray-200 rounded-lg text-sm">Cancel</button>
-                                                                        </div>
-                                                                    </div>
-                                                                ) : (
-                                                                    <>
-                                                                        <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center border border-emerald-100">
-                                                                            <Pill className="w-6 h-6 text-[#0D614E]" />
-                                                                        </div>
+                                                            <div
+                                                                key={med.id}
+                                                                className="group relative overflow-hidden bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200"
+                                                            >
+                                                                {/* Left accent bar */}
+                                                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-emerald-400 to-emerald-500 rounded-l-xl"></div>
 
-                                                                        <div className="flex-1 min-w-0">
+                                                                <div className="relative px-4 py-3">
+                                                                    {editingPrescription === med.id ? (
+                                                                        // Edit Mode - Compact
+                                                                        <div className="space-y-2">
                                                                             <div className="flex items-center justify-between">
-                                                                                <div>
-                                                                                    <h4 className="font-semibold text-gray-900 text-sm">
-                                                                                        {med.medicine_name}
-                                                                                    </h4>
-
-                                                                                    {med.brand_name && (
-                                                                                        <p className="text-xs text-gray-500 mt-0.5">
-                                                                                            {med.brand_name}
-                                                                                        </p>
-                                                                                    )}
-                                                                                </div>
+                                                                                <h6 className="text-xs font-semibold text-emerald-600 flex items-center gap-1.5">
+                                                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                                                                    Editing
+                                                                                </h6>
+                                                                                <span className="text-[8px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">
+                                                                                    #{med?.id}
+                                                                                </span>
                                                                             </div>
 
-                                                                            <div className="flex flex-wrap gap-2 mt-3">
-                                                                                {med.dosage && (
-                                                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
-                                                                                        <Package className="w-3.5 h-3.5" />
+                                                                            <div className="grid grid-cols-12 gap-2">
+                                                                                <div className="col-span-3">
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        value={med.medicine_name}
+                                                                                        onChange={e => setEditingPrescription({ ...med, medicine_name: e.target.value })}
+                                                                                        className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 transition-all outline-none bg-gray-50"
+                                                                                        placeholder="Medicine"
+                                                                                    />
+                                                                                </div>
+                                                                                <div className="col-span-2">
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        value={med.dosage}
+                                                                                        onChange={e => setEditingPrescription({ ...med, dosage: e.target.value })}
+                                                                                        placeholder="Dosage"
+                                                                                        className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 transition-all outline-none bg-gray-50"
+                                                                                    />
+                                                                                </div>
+                                                                                <div className="col-span-2">
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        value={med.frequency}
+                                                                                        onChange={e => setEditingPrescription({ ...med, frequency: e.target.value })}
+                                                                                        placeholder="Frequency"
+                                                                                        className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 transition-all outline-none bg-gray-50"
+                                                                                    />
+                                                                                </div>
+                                                                                <div className="col-span-2">
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        value={med.duration}
+                                                                                        onChange={e => setEditingPrescription({ ...med, duration: e.target.value })}
+                                                                                        placeholder="Duration"
+                                                                                        className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 transition-all outline-none bg-gray-50"
+                                                                                    />
+                                                                                </div>
+                                                                                <div className="col-span-2">
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        value={med.instruction}
+                                                                                        onChange={e => setEditingPrescription({ ...med, instruction: e.target.value })}
+                                                                                        placeholder="Instructions"
+                                                                                        className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 transition-all outline-none bg-gray-50"
+                                                                                    />
+                                                                                </div>
+                                                                                <div className="col-span-1 flex gap-1">
+                                                                                    <button
+                                                                                        onClick={() => handleUpdatePrescription(med.id, editingPrescription)}
+                                                                                        className="flex-1 px-2 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[10px] font-medium transition-all"
+                                                                                    >
+                                                                                        Save
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={() => setEditingPrescription(null)}
+                                                                                        className="px-2 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-[10px] font-medium transition-all"
+                                                                                    >
+                                                                                        ✕
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : (
+                                                                        // View Mode - Compact Table Row
+                                                                        <div className="flex items-center gap-3">
+                                                                            {/* Medicine Icon */}
+                                                                            <div className=" rounded-lg bg-gradient-to-br from-emerald-100 to-emerald-200 flex items-center justify-center flex-shrink-0">
+                                                                                {/* <Pill className="w-4 h-4 text-emerald-600" /> */}
+                                                                                <img
+                                                                                    src={med?.medicinedata?.cover_image}
+                                                                                    className="w-[50px] h-[50px] rounded-[8px] shadow-md object-cover"
+                                                                                />
+                                                                            </div>
+
+                                                                            {/* Medicine Name */}
+                                                                            <div className="flex-1 min-w-[120px]">
+                                                                                <h5 className="text-sm font-semibold text-gray-800 truncate">
+                                                                                    {med.medicine_name}
+                                                                                </h5>
+                                                                                {med.brand_name && (
+                                                                                    <span className="text-[9px] text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">
+                                                                                        {med.brand_name}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+
+                                                                            {/* Dosage */}
+                                                                            {med.dosage && (
+                                                                                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 rounded-lg border border-blue-100 flex-shrink-0">
+                                                                                    <Package className="w-3 h-3 text-blue-500" />
+                                                                                    <span className="text-[10px] font-medium text-blue-700 whitespace-nowrap">
                                                                                         {med.dosage}
                                                                                     </span>
-                                                                                )}
-
-                                                                                {med.frequency && (
-                                                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-medium">
-                                                                                        <Clock3 className="w-3.5 h-3.5" />
-                                                                                        {med.frequency}
-                                                                                    </span>
-                                                                                )}
-
-                                                                                {med.duration && (
-                                                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 text-xs font-medium">
-                                                                                        <CalendarDays className="w-3.5 h-3.5" />
-                                                                                        {med.duration}
-                                                                                    </span>
-                                                                                )}
-                                                                            </div>
-
-                                                                            {med.instruction && (
-                                                                                <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <FileText className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                                                                                        <p className="text-xs text-gray-600 leading-relaxed">
-                                                                                            {med.instruction}
-                                                                                        </p>
-                                                                                    </div>
                                                                                 </div>
                                                                             )}
-                                                                        </div>
 
-                                                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                                                                            {/* <button
-                                                                            onClick={() => setEditingPrescription(med.id)}
-                                                                            className="p-2 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                                                                        >
-                                                                            <Edit2 className="w-4 h-4" />
-                                                                        </button> */}
+                                                                            {/* Frequency */}
+                                                                            {med.frequency && (
+                                                                                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 rounded-lg border border-amber-100 flex-shrink-0">
+                                                                                    <Clock3 className="w-3 h-3 text-amber-500" />
+                                                                                    <span className="text-[10px] font-medium text-amber-700 whitespace-nowrap">
+                                                                                        {med.frequency}
+                                                                                    </span>
+                                                                                </div>
+                                                                            )}
 
-                                                                            <button
-                                                                                onClick={() => handleRemovePrescription(med.id)}
-                                                                                className="p-2 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
-                                                                            >
-                                                                                <Trash2 className="w-4 h-4" />
-                                                                            </button>
+                                                                            {/* Duration */}
+                                                                            {med.duration && (
+                                                                                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 rounded-lg border border-purple-100 flex-shrink-0">
+                                                                                    <CalendarDays className="w-3 h-3 text-purple-500" />
+                                                                                    <span className="text-[10px] font-medium text-purple-700 whitespace-nowrap">
+                                                                                        {med.duration}
+                                                                                    </span>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {/* Instructions - Compact */}
+                                                                            {med.instruction && (
+                                                                                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 rounded-lg border border-gray-200 flex-shrink-0 max-w-[150px]">
+                                                                                    <FileText className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                                                                                    <span className="text-[10px] text-gray-600 truncate">
+                                                                                        {med.instruction}
+                                                                                    </span>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {/* Action Buttons - Compact */}
+                                                                            <div className="flex items-center gap-1 ml-auto flex-shrink-0">
+                                                                                <button
+                                                                                    onClick={() => handleRemovePrescription(med.id)}
+                                                                                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                                                                                    title="Remove"
+                                                                                >
+                                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                                </button>
+                                                                            </div>
                                                                         </div>
-                                                                    </>
-                                                                )}
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -1711,6 +1834,574 @@ const AppointmentDetail = ({ videodetails }) => {
                                                     className="w-full px-4 py-3 text-sm text-gray-700 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none transition-all"
                                                 />
                                             </div>
+
+
+                                            <div className="space-y-2 relative">
+
+                                                <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                                    <BiFoodMenu className="w-3.5 h-3.5 text-emerald-600" />
+                                                    Diets
+                                                </label>
+                                                <input type="text" placeholder="Search Diets..."
+                                                    onChange={e => {
+                                                        searchdietplans(e.target.value);
+                                                        setShowDropdowndiet(true);
+                                                    }}
+                                                    className="px-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                                                {showDropdowndiet && (
+                                                    <>
+                                                        {filterdietplans?.length > 0 ? (
+                                                            // Data Found
+                                                            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-92 overflow-y-auto">
+                                                                {filterdietplans.map((item) => {
+                                                                    if (item.is_active) {
+                                                                        return <div
+                                                                            key={item.id}
+                                                                            onClick={() => {
+                                                                                setSelecteddietplan(prev => (item));
+                                                                                setShowDropdowndiet(false);
+                                                                            }}
+                                                                            className="group relative px-4 py-4 cursor-pointer hover:bg-gradient-to-r hover:from-emerald-50 hover:to-transparent border-b border-gray-100 last:border-0 transition-all duration-300 hover:shadow-md"
+                                                                        >
+                                                                            <div className="space-y-3">
+                                                                                {/* Header with Name and Status Badges */}
+                                                                                <div className="flex items-start justify-between">
+                                                                                    <div className="flex-1">
+                                                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                                                            <h4 className="text-base font-bold text-gray-800 group-hover:text-emerald-600 transition-colors duration-200">
+                                                                                                {item.name || 'Unnamed Diet Plan'}
+                                                                                            </h4>
+                                                                                            {item.is_common && (
+                                                                                                <span className="px-2.5 py-0.5 text-[10px] font-semibold bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full shadow-sm">
+                                                                                                    ⭐ Common
+                                                                                                </span>
+                                                                                            )}
+                                                                                            <span className={`px-2.5 py-0.5 text-[10px] font-semibold rounded-full shadow-sm ${item.is_active
+                                                                                                ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white'
+                                                                                                : 'bg-gradient-to-r from-gray-400 to-gray-500 text-white'
+                                                                                                }`}>
+                                                                                                {item.is_active ? '● Active' : '○ Inactive'}
+                                                                                            </span>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div className="flex items-center gap-2 ml-2">
+                                                                                        {item.is_paid ? (
+                                                                                            <span className="px-3 py-1 text-xs font-bold bg-gradient-to-r from-amber-400 to-amber-500 text-white rounded-full shadow-md">
+                                                                                                ₹{item.price || '0'}
+                                                                                            </span>
+                                                                                        ) : (
+                                                                                            <span className="px-3 py-1 text-xs font-bold bg-gradient-to-r from-emerald-400 to-emerald-500 text-white rounded-full shadow-md">
+                                                                                                🎯 Free
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                {/* Prakriti, Season & Date */}
+                                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                                    <span className="px-3 py-1 text-xs font-semibold bg-gradient-to-r from-purple-100 to-purple-200 text-purple-700 rounded-full shadow-sm border border-purple-200">
+                                                                                        🧬 {item.prakriti || 'N/A'}
+                                                                                    </span>
+                                                                                    {item.season && (
+                                                                                        <span className="px-3 py-1 text-xs font-semibold bg-gradient-to-r from-indigo-100 to-indigo-200 text-indigo-700 rounded-full shadow-sm border border-indigo-200">
+                                                                                            🌤️ {item.season}
+                                                                                        </span>
+                                                                                    )}
+                                                                                    <span className="px-3 py-1 text-[10px] text-gray-500 bg-gray-50 rounded-full border border-gray-200">
+                                                                                        📅 {item.created_at ? new Date(item.created_at).toLocaleDateString('en-US', {
+                                                                                            month: 'short',
+                                                                                            day: 'numeric',
+                                                                                            year: 'numeric'
+                                                                                        }) : 'N/A'}
+                                                                                    </span>
+                                                                                    <span className="px-3 py-1 text-[10px] text-gray-500 bg-gray-50 rounded-full border border-gray-200">
+                                                                                        📅 {item.total_days || 'N/A'} {" "}
+                                                                                        Days
+                                                                                    </span>
+                                                                                    <span className="px-3 py-1 text-[10px] text-gray-500 bg-gray-50 rounded-full border border-gray-200">
+                                                                                        📅 {item.meals_per_day || 'N/A'} {" "}
+                                                                                        Meals in a Day
+                                                                                    </span>
+                                                                                </div>
+
+                                                                                {/* Health Diseases */}
+                                                                                {item.health_diseases && item.health_diseases.length > 0 && (
+                                                                                    <div className="bg-red-50/50 rounded-lg p-2 border border-red-100">
+                                                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                                                            <span className="text-xs font-semibold text-red-700 flex items-center gap-1">
+                                                                                                <span className="text-base">🩺</span> Health Conditions:
+                                                                                            </span>
+                                                                                            {item.health_diseases.map((disease, index) => (
+                                                                                                <span
+                                                                                                    key={disease.id || index}
+                                                                                                    className="px-3 py-1 text-xs font-medium bg-gradient-to-r from-red-100 to-red-200 text-red-700 rounded-full shadow-sm border border-red-200 hover:scale-105 transition-transform duration-200"
+                                                                                                >
+                                                                                                    {disease.name}
+                                                                                                </span>
+                                                                                            ))}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                )}
+
+                                                                                {/* Do's */}
+                                                                                {/* <div className="bg-emerald-50/50 rounded-lg p-2 border border-emerald-100">
+                                                                                <div className="flex items-start gap-2">
+                                                                                    <span className="text-xs font-semibold text-emerald-700 min-w-[30px] flex items-center gap-1">
+                                                                                        <span className="text-base">✅</span> Do:
+                                                                                    </span>
+                                                                                    <div className="flex flex-wrap gap-1.5">
+                                                                                        {Array.isArray(item?.dos) && item.dos.length > 0 ? (
+                                                                                            <>
+                                                                                                {item.dos.slice(0, 3).map((doItem, index) => (
+                                                                                                    <span
+                                                                                                        key={index}
+                                                                                                        className="px-3 py-1 text-xs font-medium bg-gradient-to-r from-emerald-100 to-emerald-200 text-emerald-700 rounded-full shadow-sm border border-emerald-200 hover:scale-105 transition-transform duration-200"
+                                                                                                    >
+                                                                                                        {doItem}
+                                                                                                    </span>
+                                                                                                ))}
+                                                                                                {item.dos.length > 3 && (
+                                                                                                    <span className="px-3 py-1 text-xs font-medium text-gray-500 bg-gray-100 rounded-full border border-gray-200">
+                                                                                                        +{item.dos.length - 3} more
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </>
+                                                                                        ) : (
+                                                                                            <span className="px-3 py-1 text-xs text-gray-400 italic bg-white rounded-full border border-gray-200">
+                                                                                                No Do's listed
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div> */}
+
+                                                                                {/* Don'ts */}
+                                                                                {/* <div className="bg-red-50/50 rounded-lg p-2 border border-red-100">
+                                                                                <div className="flex items-start gap-2">
+                                                                                    <span className="text-xs font-semibold text-red-700 min-w-[30px] flex items-center gap-1">
+                                                                                        <span className="text-base">❌</span> Don't:
+                                                                                    </span>
+                                                                                    <div className="flex flex-wrap gap-1.5">
+                                                                                        {Array.isArray(item?.donts) && item.donts.length > 0 ? (
+                                                                                            <>
+                                                                                                {item.donts.slice(0, 3).map((dontItem, index) => (
+                                                                                                    <span
+                                                                                                        key={index}
+                                                                                                        className="px-3 py-1 text-xs font-medium bg-gradient-to-r from-red-100 to-red-200 text-red-700 rounded-full shadow-sm border border-red-200 hover:scale-105 transition-transform duration-200"
+                                                                                                    >
+                                                                                                        {dontItem}
+                                                                                                    </span>
+                                                                                                ))}
+                                                                                                {item.donts.length > 3 && (
+                                                                                                    <span className="px-3 py-1 text-xs font-medium text-gray-500 bg-gray-100 rounded-full border border-gray-200">
+                                                                                                        +{item.donts.length - 3} more
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </>
+                                                                                        ) : (
+                                                                                            <span className="px-3 py-1 text-xs text-gray-400 italic bg-white rounded-full border border-gray-200">
+                                                                                                No Don'ts listed
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div> */}
+
+                                                                                {/* Diet Plan Gallery */}
+                                                                                {item.diet_plan_gallery && item.diet_plan_gallery.length > 0 && (
+                                                                                    <div className="bg-gray-50/50 rounded-lg p-2 border border-gray-200">
+                                                                                        <div className="flex items-start gap-2">
+                                                                                            <span className="text-xs font-semibold text-gray-700 min-w-[30px] flex items-center gap-1">
+                                                                                                <span className="text-base">🖼️</span> Gallery:
+                                                                                            </span>
+                                                                                            <div className="flex flex-wrap gap-1.5">
+                                                                                                {item.diet_plan_gallery.slice(0, 4).map((image, index) => (
+                                                                                                    <div
+                                                                                                        key={index}
+                                                                                                        className="relative w-12 h-12 rounded-lg overflow-hidden border-2 border-white shadow-md hover:shadow-xl hover:scale-110 transition-all duration-300 cursor-pointer group/image"
+                                                                                                        title={image.caption || `Image ${index + 1}`}
+                                                                                                    >
+                                                                                                        <img
+                                                                                                            src={image.image_url}
+                                                                                                            alt={image.caption || `Image ${index + 1}`}
+                                                                                                            className="w-full h-full object-cover"
+                                                                                                            onError={(e) => {
+                                                                                                                e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="%23999" stroke-width="2"%3E%3Crect x="3" y="3" width="18" height="18" rx="2"/%3E%3Ccircle cx="8.5" cy="8.5" r="1.5"/%3E%3Cpath d="M21 15l-5-5L5 21"/%3E%3C/svg%3E';
+                                                                                                            }}
+                                                                                                        />
+                                                                                                        {image.is_cover && (
+                                                                                                            <div className="absolute top-0 right-0 bg-gradient-to-l from-emerald-500 to-emerald-600 text-white text-[7px] font-bold px-1.5 py-0.5 rounded-bl-lg shadow-lg">
+                                                                                                                COVER
+                                                                                                            </div>
+                                                                                                        )}
+                                                                                                        <div className="absolute inset-0 bg-black/0 group-hover/image:bg-black/20 transition-all duration-300 rounded-lg"></div>
+                                                                                                    </div>
+                                                                                                ))}
+                                                                                                {item.diet_plan_gallery.length > 4 && (
+                                                                                                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center text-xs font-bold text-gray-600 shadow-md border-2 border-white">
+                                                                                                        +{item.diet_plan_gallery.length - 4}
+                                                                                                    </div>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                )}
+
+                                                                                {/* Footer with Created/Updated Info */}
+                                                                                <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t-2 border-gray-100/80">
+                                                                                    <div className="flex items-center gap-3">
+                                                                                        <div className="flex items-center gap-1.5 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+                                                                                            <span className="text-xs text-blue-600">👤</span>
+                                                                                            <span className="text-[10px] font-medium text-blue-700">
+                                                                                                {item.created_by_name || 'Unknown'}
+                                                                                            </span>
+                                                                                            {item.created_by_role && (
+                                                                                                <span className="text-[9px] text-blue-500 bg-blue-100 px-1.5 py-0.5 rounded-full">
+                                                                                                    {item.created_by_role}
+                                                                                                </span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                        <span className="text-[9px] text-gray-400 bg-gray-50 px-2 py-1 rounded-full border border-gray-200">
+                                                                                            🆔 {item.created_by?.slice(0, 8) || 'N/A'}...
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    {/* <div className="flex items-center gap-2">
+                                                                                        <span className="text-[9px] text-gray-400 bg-gray-50 px-2 py-1 rounded-full border border-gray-200 flex items-center gap-1">
+                                                                                            🔄 {item.updated_at ? new Date(item.updated_at).toLocaleDateString('en-US', {
+                                                                                                month: 'short',
+                                                                                                day: 'numeric',
+                                                                                                year: 'numeric'
+                                                                                            }) : 'N/A'}
+                                                                                        </span>
+                                                                                        {item.updated_by && (
+                                                                                            <span className="text-[9px] text-gray-400 bg-gray-50 px-2 py-1 rounded-full border border-gray-200">
+                                                                                                by {item.updated_by?.slice(0, 8)}...
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </div> */}
+                                                                                </div>
+
+                                                                                {/* Doctor ID */}
+                                                                                {/* {item.doctor_id && (
+                                                                                    <div className="flex justify-end">
+                                                                                        <span className="text-[9px] text-gray-400 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100 flex items-center gap-1">
+                                                                                            👨‍⚕️ Doctor: {item.doctor_id?.slice(0, 8)}...
+                                                                                        </span>
+                                                                                    </div>
+                                                                                )} */}
+
+                                                                                {/* Hover Effect - Glowing Border */}
+                                                                                <div className="absolute inset-0 rounded-lg border-2 border-transparent group-hover:border-emerald-400/30 transition-all duration-300 pointer-events-none"></div>
+
+                                                                                {/* Click Ripple Effect */}
+                                                                                <div className="absolute inset-0 overflow-hidden rounded-lg pointer-events-none">
+                                                                                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/0 via-emerald-400/5 to-emerald-400/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    }
+                                                                })}
+                                                            </div>
+                                                        ) : (
+                                                            // Not Found State
+                                                            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg">
+                                                                <div className="flex flex-col items-center justify-center py-10 px-4">
+                                                                    <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mb-3">
+                                                                        <svg
+                                                                            className="w-7 h-7 text-red-500"
+                                                                            fill="none"
+                                                                            stroke="currentColor"
+                                                                            viewBox="0 0 24 24"
+                                                                        >
+                                                                            <path
+                                                                                strokeLinecap="round"
+                                                                                strokeLinejoin="round"
+                                                                                strokeWidth={2}
+                                                                                d="M9.172 9.172a4 4 0 015.656 5.656M15 15l6 6m-6-6a8 8 0 1111.314-11.314A8 8 0 0115 15z"
+                                                                            />
+                                                                        </svg>
+                                                                    </div>
+
+                                                                    <h4 className="text-sm font-semibold text-gray-800">
+                                                                        No Do's & Don'ts Found
+                                                                    </h4>
+
+                                                                    <p className="text-xs text-gray-500 mt-1 text-center">
+                                                                        Try searching with another do's or don'ts name
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
+
+                                            <div className="space-y-2 relative">
+                                                <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                                    selected diet plan
+                                                </label>
+                                                {selecteddietplan && (
+                                                    <div
+                                                        key={selecteddietplan.id}
+                                                        className="group relative overflow-hidden bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
+                                                    >
+                                                        {/* Left accent bar */}
+                                                        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-emerald-400 to-emerald-500 rounded-l-xl"></div>
+
+                                                        <div className="relative px-4 py-3">
+                                                            <div className="flex items-center gap-3 text-sm">
+                                                                {/* Name with Status Dot */}
+                                                                <div className="flex items-center gap-2 min-w-[120px] flex-shrink-0">
+                                                                    <span className="font-semibold text-gray-900 text-base truncate">
+                                                                        {selecteddietplan.name || 'Unnamed'}
+                                                                    </span>
+                                                                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${selecteddietplan.is_active ? 'bg-emerald-500' : 'bg-gray-400'
+                                                                        }`}></span>
+                                                                    {selecteddietplan.is_common && (
+                                                                        <span className="text-xs text-blue-600">⭐</span>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Prakriti */}
+                                                                <span className="px-2.5 py-1 text-xs font-semibold bg-purple-100 text-purple-700 rounded-full border border-purple-200 flex-shrink-0">
+                                                                    {selecteddietplan.prakriti || 'N/A'}
+                                                                </span>
+
+                                                                {/* Season */}
+                                                                {selecteddietplan.season && (
+                                                                    <span className="px-2.5 py-1 text-xs font-semibold bg-indigo-100 text-indigo-700 rounded-full border border-indigo-200 flex-shrink-0">
+                                                                        {selecteddietplan.season}
+                                                                    </span>
+                                                                )}
+
+                                                                {/* Diseases */}
+                                                                {selecteddietplan.health_diseases && selecteddietplan.health_diseases.length > 0 && (
+                                                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                                                        {selecteddietplan.health_diseases.slice(0, 1).map((disease) => (
+                                                                            <span key={disease.id} className="px-2.5 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full border border-red-200">
+                                                                                {disease.name}
+                                                                            </span>
+                                                                        ))}
+                                                                        {selecteddietplan.health_diseases.length > 1 && (
+                                                                            <span className="text-xs text-gray-500 font-medium bg-gray-100 px-2 py-0.5 rounded-full">
+                                                                                +{selecteddietplan.health_diseases.length - 1}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Price */}
+                                                                <span className={`px-3 py-1 text-xs font-bold rounded-full flex-shrink-0 shadow-sm ${selecteddietplan.is_paid
+                                                                    ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-white'
+                                                                    : 'bg-gradient-to-r from-emerald-400 to-emerald-500 text-white'
+                                                                    }`}>
+                                                                    {selecteddietplan.is_paid ? `₹${selecteddietplan.price}` : 'Free'}
+                                                                </span>
+
+                                                                {/* Gallery - Small dots */}
+                                                                {selecteddietplan.diet_plan_gallery && selecteddietplan.diet_plan_gallery.length > 0 && (
+                                                                    <div className="flex items-center gap-1 flex-shrink-0">
+                                                                        {selecteddietplan.diet_plan_gallery.slice(0, 2).map((img, idx) => (
+                                                                            <div key={idx} className="w-7 h-7 rounded-lg border-2 border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                                                                                <img src={img.image_url} alt="" className="w-full h-full object-cover" />
+                                                                            </div>
+                                                                        ))}
+                                                                        {selecteddietplan.diet_plan_gallery.length > 2 && (
+                                                                            <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                                                                                +{selecteddietplan.diet_plan_gallery.length - 2}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Doctor Info */}
+                                                                <div className="flex items-center gap-2 ml-auto flex-shrink-0 bg-gray-50 px-3 py-1 rounded-full border border-gray-200">
+                                                                    <span className="text-xs font-medium text-gray-700">
+                                                                        {selecteddietplan.created_by_name || 'N/A'}
+                                                                    </span>
+                                                                    <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                                                        {selecteddietplan.created_by_role || ''}
+                                                                    </span>
+                                                                </div>
+
+                                                                {/* Date */}
+                                                                <span className="text-xs text-gray-500 flex-shrink-0 bg-gray-50 px-2.5 py-1 rounded-full border border-gray-200">
+                                                                    📅 {selecteddietplan.created_at ? new Date(selecteddietplan.created_at).toLocaleDateString('en-US', {
+                                                                        month: 'short',
+                                                                        day: 'numeric',
+                                                                        year: 'numeric'
+                                                                    }) : 'N/A'}
+                                                                </span>
+
+                                                                {/* Arrow */}
+                                                                {/* <svg className="w-4 h-4 text-gray-400 group-hover:text-emerald-500 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                                                                </svg> */}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="space-y-2 relative">
+
+                                                <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                                    <Stethoscope className="w-3.5 h-3.5 text-emerald-600" />
+                                                    Do's and Don'ts
+                                                </label>
+                                                <input type="text" placeholder="Search Do's and Don'ts..."
+                                                    onChange={e => {
+                                                        searchDoDonts(e.target.value);
+                                                        setShowDropdowndo(true);
+                                                    }}
+                                                    className="px-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                                                {console.log(filterdoDonts)}
+                                                {showDropdowndo && (
+                                                    <>
+                                                        {filterdoDonts?.length > 0 ? (
+                                                            // Data Found
+                                                            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-72 overflow-y-auto">
+                                                                {filterdoDonts.map((item) => (
+                                                                    <div
+                                                                        key={item.id}
+                                                                        // onClick={() => selectMedicine(item)}
+                                                                        onClick={() => {
+                                                                            setFormData(prev => ({
+                                                                                ...prev,
+                                                                                dos: Array.isArray(item?.dos)
+                                                                                    ? item.dos.map(text => `• ${text}`).join('\n')
+                                                                                    : item?.dos || '',
+                                                                                donts: Array.isArray(item?.donts)
+                                                                                    ? item.donts.map(text => `• ${text}`).join('\n')
+                                                                                    : item?.donts || ''
+                                                                            }));
+
+                                                                            setShowDropdowndo(false);
+                                                                        }}
+                                                                        className="px-4 py-3 cursor-pointer hover:bg-emerald-50 border-b border-gray-100 last:border-0 transition-colors"
+                                                                    >
+                                                                        <div className="space-y-3">
+                                                                            {/* Header with Prakriti and Created/Updated info */}
+                                                                            <div className="flex items-center justify-between">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <span className="px-3 py-1 text-xs font-semibold bg-purple-100 text-purple-700 rounded-full">
+                                                                                        {item.prakriti}
+                                                                                    </span>
+                                                                                    <span className="text-xs text-gray-400">
+                                                                                        {new Date(item.created_at).toLocaleDateString()}
+                                                                                    </span>
+                                                                                </div>
+                                                                                <div className="text-xs text-gray-400">
+                                                                                    Updated: {new Date(item.updated_at).toLocaleDateString()}
+                                                                                </div>
+                                                                            </div>
+
+                                                                            {/* Health Diseases */}
+                                                                            <div>
+                                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                                    <span className="text-xs font-medium text-gray-600">Health Conditions:</span>
+                                                                                    {item.health_diseases?.map((disease) => (
+                                                                                        <span
+                                                                                            key={disease.id}
+                                                                                            className="px-2 py-0.5 text-xs bg-red-100 text-red-700 rounded-full"
+                                                                                        >
+                                                                                            {disease.name}
+                                                                                        </span>
+                                                                                    ))}
+                                                                                </div>
+                                                                            </div>
+
+                                                                            {/* Do's */}
+                                                                            <div>
+                                                                                <div className="flex items-start gap-2">
+                                                                                    <span className="text-xs font-medium text-emerald-600 min-w-[30px]">✅ Do:</span>
+                                                                                    <div className="flex flex-wrap gap-1">
+                                                                                        {item.dos?.slice(0, 3).map((doItem, index) => (
+                                                                                            <span
+                                                                                                key={index}
+                                                                                                className="px-2 py-0.5 text-xs bg-emerald-50 text-emerald-700 rounded-full"
+                                                                                            >
+                                                                                                {doItem}
+                                                                                            </span>
+                                                                                        ))}
+                                                                                        {item.dos?.length > 3 && (
+                                                                                            <span className="px-2 py-0.5 text-xs text-gray-400">
+                                                                                                +{item.dos.length - 3} more
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            {/* Don'ts */}
+                                                                            <div>
+                                                                                <div className="flex items-start gap-2">
+                                                                                    <span className="text-xs font-medium text-red-600 min-w-[30px]">❌ Don't:</span>
+                                                                                    <div className="flex flex-wrap gap-1">
+                                                                                        {item.donts?.slice(0, 3).map((dontItem, index) => (
+                                                                                            <span
+                                                                                                key={index}
+                                                                                                className="px-2 py-0.5 text-xs bg-red-50 text-red-700 rounded-full"
+                                                                                            >
+                                                                                                {dontItem}
+                                                                                            </span>
+                                                                                        ))}
+                                                                                        {item.donts?.length > 3 && (
+                                                                                            <span className="px-2 py-0.5 text-xs text-gray-400">
+                                                                                                +{item.donts.length - 3} more
+                                                                                            </span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            {/* Created/Updated By info */}
+                                                                            <div className="flex items-center justify-end gap-3 pt-1 border-t border-gray-50">
+                                                                                <span className="text-[10px] text-gray-400">
+                                                                                    Created by: {item.created_by?.slice(0, 8)}...
+                                                                                </span>
+                                                                                <span className="text-[10px] text-gray-400">
+                                                                                    Updated by: {item.updated_by?.slice(0, 8)}...
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            // Not Found State
+                                                            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg">
+                                                                <div className="flex flex-col items-center justify-center py-10 px-4">
+                                                                    <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center mb-3">
+                                                                        <svg
+                                                                            className="w-7 h-7 text-red-500"
+                                                                            fill="none"
+                                                                            stroke="currentColor"
+                                                                            viewBox="0 0 24 24"
+                                                                        >
+                                                                            <path
+                                                                                strokeLinecap="round"
+                                                                                strokeLinejoin="round"
+                                                                                strokeWidth={2}
+                                                                                d="M9.172 9.172a4 4 0 015.656 5.656M15 15l6 6m-6-6a8 8 0 1111.314-11.314A8 8 0 0115 15z"
+                                                                            />
+                                                                        </svg>
+                                                                    </div>
+
+                                                                    <h4 className="text-sm font-semibold text-gray-800">
+                                                                        No Do's & Don'ts Found
+                                                                    </h4>
+
+                                                                    <p className="text-xs text-gray-500 mt-1 text-center">
+                                                                        Try searching with another do's or don'ts name
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                )}
+                                            </div>
+
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
                                                 {/* DO's */}
@@ -1729,6 +2420,10 @@ const AppointmentDetail = ({ videodetails }) => {
                                                             </p>
                                                         </div>
                                                     </div>
+
+                                                    {
+                                                        console.log(formData.dos)
+                                                    }
 
                                                     <textarea
                                                         rows={6}

@@ -649,7 +649,7 @@ export default function EditProduct() {
             vendor_sku_code: variant.vendor_sku_code,
             title: variant.title,
             mrp: variant.mrp,
-            selling_price: variant.selling_price,
+            selling_price: variant.vendor_price,
             discount: variant.discount || "",
             cost_per_item: variant.cost_per_item || "",
             stock: variant.stock,
@@ -668,6 +668,7 @@ export default function EditProduct() {
             prescription_required: variant.prescription_required,
             coverImage: variant.coverImage || (restoredGallery.find(img => img.is_cover) || restoredGallery[0]),
             calculation_mode: variant.calculation_mode || (priceType == "TP" ? "trade_price" : "selling_price"),
+            vendor_price: variant.vendor_price || calculateVendorPrice(variant),
             taxes: variant.taxes || [
                 { name: "GST", rate: gst },
                 { name: "Platform Fee", rate: platformFee }
@@ -1378,7 +1379,7 @@ export default function EditProduct() {
 
                                 <div className="form-row">
                                     <div className="form-group">
-                                        <label>Selling Price <span className="required">*</span></label>
+                                        <label>Vendor Price <span className="required">*</span></label>
                                         <input
                                             type="number"
                                             name="selling_price"
@@ -1514,6 +1515,8 @@ export default function EditProduct() {
                                         </label>
                                     </div>
                                 </div>
+
+                                {console.log("variantForm?.selling_price", variantForm)}
 
                                 {variantForm?.selling_price > 0 && (
                                     <div className="price-calculator">

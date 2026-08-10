@@ -19,9 +19,11 @@ import EditProduct from "./Vendor_dashboard/Pages/Inventory/editproduct";
 import Messenger from "./Doctor_dashboard/components/messenger/messanger";
 import { Rnd } from "react-rnd";
 import { X } from "lucide-react";
+import DietPlanList from "./Doctor_dashboard/components/Diets/Diets";
 
 // Doctor Pages
 const DoctorDashboard = lazy(() => import("./Doctor_dashboard/components/dashboard/Dashboard"));
+const DietPlanManager = lazy(() => import("./Doctor_dashboard/components/Diets/Editdiet"));
 const DoctorOnboarding = lazy(() => import("./Doctor_dashboard/components/onboarding/Onboarding"));
 const AppointmentsPage = lazy(() => import("./Doctor_dashboard/components/Appointment/Appointment"));
 const PatientManagement = lazy(() => import("./Doctor_dashboard/components/Patients/Patients"));
@@ -177,7 +179,9 @@ function App() {
                 <Route path="videocall/:consultationId" element={<DoctorVideoCall />} />
                 <Route path="messenger" element={<Messenger />} />
                 <Route path="messenger/:patientId" element={<Messenger />} />
-
+                <Route path="diets" element={<DietPlanList />} />
+                <Route path="add-diet" element={<DietPlanManager />} />
+                <Route path="edit-diet/:id" element={<DietPlanManager />} />
                 <Route path="assessments" element={<Navigate to="/doctor/appointments" replace />} />
                 <Route path="earnings" element={<FinanceDashboard />} />
                 <Route path="reviews" element={<DoctorReviewInsights />} />
@@ -264,7 +268,7 @@ function DoctorLayout() {
       <DoctorSidebar />
       <div className="main-content">
         <Header />
-        <div className="page-content">
+        <div className="page-content mt-28">
           <Suspense fallback={<LoadingFallback />}>
             <Outlet />
           </Suspense>
