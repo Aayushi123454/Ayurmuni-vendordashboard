@@ -5,6 +5,7 @@ import {
     Activity,
     Clock,
     MessageSquare,
+    MessageCircle,
     TrendingUp,
     Pill,
     Stethoscope,
@@ -15,6 +16,7 @@ import {
     Menu,
     User,
     ChevronDown,
+    ChevronUp,
     Star,
     Video,
     Phone,
@@ -320,6 +322,11 @@ const DoctorDashboard = () => {
     useEffect(() => {
         fetchDashboardData();
     }, []);
+
+// Raman
+const [openReview, setOpenReview] = useState(null);
+const [openReply, setOpenReply] = useState(null);
+// Raman
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -870,76 +877,185 @@ const DoctorDashboard = () => {
 
                             <div className="space-y-5">
                                 {dashboardData.ratings.recent_reviews
-                                    ?.slice(0, 3)
-                                    .map((review) => (
-                                        <div
-                                            key={review.id}
-                                            className="border rounded-xl p-4 hover:shadow-sm transition"
-                                        >
-                                            <div className="flex items-start gap-3">
-                                                <img
-                                                    src={review.reviewer_profile_image}
-                                                    alt={review.reviewer_name}
-                                                    className="w-11 h-11 rounded-full object-cover border"
-                                                />
-                                                <div className="flex-1">
-                                                    <div className="flex items-center justify-between">
-                                                        <div>
-                                                            <h4 className="font-semibold text-gray-900">
-                                                                {review.reviewer_name}
-                                                            </h4>
-                                                            <div className="flex items-center gap-1 mt-1">
-                                                                {[1, 2, 3, 4, 5].map((star) => (
-                                                                    <Star
-                                                                        key={star}
-                                                                        size={14}
-                                                                        className={
-                                                                            star <= review.rating
-                                                                                ? "fill-yellow-400 text-yellow-400"
-                                                                                : "text-gray-300"
-                                                                        }
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                        <span className="text-xs text-gray-400">
-                                                            {formatDate(review.created_at)}
-                                                        </span>
-                                                    </div>
-                                                    {review.review && (
-                                                        <p className="mt-3 text-sm text-gray-600 leading-6">
-                                                            {review.review}
-                                                        </p>
-                                                    )}
-                                                    {review.image_urls?.length > 0 && (
-                                                        <div className="flex gap-2 mt-3">
-                                                            {review.image_urls.map((img, index) => (
-                                                                <img
-                                                                    key={index}
-                                                                    src={img}
-                                                                    alt=""
-                                                                    className="w-16 h-16 rounded-lg object-cover border cursor-pointer hover:scale-105 transition"
-                                                                />
-                                                            ))}
-                                                        </div>
-                                                    )}
+    ?.slice(0, 3)
+    .map((review) => {
 
-                                                    {review.doctor_reply && (
-                                                        <div className="mt-4 rounded-xl bg-[#0D614E]/5 border border-[#0D614E]/20 p-3">
-                                                            <p className="text-xs font-semibold text-[#0D614E] mb-1">
-                                                                Doctor Reply
-                                                            </p>
+        const isReviewOpen = openReview === review.id;
+        const isReplyOpen = openReply === review.id;
 
-                                                            <p className="text-sm text-gray-700">
-                                                                {review.doctor_reply}
-                                                            </p>
-                                                        </div>
-                                                    )}
+        return (
+            <div
+    key={review.id}
+    className="border border-gray-200 rounded-2xl p-4 bg-white hover:shadow-sm transition"
+>
+    <div className="flex items-start gap-3">
 
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
+        {/* Avatar */}
+        {review.reviewer_profile_image ? (
+            <img
+                src={review.reviewer_profile_image}
+                alt={review.reviewer_name}
+                className="w-11 h-11 rounded-full object-cover border border-gray-200 shrink-0"
+            />
+        ) : (
+            <div className="w-11 h-11 rounded-full bg-[#E8F1EF] text-[#0D614E] flex items-center justify-center font-semibold shrink-0">
+                {review.reviewer_name
+                    ?.charAt(0)
+                    .toUpperCase()}
+            </div>
+        )}
+
+        <div className="flex-1 min-w-0">
+
+            {/* ================= HEADER ================= */}
+            <div className="flex items-start justify-between gap-3">
+
+                <div>
+                    <h4 className="font-semibold text-gray-900">
+                        {review.reviewer_name}
+                    </h4>
+
+                    {/* Rating */}
+                    <div className="flex items-center gap-1 mt-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                                key={star}
+                                size={14}
+                                className={
+                                    star <= review.rating
+                                        ? "fill-yellow-400 text-yellow-400"
+                                        : "text-gray-300"
+                                }
+                            />
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+
+                    <span className="text-xs text-gray-400">
+                        {formatDate(review.created_at)}
+                    </span>
+
+                    {/* Review Expand Button */}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            const opening = !isReviewOpen;
+
+                            setOpenReview(
+                                opening ? review.id : null
+                            );
+
+                            if (!opening) {
+                                setOpenReply(null);
+                            }
+                        }}
+                        className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition"
+                    >
+                        {isReviewOpen ? (
+                            <ChevronUp
+                                size={18}
+                                className="text-gray-500"
+                            />
+                        ) : (
+                            <ChevronDown
+                                size={18}
+                                className="text-gray-500"
+                            />
+                        )}
+                    </button>
+                </div>
+            </div>
+
+
+            {/* ================= REVIEW ================= */}
+
+            {isReviewOpen && (
+                <div className="mt-3">
+
+                    {review.review && (
+                        <p className="text-sm text-gray-600 leading-6">
+                            {review.review}
+                        </p>
+                    )}
+
+                    {/* Images */}
+                    {review.image_urls?.length > 0 && (
+                        <div className="flex gap-2 mt-3">
+                            {review.image_urls.map((img, index) => (
+                                <img
+                                    key={index}
+                                    src={img}
+                                    alt=""
+                                    className="w-16 h-16 rounded-xl object-cover border border-gray-200"
+                                />
+                            ))}
+                        </div>
+                    )}
+
+
+                    {/* ================= DOCTOR REPLY ================= */}
+
+                    {review.doctor_reply && (
+                        <div className="mt-4 pt-3 border-t border-gray-100">
+
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setOpenReply(
+                                        isReplyOpen
+                                            ? null
+                                            : review.id
+                                    )
+                                }
+                                className="w-full flex items-center justify-between text-left group"
+                            >
+                                <div className="flex items-center gap-2">
+
+                                    <MessageCircle
+                                        size={15}
+                                        className="text-[#0D614E]"
+                                    />
+
+                                    <span className="text-sm font-medium text-[#0D614E]">
+                                        Doctor Reply
+                                    </span>
+
+                                </div>
+
+                                {isReplyOpen ? (
+                                    <ChevronUp
+                                        size={17}
+                                        className="text-[#0D614E]"
+                                    />
+                                ) : (
+                                    <ChevronDown
+                                        size={17}
+                                        className="text-gray-400 group-hover:text-[#0D614E]"
+                                    />
+                                )}
+                            </button>
+
+
+                            {/* Reply */}
+                            {isReplyOpen && (
+                                <p className="mt-2 pl-6 text-sm text-gray-600 leading-6">
+                                    {review.doctor_reply}
+                                </p>
+                            )}
+
+                        </div>
+                    )}
+
+                </div>
+            )}
+
+        </div>
+    </div>
+</div>
+        );
+    })}
                             </div>
 
                             {dashboardData.ratings.total_reviews > 3 && (
