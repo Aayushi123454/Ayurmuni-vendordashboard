@@ -1,299 +1,229 @@
-import { MapPin, Phone, Clock } from 'lucide-react'
-import './OrderDetail.css'
-import upiicon from'../../../Assests/upi.png'
-import { useNavigate } from 'react-router-dom'
+import React, { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, MapPin, Package, RefreshCw } from "lucide-react";
+import { vendorService } from "../../../services/vendorService";
+import Ayurvedaimage from "../../../Assests/Ayurvedaimage.png";
+import DashboardPageShell from "../../components/shared/DashboardPageShell";
+import { PageEmpty, PageError, PageLoader } from "../../components/shared/PageState";
+import StatusBadge from "../../components/shared/StatusBadge";
+import Button from "../../components/shared/Button";
+import {
+    formatCurrency,
+    formatOrderDate,
+    formatPaymentLabel,
+    formatStatusLabel,
+} from "../Order/orderHelpers";
+import "../../components/shared/vendor-shared.css";
+import "../Order/Order.css";
 
-export default function OrderDetails() {
-    const Navigate =useNavigate();
-
-  return (
-    <div className="order-container">
-     
-        <div className="order-header">
-          <div className="order-header-content">
-           <div className="order-header-left">
-              <button className="order-back-btn" onClick={()=>Navigate('/notifications')}>
-      <span>←</span> Back
-    </button>
-  <div className="order-top-row">
-
-   
-    <h1 className="order-title">#ORD200</h1>
-    
-  </div>
-
-  <p className="order-date">Placed Oct 26, 2023 · 02:45 PM</p>
-</div>
-            <div className="order-header-right">
-              <button className="order-btn-cancel">Cancel Order</button>
-              <button className="order-btn-shipped">Mark as Shipped</button>
-            </div>
-          </div>
+function DetailRow({ label, children }) {
+    return (
+        <div className="order-detail-row">
+            <dt>{label}</dt>
+            <dd>{children}</dd>
         </div>
+    );
+}
 
-     
-        <div className="order-content-grid">
-        
-          <div className="order-left-column">
-           
-            <div className="order-card1">
-              <div className="order-card-header">
-                <h2 className="order-card-title">Order Items</h2>
-              </div>
-              <div className="order-card-content" style={{padding: 0}}>
-                <div style={{overflowX: 'auto'}}>
-                  <table className="order-table">
-                    <thead>
-                      <tr>
-                        <th>Product Details</th>
-                        <th>SKU</th>
-                        <th>QTY</th>
-                        <th>Price</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                    
-                      <tr>
-                        <td>
-                          <div className="order-product-cell">
-                            <div className="order-product-icon yellow">🌿</div>
-                            <div>
-                              <p className="order-product-name">Brahmi Hair Oil</p>
-                              <p className="order-product-desc">Hair Care · 100ml</p>
+function formatAddress(address) {
+    if (!address) return "—";
+    const parts = [
+        address.address_line_1,
+        address.address_line_2,
+        address.city,
+        address.state,
+        address.zipcode,
+        address.country,
+    ].filter(Boolean);
+    return parts.join(", ") || "—";
+}
+
+export default function OrderDetail() {
+    const { id } = useParams();
+    const navigate = useNavigate();
+    const [order, setOrder] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+
+    const loadOrder = useCallback(async () => {
+        if (!id) return;
+        setLoading(true);
+        setError("");
+        try {
+            const response = await vendorService.getOrder(id);
+            setOrder(response?.data?.data || null);
+        } catch (err) {
+            setOrder(null);
+            setError(err?.response?.data?.message || err.message || "Failed to load order");
+        } finally {
+            setLoading(false);
+        }
+    }, [id]);
+
+    useEffect(() => {
+        loadOrder();
+    }, [loadOrder]);
+
+    const { date, time } = formatOrderDate(order?.created_at);
+    const items = order?.items || [];
+
+    return (
+        <DashboardPageShell
+            title="Order"
+            accent="Detail"
+            subtitle={order?.order_display_code || order?.order_code || "Vendor order details"}
+            breadcrumbs={[
+                { label: "Orders", href: "/vendor/orders" },
+                { label: order?.order_display_code || order?.order_code || "Detail" },
+            ]}
+            contentClassName="vendor-page-content order-page-content"
+            actions={
+                <div className="flex items-center gap-2">
+                    <Button variant="secondary" onClick={() => navigate("/vendor/orders")} className="!text-sm">
+                        <ArrowLeft size={16} />
+                        Back
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        onClick={loadOrder}
+                        disabled={loading}
+                        className="!text-sm"
+                    >
+                        <RefreshCw size={16} />
+                        Refresh
+                    </Button>
+                </div>
+            }
+        >
+            {loading ? (
+                <PageLoader message="Loading order…" />
+            ) : error ? (
+                <PageError
+                    message={error}
+                    onRetry={loadOrder}
+                />
+            ) : !order ? (
+                <PageEmpty
+                    icon={Package}
+                    title="Order not found"
+                    description="This order may not include any of your products."
+                    action={
+                        <Button onClick={() => navigate("/vendor/orders")}>Back to Orders</Button>
+                    }
+                />
+            ) : (
+                <div className="order-detail-grid">
+                    <div className="space-y-4">
+                        <div className="ds-card order-detail-section">
+                            <div className="flex flex-wrap items-start justify-between gap-3 mb-2">
+                                <div>
+                                    <h2 className="text-xl font-semibold text-gray-900">
+                                        {order.order_display_code || order.order_code}
+                                    </h2>
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        {order.order_code}
+                                        {date !== "—" ? ` · ${date}${time ? ` ${time}` : ""}` : ""}
+                                    </p>
+                                </div>
+                                <StatusBadge
+                                    status={order.order_status}
+                                    label={formatStatusLabel(order.order_status)}
+                                />
                             </div>
-                          </div>
-                        </td>
-                        <td className="order-sku">BHI-OIL-100</td>
-                        <td className="order-qty">2</td>
-                        <td className="order-price">Rs. 1,250.00</td>
-                      </tr>
-                      {/* Item 2 */}
-                      <tr>
-                        <td>
-                          <div className="order-product-cell">
-                            <div className="order-product-icon amber">🧴</div>
-                            <div>
-                              <p className="order-product-name">Neem & Tulsi Cleanser</p>
-                              <p className="order-product-desc">Skin Care · 200ml</p>
-                            </div>
-                          </div>
-                        </td>
-                        
-                        <td className="order-sku">NT-CLN-200</td>
-                        <td className="order-qty">1</td>
-                        <td className="order-price">Rs. 890.00</td>
-                      </tr>
-                        <tr>
-                        <td>
-                          <div className="order-product-cell">
-                            <div className="order-product-icon yellow">🌿</div>
-                            <div>
-                              <p className="order-product-name">Brahmi Hair Oil</p>
-                              <p className="order-product-desc">Hair Care · 100ml</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="order-sku">BHI-OIL-100</td>
-                        <td className="order-qty">2</td>
-                        <td className="order-price">Rs. 1,250.00</td>
-                      </tr>
-                    </tbody>
-                  </table>
+
+                            <h3>Your items</h3>
+                            {items.length === 0 ? (
+                                <p className="text-sm text-gray-500">No items for this vendor.</p>
+                            ) : (
+                                items.map((item) => {
+                                    const variant = item.variant || {};
+                                    return (
+                                        <div key={item.id} className="order-item-card">
+                                            <img
+                                                src={variant.image_url || Ayurvedaimage}
+                                                alt=""
+                                                className="order-item-thumb"
+                                                onError={(e) => {
+                                                    e.currentTarget.src = Ayurvedaimage;
+                                                }}
+                                            />
+                                            <div className="min-w-0 flex-1">
+                                                <p className="font-semibold text-gray-800 truncate">
+                                                    {variant.variant_title || "Variant"}
+                                                </p>
+                                                <p className="text-sm text-gray-500 mt-0.5">
+                                                    {[variant.brand_name, item.sku_code]
+                                                        .filter(Boolean)
+                                                        .join(" · ") || "—"}
+                                                </p>
+                                                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
+                                                    <span>Qty {item.quantity}</span>
+                                                    <span>{formatCurrency(item.selling_price)} each</span>
+                                                    <span className="font-semibold text-[#0D614E]">
+                                                        {formatCurrency(item.total_price)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="ds-card order-detail-section">
+                            <h3>Order summary</h3>
+                            <DetailRow label="Status">
+                                <StatusBadge
+                                    status={order.order_status}
+                                    label={formatStatusLabel(order.order_status)}
+                                />
+                            </DetailRow>
+                            <DetailRow label="Payment">
+                                {formatPaymentLabel(order.payment_type, order.payment_method)}
+                            </DetailRow>
+                            <DetailRow label="Shipping">{order.shipping_method || "—"}</DetailRow>
+                            <DetailRow label="Your subtotal">
+                                <span className="text-[#0D614E] font-semibold">
+                                    {formatCurrency(order.vendor_items_subtotal)}
+                                </span>
+                            </DetailRow>
+                            <DetailRow label="Order total">
+                                {formatCurrency(order.total_amount)}
+                            </DetailRow>
+                            {order.payment?.status ? (
+                                <DetailRow label="Payment status">
+                                    <StatusBadge status={order.payment.status} />
+                                </DetailRow>
+                            ) : null}
+                        </div>
+
+                        <div className="ds-card order-detail-section">
+                            <h3 className="inline-flex items-center gap-2">
+                                <MapPin size={14} />
+                                Delivery address
+                            </h3>
+                            <p className="text-sm text-gray-700 leading-relaxed">
+                                {formatAddress(order.delivery_address)}
+                            </p>
+                            {order.delivery_address?.address_type ? (
+                                <p className="text-xs text-gray-400 mt-2 capitalize">
+                                    {order.delivery_address.address_type}
+                                </p>
+                            ) : null}
+                        </div>
+
+                        <Link
+                            to="/vendor/orders"
+                            className="inline-flex items-center gap-1.5 text-sm font-medium text-[#0D614E] hover:text-[#094c3d]"
+                        >
+                            <ArrowLeft size={14} />
+                            Back to all orders
+                        </Link>
+                    </div>
                 </div>
-              </div>
-            </div>
-
-           
-            <div className="order-pricing">
-              <div className="order-pricing-row">
-                <p className="order-pricing-label">Subtotal</p>
-                <p className="order-pricing-value">Rs. 2,140.00</p>
-              </div>
-              <div className="order-pricing-row">
-                <p className="order-pricing-label">Shipping</p>
-                <p className="order-pricing-value free">FREE</p>
-              </div>
-              <div className="order-pricing-row">
-                <p className="order-pricing-label">Discount (FESTIVE50)</p>
-                <p className="order-pricing-value discount">-Rs. 214.00</p>
-              </div>
-              <div className="order-pricing-total">
-                <p className="order-pricing-total-label">TOTAL</p>
-                <p className="order-pricing-total-value">Rs. 1,926.00</p>
-              </div>
-            </div>
-
-           
-            <div className="order-card">
-              <div className="order-card-header">
-                <h2 className="order-card-title">Order Timeline</h2>
-              </div>
-              <div className="order-card-content">
-                <div className="order-timeline">
-                  
-                  <div className="order-timeline-item">
-                    <div>
-                      <div className="order-timeline-dot completed">✓</div>
-                      <div className="order-timeline-line"></div>
-                    </div>
-                    <div className="order-timeline-content">
-                      <h4 className="order-timeline-title">Order Placed</h4>
-                      <p className="order-timeline-time">Oct 26, 2023 · 02:45 PM</p>
-                      <p className="order-timeline-desc">The order has been successfully placed by the customer.</p>
-                    </div>
-                  </div>
-
-                 
-                  <div className="order-timeline-item">
-                    <div>
-                      <div className="order-timeline-dot completed">✓</div>
-                      <div className="order-timeline-line"></div>
-                    </div>
-                    <div className="order-timeline-content">
-                      <h4 className="order-timeline-title">Payment Confirmed</h4>
-                      <p className="order-timeline-time">Oct 26, 2023 · 03:30 PM</p>
-                      <p className="order-timeline-desc">Payment via UPI was confirmed successfully.</p>
-                    </div>
-                  </div>
-
-                 
-                  <div className="order-timeline-item">
-                    <div>
-                      <div className="order-timeline-dot completed">✓</div>
-                      <div className="order-timeline-line"></div>
-                    </div>
-                    <div className="order-timeline-content">
-                      <h4 className="order-timeline-title">Processing</h4>
-                      <p className="order-timeline-time">Oct 26, 2023 · 04:00 PM</p>
-                      <p className="order-timeline-desc">Pending packing...</p>
-                    </div>
-                  </div>
-
-                 
-                  <div className="order-timeline-item">
-                    <div>
-                      <div className="order-timeline-dot pending">⏱</div>
-                    </div>
-                    <div className="order-timeline-content">
-                      <h4 className="order-timeline-title">Shipped</h4>
-                      <p className="order-timeline-time">Pending</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-         
-          <div className="order-right-column">
-          
-          
-             <div className="order-card">
-      <div className="order-customer-header">
-        <div>
-          <h2 className="order-card-title">Customer</h2>
-        </div>
-        <div>
-          <button className="order-view-profile">View Profile</button>
-        </div>
-      </div>
-
-      <div className="order-card-content">
-        <div className="order-customer-info">
-          <div className="order-avatar">PS</div>
-
-          <div className="order-customer-details">
-            <p className="order-customer-name">Priya Sharma</p>
-            <p className="order-customer-email">priya.sh@email.com</p>
-          </div>
-        </div>
-
-        <div className="order-customer-phone">
-          <Phone className="order-customer-phone-icon" />
-          <p style={{ margin: 0, fontSize: '14px', color: '#3F4945' ,verticalAlign:'middle',fontWeight:'500'}}>
-            +91 98765 43210
-          </p>
-        </div>
-
-        <div className="order-customer-stats">
-          <div className="order-stat">
-            <p className="order-stat-label">Orders</p>
-            <p className="order-stat-value small">12</p>
-          </div>
-          <div className="order-stat1">
-            <p className="order-stat-label">Spent</p>
-            <p className="order-stat-value small">Rs. 18,450</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-            <div className="order-card">
-              <div className="order-customer-header">
-               
-                  <h2 className="order-card-title">Shipping</h2>
-                 
-                
-                <div>
-                     <button className="order-view-profile">Edit</button>
-                </div>
-              </div>
-            
-                <div className='order-card-address'>
-  <p className="order-shipping-type">HOME DELIVERY</p>
-                <p className="order-shipping-address">
-                   42, Green Valley Apartments
-Palm Grove Road, Indiranagar, Bengaluru, Karnataka, 560038
-                </p>
-               
-                </div>
-                
-                <div>
-      <p className="order-delivery-note">
-                  "Leave at the security gate if no answer"
-                </p>
-</div>
-                
-                <div className="order-map-placeholder">
-                  <MapPin className="order-map-icon" />
-                  <p className="order-map-text">Map showing delivery location</p>
-                </div>
-
-              
-              </div>
-            
-
-           
-            <div className="order-card2">
-             
-                <div className="order-customer-header">
-                  <h2 className="order-card-title">Payment</h2>
-                  <span className="order-payment-badge">Paid</span>
-                </div>
-           
-          <div className='item-header'>  
-               <div className="order-payment-item">
-  <p className="order-payment-label">Method</p>
-  <p className="order-payment-value">
-    <span className='order-payment-img'><img src ={upiicon}/></span> UPI
-  </p>
-</div>
-
-<div className="order-payment-item">
-  <p className="order-payment-label">Transaction ID</p>
-  <p className="order-payment-value1">#09821-5283-8472</p>
-</div>
-
-<div className="order-payment-item">
-  <p className="order-payment-label">Timestamp</p>
-  <p className="order-payment-value">26 Oct, 02:50 PM</p>
-</div>
-</div>
-            </div>
-
-          </div>
-        </div>
-    
-    </div>
-  )
+            )}
+        </DashboardPageShell>
+    );
 }

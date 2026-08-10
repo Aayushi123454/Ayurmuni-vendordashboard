@@ -1,105 +1,156 @@
-// src/services/vendorService.js
 import API from "./api";
 
-export const vendorService = {
+const buildQuery = (params = {}) => {
+    const search = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+            search.append(key, value);
+        }
+    });
+    const query = search.toString();
+    return query ? `?${query}` : "";
+};
 
+export const vendorService = {
     uploadfiles: (file, dir) => {
         const formdata = new FormData();
         formdata.append("image", file);
         formdata.append("dir", dir);
         return API.post("/user/upload/", formdata, {
-            headers: {
-                "Content-Type": "multipart/form-data",
-            },
+            headers: { "Content-Type": "multipart/form-data" },
         });
     },
 
-    // Create profile
-    createOnboarding: async (data) => {
-        try {
-            const response = await API.post("/vendors/profile/", data);
-            console.log(response.data);
-            return response
-        } catch (error) {
-            console.error("Create Onboarding Error:", error);
-        }
+    createOnboarding: (data) => API.post("/vendors/profile/", data),
+
+    getProfile: () => API.get("/vendors/profile/"),
+
+    updateProfile: (profileData) => API.put("/vendors/profile/", profileData),
+
+    deleteAccount: () => API.delete("/vendors/profile/"),
+
+    getBankDetails: (params = {}) =>
+        API.get(`/vendors/bank-details/${buildQuery(params)}`),
+
+    getBankDetail: (id) =>
+        API.get(`/vendors/bank-details/?id=${id}`),
+
+    addBankDetail: (bankData) =>
+        API.post("/vendors/bank-details/", bankData),
+
+    updateBankDetail: (bankData) =>
+        API.put(`/vendors/bank-details/?id=${bankData?.id}`, bankData),
+
+    deleteBankDetail: (bankDetailId) =>
+        API.delete(`/vendors/bank-details/?id=${bankDetailId}`),
+
+    getProducts: (params = {}) =>
+        API.get(`/vendors/product/${buildQuery(params)}`),
+
+    getSingleProduct: (id, variantId) => {
+        const query = variantId
+            ? `?id=${id}&variant_id=${variantId}`
+            : `?id=${id}`;
+        return API.get(`/vendors/product/${query}`);
     },
 
-    // Get profile
-    getProfile: () => {
-        return API.get("/vendors/profile/");
+    addProduct: (productData) =>
+        API.post("/vendors/product/add/", productData),
+
+    addVariant: (productId, variantData) =>
+        API.post(`/vendors/product/?id=${productId}`, variantData),
+
+    updateProduct: (id, productData, variantId) => {
+        const query = variantId
+            ? `?id=${id}&variant_id=${variantId}`
+            : `?id=${id}`;
+        return API.patch(`/vendors/product/${query}`, productData);
     },
 
-    // Update profile
-    updateProfile: async (profileData) => {
+    deleteProduct: (id) =>
+        API.delete(`/vendors/product/?id=${id}`),
+
+    deleteVariant: (productId, variantId) =>
+        API.delete(`/vendors/product/?id=${productId}&variant_id=${variantId}`),
+
+    getFieldInfo: (searchKey, extraParams = {}) =>
+        API.get(`/vendors/fields/info/${buildQuery({ search: searchKey, ...extraParams })}`),
+
+    // Alias for legacy callers (AddProduct, editproduct)
+    getbrandandcategory: (searchKey, extraParams = {}) =>
+        API.get(`/vendors/fields/info/${buildQuery({ search: searchKey, ...extraParams })}`),
+
+    getTaxClasses: (params = {}) =>
+        API.get(`/vendors/unicommerce-tax-class/${buildQuery(params)}`),
+
+    getBanners: (id) =>
+        id
+            ? API.get(`/vendors/banner/?id=${id}`)
+            : API.get("/vendors/banner/"),
+
+    createBanner: (data) =>
+        API.post("/vendors/banner/", data),
+
+    updateBanner: (id, data) =>
+        API.patch(`/vendors/banner/?id=${id}`, data),
+
+    deleteBanner: (id) =>
+        API.delete(`/vendors/banner/?id=${id}`),
+
+    getInventory: (params = {}) =>
+        API.get(`/inventory/${buildQuery(params)}`),
+
+    getInventoryById: (id) =>
+        API.get(`/inventory/?id=${id}`),
+
+    getInventoryByVariant: (variantId) =>
+        API.get(`/inventory/?variant_id=${variantId}`),
+
+    createInventory: (data) =>
+        API.post("/inventory/", data),
+
+    updateInventory: (id, data) =>
+        API.patch(`/inventory/${id}/`, data),
+
+    deleteInventory: (id) =>
+        API.delete(`/inventory/${id}/`),
+
+    getOrders: (params = {}) =>
+        API.get(`/vendors/orders/${buildQuery(params)}`),
+
+    getOrder: (id) =>
+        API.get(`/vendors/orders/${buildQuery({ id })}`),
+
+    getOrderItem: (orderItemId) =>
+        API.get(`/vendors/orders/${buildQuery({ order_item_id: orderItemId })}`),
+
+    getOrdersSummary: () =>
+        API.get("/vendors/orders/summary/"),
+
+    getFinanceMetrics: (params = {}) =>
+        API.get(`/vendors/finance/metrics/${buildQuery(params)}`),
+
+    getFinanceTransactions: (params = {}) =>
+        API.get(`/vendors/finance/transactions/${buildQuery(params)}`),
+
+    getWalletTransactions: (params = {}) =>
+        API.get(`/vendors/finance/wallet/transactions/${buildQuery(params)}`),
+
+    // delete Product list detail
+    deleteVariants: async (id, vid) => {
         try {
-            const response = await API.put('/vendors/profile/', profileData);
-            return response;
-        } catch (error) {
-            console.error('Update profile error:', error);
-            throw error;
-        }
-    },
-
-
-    // Add bank detail
-    addBankDetail: async (bankData) => {
-        try {
-            const response = await API.post('/vendors/bank-details/', bankData);
-            return response;
-        } catch (error) {
-            console.error('Add bank detail error:', error);
-            throw error;
-        }
-    },
-
-    // Update bank detail
-    updateBankDetail: async (bankData) => {
-        try {
-            const response = await API.put(`/vendors/bank-details/?id=${bankData?.id}`, bankData);
-            return response;
-        } catch (error) {
-            console.error('Update bank detail error:', error);
-            throw error;
-        }
-    },
-
-    // Delete bank detail
-    deleteBankDetail: async (data) => {
-        try {
-            const response = await API.delete(`/vendors/bank-details/?id=${data.bank_detail_id}`);
-            return response;
-        } catch (error) {
-            console.error('Delete bank detail error:', error);
-            throw error;
-        }
-    },
-
-    deleteAccount: async () => {
-        try {
-            const response = await API.delete(`/vendors/profile/`);
-            return response;
-        } catch (error) {
-            console.error('Delete account error:', error);
-            throw error;
-        }
-    },
-
-
-    // Get Product list detail
-    getProducts: async (data) => {
-        try {
-            const response = await API.get('/vendors/product/');
+            const response = await API.delete(`/vendors/product/?id=${id}&variant_id=${vid}`);
             return response;
         } catch (error) {
             console.error('Admin service error:', error);
             throw error;
         }
     },
-    // Get Product list detail
-    getsingleProducts: async (id) => {
+
+    // Add Variants list detail
+    addVariants: async (id, newVariant) => {
         try {
-            const response = await API.get('/vendors/product/?id=23792390-aeb5-421d-be97-20eb00afe7b5');
+            const response = await API.post(`/vendors/product/?id=${id}`, newVariant);
             return response;
         } catch (error) {
             console.error('Admin service error:', error);
@@ -107,10 +158,10 @@ export const vendorService = {
         }
     },
 
-    // Add Product list detail
-    addProduct: async (productData) => {
+    // Update Variants 
+    updateVariants: async (id, vid, updateVariant) => {
         try {
-            const response = await API.post('/vendors/product/add/', productData);
+            const response = await API.patch(`/vendors/product/?id=${id}&variant_id=${vid}`, updateVariant);
             return response;
         } catch (error) {
             console.error('Admin service error:', error);
@@ -118,16 +169,15 @@ export const vendorService = {
         }
     },
 
-    //Get Brand,category
-    getbrandandcategory: async (productData) => {
-        try {
-            const response = await API.get('/vendors/fields/info/?search=' + productData);
-            return response;
-        } catch (error) {
-            console.error('Admin service error:', error);
-            throw error;
-        }
-    }
 
-
+    // //Get Brand,category
+    // getbrandandcategory: async (productData) => {
+    //     try {
+    //         const response = await API.get('/vendors/fields/info/?search=' + productData);
+    //         return response;
+    //     } catch (error) {
+    //         console.error('Admin service error:', error);
+    //         throw error;
+    //     }
+    // }
 };

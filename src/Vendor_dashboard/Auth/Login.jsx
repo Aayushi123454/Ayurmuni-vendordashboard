@@ -45,11 +45,161 @@ const useAuthAnimation = () => {
 // ==============================
 // OTP Input Component
 // ==============================
+// const OtpInput = ({ onVerify, onBack, mobile, loading, onResendOtp, resendLoading, otpData, setselectrole }) => {
+//   const [otp, setOtp] = useState(["", "", "", ""]);
+//   const [error, setError] = useState("");
+//   const inputRefs = useRef([]);
+
+
+//   const handleChange = (index, value) => {
+//     if (value.length > 1) return;
+
+//     const newOtp = [...otp];
+//     newOtp[index] = value;
+//     setOtp(newOtp);
+//     setError("");
+
+//     if (value && index < 3) {
+//       inputRefs.current[index + 1]?.focus();
+//     }
+//   };
+
+//   const handleKeyDown = (index, e) => {
+//     if (e.key === "Backspace" && !otp[index] && index > 0) {
+//       inputRefs.current[index - 1]?.focus();
+//     }
+//   };
+
+//   const handleSubmit = () => {
+//     const otpValue = otp.join("");
+//     if (otpValue.length !== 4) {
+//       setError("Please enter complete 4-digit OTP");
+//       return;
+//     }
+//     onVerify(otpValue);
+//   };
+
+//   const handleResend = () => {
+//     if (onResendOtp) {
+//       setOtp(["", "", "", ""]);
+//       inputRefs.current[0]?.focus();
+//       onResendOtp();
+//     }
+//   };
+
+//   return (
+//     <div className="auth-form">
+//       <div className="otp-header">
+//         <button onClick={onBack} className="otp-back-btn" type="button">
+//           ← Back
+//         </button>
+//       </div>
+
+//       <div className="otp-input-container">
+//         {otp.map((digit, index) => (
+//           <input
+//             key={index}
+//             ref={(el) => (inputRefs.current[index] = el)}
+//             type="text"
+//             inputMode="numeric"
+//             pattern="[0-9]*"
+//             maxLength="1"
+//             value={digit}
+//             onChange={(e) => handleChange(index, e.target.value)}
+//             onKeyDown={(e) => handleKeyDown(index, e)}
+//             className={`otp-input ${error ? "otp-input--error" : ""}`}
+//             autoFocus={index === 0}
+//             aria-label={`OTP digit ${index + 1}`}
+//           />
+//         ))}
+//       </div>
+
+//       {error && <span className="card__error otp-error" role="alert">{error}</span>}
+//       {otpData?.data?.user_roles?.length > 0 && (
+//         <div className="role-select-wrap">
+//           <label className="auth-card__label">
+//             Are you a doctor or a vendor?
+//           </label>
+
+//           <div className="auth-card__input-wrap">
+//             <select
+//               onChange={(e) =>
+//                 setselectrole(e.target.value)
+//               }
+//               defaultValue={otpData?.data?.user_roles[0]}
+//               className={`auth-card__input`}
+//               disabled={loading}
+//               aria-label="Select role"
+//             >
+//               <option value="">Select Role</option>
+
+//               {otpData?.data?.user_roles?.map((role, index) =>
+//                 role != "customer" && (
+//                   <option key={index} value={role}>
+//                     {role.charAt(0).toUpperCase() + role.slice(1)}
+//                   </option>
+//                 ))}
+//             </select>
+
+//             {/* {errors?.role && (
+//               <span className="card__error" role="alert">
+//                 {errors.role}
+//               </span>
+//             )} */}
+//           </div>
+//         </div>
+//       )}
+//       <button
+//         onClick={handleSubmit}
+//         disabled={loading}
+//         className="auth-card__btn"
+//         type="button"
+//       >
+//         {loading ? (
+//           <><span className="auth-card__spinner" aria-hidden="true" /> Verifying...</>
+//         ) : (
+//           "Verify OTP"
+//         )}
+//       </button>
+
+//       <p className="otp-resend">
+//         Didn't receive OTP?{" "}
+//         <button
+//           onClick={handleResend}
+//           className="otp-resend-link"
+//           disabled={resendLoading}
+//           type="button"
+//         >
+//           {resendLoading ? "Sending..." : "Resend"}
+//         </button>
+//       </p>
+//     </div>
+//   );
+// };
+
 const OtpInput = ({ onVerify, onBack, mobile, loading, onResendOtp, resendLoading, otpData, setselectrole }) => {
   const [otp, setOtp] = useState(["", "", "", ""]);
   const [error, setError] = useState("");
   const inputRefs = useRef([]);
 
+  // Auto-fill OTP from response for development
+  useEffect(() => {
+    console.log(otpData);
+
+    if (otpData?.data?.otp) {
+      const otpString = String(otpData.data.otp);
+      if (otpString.length === 4) {
+        const otpArray = otpString.split('');
+        setOtp(otpArray);
+
+        // Optional: Auto-verify after a short delay
+        // This helps speed up development testing
+        // setTimeout(() => {
+        //   onVerify(otpString);
+        // }, 500);
+      }
+    }
+  }, [otpData]);
 
   const handleChange = (index, value) => {
     if (value.length > 1) return;
@@ -148,12 +298,6 @@ const OtpInput = ({ onVerify, onBack, mobile, loading, onResendOtp, resendLoadin
                   </option>
                 ))}
             </select>
-
-            {/* {errors?.role && (
-              <span className="card__error" role="alert">
-                {errors.role}
-              </span>
-            )} */}
           </div>
         </div>
       )}
@@ -502,6 +646,7 @@ export default function AuthPage() {
     setShowOtp(false);
     setMobile("");
     setSelectedRole("");
+    setselectrole("")
     setOtpData(null);
     setTimeout(() => setActiveTab(tab), 350);
   }, [activeTab, animationState, triggerAnimation]);
@@ -562,11 +707,11 @@ export default function AuthPage() {
           return;
         }
 
-        toast.success("OTP sent successfully");
+        setOtpData(response.data);
         setSelectedRole(role);
         setMobile(userMobile);
-        setOtpData(response.data);
         setShowOtp(true);
+        toast.success("OTP sent successfully");
       } else {
         toast.error(response?.data?.message || "Failed to send OTP");
       }
@@ -789,6 +934,7 @@ export default function AuthPage() {
             onRegister={handleRegister}
             resendLoading={resendOtpLoading}
             onResendOtp={handleResendOtp}
+            otpData={otpData}
           />
           <Banner
             activeTab={activeTab}

@@ -21,6 +21,16 @@ import {
 import "./AddProduct.css";
 import { vendorService } from "../../../services/vendorService";
 import toast from "react-hot-toast";
+import UnicommerceNotice from "../../components/shared/UnicommerceNotice";
+import DashboardPageShell from "../../components/shared/DashboardPageShell";
+import Button from "../../components/shared/Button";
+import {
+  extractApiErrorMessage,
+  getSelectedSubcategoryMeta,
+  isUnicommerceSyncError,
+  mapVariantToApiPayload,
+  UNICOMMERCE_NOTICES,
+} from "../../../utils/unicommerceHelpers";
 
 export default function AddProduct() {
   const navigate = useNavigate();
@@ -101,6 +111,7 @@ export default function AddProduct() {
     weightage: "g",
     size: "",
     is_default: false,
+    prescription_required: false,
     coverImage: null,
     vendor_price: "",
     is_active: true
@@ -515,6 +526,7 @@ export default function AddProduct() {
         weightage: variantForm.weightage,
         size: variantForm.size,
         is_default: editingVariant ? variantForm.is_default : (variants.length === 0),
+        prescription_required: variantForm.prescription_required,
         coverImage: variantForm.coverImage,
         is_active: true,
         vendor_price: parseFloat(priceType == "TP" ? variantForm.selling_price : (Number(variantForm.selling_price) -
@@ -584,6 +596,7 @@ export default function AddProduct() {
       weightage: "g",
       size: "",
       is_default: false,
+      prescription_required: false,
       coverImage: null,
     });
     setErrors({});
@@ -598,12 +611,14 @@ export default function AddProduct() {
       preview: img.media_url, // Use existing URL as preview
       file: null, // No file object for existing images
     })) || [];
+    console.log(parseInt(variant.selling_price));
+
 
     setVariantForm({
       vendor_sku_code: variant.vendor_sku_code,
       title: variant.title,
       mrp: variant.mrp,
-      selling_price: variant.selling_price ? variant.selling_price.toFixed(2) : "",
+      selling_price: variant.selling_price ? parseInt(variant.selling_price)?.toFixed(2) : "",
       discount: variant.discount || "",
       cost_per_item: variant.cost_per_item || "",
       stock: variant.stock,
@@ -619,6 +634,7 @@ export default function AddProduct() {
       weightage: variant.weightage,
       size: variant.size,
       is_default: variant.is_default,
+      prescription_required: variant.prescription_required,
       coverImage: variant.coverImage || (restoredGallery.find(img => img.is_cover) || restoredGallery[0]),
       calculation_mode: variant.calculation_mode || (priceType == "TP" ? "trade_price" : "selling_price"),
       taxes: variant.taxes || [
@@ -674,6 +690,7 @@ export default function AddProduct() {
       id: Date.now(),
       vendor_sku_code: `${variant.vendor_sku_code}-COPY-${Date.now().toString().slice(-4)}`,
       is_default: false,
+      prescription_required: false,
       title: `${variant.title} (Copy)`,
       coverImage: variant.coverImage ? { ...variant.coverImage, id: Date.now() } : null,
       galleryImages: duplicatedGallery,
@@ -757,20 +774,19 @@ export default function AddProduct() {
       }),
 
       variants: variants.map((v) =>
-        removeEmptyFields({
-          ...v,
-
-          media:
-            v.media ||
-            v.galleryImages?.map((img) => ({
-              media_url: img.media_url,
-              media_type: "image",
-              is_cover: img.is_cover || (v.coverImage?.id === img.id),
-            })) ||
-            [],
-
-          galleryImages: undefined,
-        })
+        mapVariantToApiPayload(
+          removeEmptyFields({
+            ...v,
+            media:
+              v.media ||
+              v.galleryImages?.map((img) => ({
+                media_url: img.media_url,
+                media_type: "image",
+                is_cover: img.is_cover || v.coverImage?.id === img.id,
+              })) ||
+              [],
+          })
+        )
       ),
     };
 
@@ -781,12 +797,13 @@ export default function AddProduct() {
       if (response.data.success) {
         toast.success(response.data.message);
         setTimeout(() => {
-          navigate("/products");
+          navigate("/vendor/products");
         }, 1000);
       }
     } catch (error) {
       console.error("Error saving product:", error);
-      toast.error("Failed to save product. Please try again.");
+      const message = extractApiErrorMessage(error, "Failed to save product. Please try again.");
+      toast.error(isUnicommerceSyncError(error) ? `Unicommerce sync: ${message}` : message);
     }
   };
 
@@ -799,29 +816,38 @@ export default function AddProduct() {
           URL.revokeObjectURL(img.preview);
         }
       });
-      navigate("/inventory");
+      navigate("/vendor/products");
     }
   };
 
   // Calculate total stock
-  const totalStock = variants.reduce((sum, v) => sum + (v.stock || 0), 0);
+  const totalStock = variants.reduce((sum, v) => sum + (parseInt(v.stock, 10) || 0), 0);
+  const selectedSubcategory = getSelectedSubcategoryMeta(
+    lists.productcat,
+    formData.product_subcategory_id
+  );
   const priceRange = variants.length > 0 ? {
     min: Math.min(...variants.map(v => v.selling_price)),
     max: Math.max(...variants.map(v => v.selling_price))
   } : null;
 
   return (
-    <div className="add-product-page">
-      {/* Header */}
-      <div className="iv-header">
-        <div className="iv-header-title">
-          <button className="back-btn" onClick={handleCancel}>
-            <ChevronLeft size={16} /> Back
-          </button>
-          <h1>Add New <span className="inventoryspan">Product</span></h1>
-          <p>Create a new listing in your botanical collection. Ensure all ingredients and dosage types are accurately cataloged.</p>
-        </div>
-      </div>
+    <DashboardPageShell
+      title="Add New"
+      accent="Product"
+      subtitle="Create a new listing in your botanical collection. Ensure all ingredients and dosage types are accurately cataloged."
+      breadcrumbs={[{ label: "Dashboard" }, { label: "Products" }, { label: "Add Product" }]}
+      actions={
+        <Button variant="secondary" onClick={handleCancel}>
+          <ChevronLeft size={16} className="mr-1" aria-hidden />
+          Back
+        </Button>
+      }
+      contentClassName="p-4 sm:p-6 lg:p-8 max-w-8xl"
+    >
+      <UnicommerceNotice>
+        {UNICOMMERCE_NOTICES.pendingVariant} {UNICOMMERCE_NOTICES.systemSku}
+      </UnicommerceNotice>
 
       {/* Tabs */}
       <div className="product-tabs">
@@ -891,6 +917,11 @@ export default function AddProduct() {
                       ))}
                     </select>
                     {errors.product_subcategory_id && <span className="error-text">{errors.product_subcategory_id}</span>}
+                    {/* {selectedSubcategory && (
+                      <span className="field-note">
+                        HSN: {selectedSubcategory.hsn_code || "—"} · Tax: {selectedSubcategory.tax_class_code || selectedSubcategory.tax_class_name || "—"}
+                      </span>
+                    )} */}
                   </div>
                   <div className="form-group">
                     <label>BRAND NAME <span className="required">*</span></label>
@@ -1121,7 +1152,7 @@ export default function AddProduct() {
                     <div className="col-price">Selling Price</div>
                     <div className="col-price">Recive Amount</div>
                     <div className="col-stock">Stock</div>
-                    <div className="col-sku">SKU</div>
+                    <div className="col-sku">Vendor SKU</div>
                     <div className="col-default">Default</div>
                     <div className="col-actions">Actions</div>
                   </div>
@@ -1513,6 +1544,17 @@ export default function AddProduct() {
                     Set as Default Variant
                   </label>
                 </div>
+                <div className="form-group">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      name="prescription_required"
+                      checked={variantForm.prescription_required}
+                      onChange={handleVariantInputChange}
+                    />
+                    Prescription Required
+                  </label>
+                </div>
               </div>
 
               {/* Price Calculator */}
@@ -1610,6 +1652,6 @@ export default function AddProduct() {
           </div>
         </div>
       )}
-    </div>
+    </DashboardPageShell>
   );
 }
