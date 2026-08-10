@@ -110,6 +110,8 @@ function OnboardingRedirect() {
 function App() {
   const token = sessionStorage.getItem("accessToken");
   const role = sessionStorage.getItem("role");
+  const isdietitian = sessionStorage.getItem("profile") ? JSON.parse(sessionStorage.getItem("profile")).is_dietitian : false;
+
   const isAuthenticated = !!token;
   const [videodetails, setvideodetails] = useState({
     appointment: null,
@@ -179,9 +181,16 @@ function App() {
                 <Route path="videocall/:consultationId" element={<DoctorVideoCall />} />
                 <Route path="messenger" element={<Messenger />} />
                 <Route path="messenger/:patientId" element={<Messenger />} />
-                <Route path="diets" element={<DietPlanList />} />
-                <Route path="add-diet" element={<DietPlanManager />} />
-                <Route path="edit-diet/:id" element={<DietPlanManager />} />
+
+                {
+                  isdietitian && (
+                    <>
+                      <Route path="diets" element={<DietPlanList />} />
+                      <Route path="add-diet" element={<DietPlanManager />} />
+                      <Route path="edit-diet/:id" element={<DietPlanManager />} />
+                    </>
+                  )
+                }
                 <Route path="assessments" element={<Navigate to="/doctor/appointments" replace />} />
                 <Route path="earnings" element={<FinanceDashboard />} />
                 <Route path="reviews" element={<DoctorReviewInsights />} />
@@ -264,7 +273,7 @@ export default App;
 
 function DoctorLayout() {
   return (
-    <div style={{ display: "flex",paddingLeft: "250px" }}>
+    <div style={{ display: "flex", paddingLeft: "250px" }}>
       <DoctorSidebar />
       <div className="main-content">
         <Header />
