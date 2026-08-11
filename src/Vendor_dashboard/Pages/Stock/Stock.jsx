@@ -359,14 +359,14 @@ export default function StockManagement() {
     // --- FIX 2: Combined data fetching to avoid multiple calls ---
     const fetchAllData = useCallback(async (options = {}) => {
         const { skipInventory = false, skipSummary = false, forceRefresh = false } = options;
-        
+
         try {
             // Fetch products first (or get from cache)
             const productList = await fetchProducts(forceRefresh);
-            
+
             // Fetch inventory and summary in parallel
             const promises = [];
-            
+
             if (!skipInventory) {
                 promises.push(
                     (async () => {
@@ -393,7 +393,7 @@ export default function StockManagement() {
                     })()
                 );
             }
-            
+
             if (!skipSummary) {
                 promises.push(
                     (async () => {
@@ -412,14 +412,14 @@ export default function StockManagement() {
                     })()
                 );
             }
-            
+
             // Wait for all promises to resolve
             const results = await Promise.allSettled(promises);
-            
+
             // Process results
             let inventoryResult = null;
             let summaryResult = null;
-            
+
             results.forEach((result, index) => {
                 if (result.status === 'fulfilled') {
                     if (!skipInventory && index === 0) {
@@ -429,19 +429,19 @@ export default function StockManagement() {
                     }
                 }
             });
-            
+
             // Update state
             if (inventoryResult) {
                 setItems(inventoryResult.items);
                 setTotalCount(inventoryResult.count);
             }
-            
+
             if (summaryResult) {
                 setSummaryItems(summaryResult);
             }
-            
+
             return { inventory: inventoryResult, summary: summaryResult };
-            
+
         } catch (error) {
             console.error('Failed to fetch all data:', error);
             throw error;
@@ -495,10 +495,10 @@ export default function StockManagement() {
     // --- FIX 5: Optimized initial load ---
     useEffect(() => {
         let mounted = true;
-        
+
         const initialLoad = async () => {
             if (!mounted) return;
-            
+
             try {
                 const productList = await fetchProducts();
                 if (mounted) {
@@ -512,9 +512,9 @@ export default function StockManagement() {
                 }
             }
         };
-        
+
         initialLoad();
-        
+
         return () => {
             mounted = false;
             // Clear any pending timeouts
@@ -537,7 +537,7 @@ export default function StockManagement() {
                 fetchInventory();
             }, 300); // Debounce search/filter changes
         }
-        
+
         return () => {
             if (fetchTimeoutRef.current) {
                 clearTimeout(fetchTimeoutRef.current);
@@ -641,7 +641,7 @@ export default function StockManagement() {
             }
 
             // Optimistic update
-            const optimisticItems = items.map(item => 
+            const optimisticItems = items.map(item =>
                 item.id === editingItem.id ? { ...item, quantity } : item
             );
             setItems(optimisticItems);
@@ -652,13 +652,13 @@ export default function StockManagement() {
             });
             toast.success("Stock updated successfully");
             setEditingItem(null);
-            
+
             // Refresh data in background
             await reloadAll(true);
         } catch (err) {
             // Rollback optimistic update
             await reloadAll(true);
-            
+
             if (isApprovalRelatedStockError(err)) {
                 setEditingItem(null);
                 showApprovalBlocked(editingItem);
@@ -676,15 +676,15 @@ export default function StockManagement() {
         if (!deletingItem) return;
         try {
             setDeleting(true);
-            
+
             // Optimistic delete
             const optimisticItems = items.filter(item => item.id !== deletingItem.id);
             setItems(optimisticItems);
-            
+
             await vendorService.deleteInventory(deletingItem.id);
             toast.success("Inventory record deleted");
             setDeletingItem(null);
-            
+
             // Refresh data in background
             await reloadAll(true);
         } catch (err) {
@@ -724,148 +724,148 @@ export default function StockManagement() {
                 }
             >
                 <div className="stock-page-sections">
-                <section className="stock-page-section stock-page-section--kpi">
-                <StockKpiSection
-                    summary={summary}
-                    listTotalCount={totalCount}
-                    summaryLoading={summaryLoading}
-                    hasActiveQuery={hasActiveQuery}
-                    onFilterSelect={applyStockFilter}
-                />
-                </section>
-
-                <section className="stock-page-section stock-page-section--toolbar">
-                <div className="stock-toolbar-panel">
-                    <div className="stock-toolbar-shell">
-                        <SearchToolbar
-                            className="stock-toolbar-search"
-                            value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)}
-                            onSubmit={() => {
-                                setPage(1);
-                                setSearch(searchInput.trim());
-                            }}
-                            onClear={
-                                search || searchInput || productFilter
-                                    ? () => {
-                                        setSearch("");
-                                        setSearchInput("");
-                                        setProductFilter("");
-                                        setStockFilter("all");
-                                        setPage(1);
-                                    }
-                                    : undefined
-                            }
-                            placeholder="Search system SKU, vendor SKU, variant, or product name…"
-                        >
-                            <SelectFilter
-                                value={productFilter}
-                                onChange={(e) => {
-                                    setProductFilter(e.target.value);
-                                    setPage(1);
-                                }}
-                                options={productOptions}
-                                placeholder="All products"
-                                aria-label="Filter by product"
-                                className="stock-product-filter w-[11rem] min-w-[9rem] shrink-0"
-                            />
-                        </SearchToolbar>
-
-                        <div className="stock-filter-row">
-                            {STOCK_FILTERS.map((filter) => (
-                                <button
-                                    key={filter.key}
-                                    type="button"
-                                    className={`stock-filter-chip ${stockFilter === filter.key ? "stock-filter-chip--active" : ""}`}
-                                    onClick={() => setStockFilter(filter.key)}
-                                >
-                                    {filter.label}
-                                    <span className="stock-filter-count">{filterCounts[filter.key] ?? 0}</span>
-                                </button>
-                            ))}
-                            <span className="stock-filter-hint">Filters apply to the current page</span>
-                        </div>
-                    </div>
-                </div>
-                </section>
-
-                <section className={`stock-page-section stock-page-section--list stock-content-shell ${refreshing ? "stock-content-shell--refreshing" : ""}`}>
-                    {loading ? (
-                        <StockCardGridSkeleton count={Math.min(pageSize, 6)} />
-                    ) : error ? (
-                        <PageError message={error} onRetry={reloadAll} />
-                    ) : filteredItems.length === 0 ? (
-                        <PageEmpty
-                            title={items.length === 0 ? "No stock records found" : "No records match this filter"}
-                            description={
-                                items.length === 0
-                                    ? search || productFilter
-                                        ? "Try adjusting your search or product filter."
-                                        : "Inventory records are created when you add products with variants. Manage quantities here after catalog setup."
-                                    : "Try a different stock health filter or clear your selection."
-                            }
-                            action={
-                                items.length === 0 && !search && !productFilter ? (
-                                    <Button onClick={() => navigate("/vendor/products")}>Go to Products</Button>
-                                ) : stockFilter !== "all" ? (
-                                    <Button variant="secondary" onClick={() => setStockFilter("all")}>
-                                        Show all on this page
-                                    </Button>
-                                ) : null
-                            }
+                    <section className="stock-page-section stock-page-section--kpi">
+                        <StockKpiSection
+                            summary={summary}
+                            listTotalCount={totalCount}
+                            summaryLoading={summaryLoading}
+                            hasActiveQuery={hasActiveQuery}
+                            onFilterSelect={applyStockFilter}
                         />
-                    ) : (
-                        <TableCard className="stock-records-panel">
-                            <div className="stock-results-meta">
-                                <span>
-                                    Showing <strong>{filteredItems.length}</strong> of <strong>{items.length}</strong>{" "}
-                                    on this page · <strong>{totalCount.toLocaleString()}</strong> total records
-                                </span>
-                                {activeFilterLabels.length > 0 && (
-                                    <div className="stock-active-filters">
-                                        {activeFilterLabels.map((label) => (
-                                            <span key={label} className="stock-active-filter-tag">
-                                                {label}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+                    </section>
 
-                            <div className="stock-list-header" aria-hidden="true">
-                                <span className="stock-list-header__product">Product</span>
-                                <span className="stock-list-header__status">Status</span>
-                                <span>Quantity</span>
-                                <span>Approval</span>
-                                <span>Sync</span>
-                                <span>Vendor SKU</span>
-                                <span className="stock-list-header__actions">Actions</span>
-                            </div>
-
-                            <div className="stock-card-grid">
-                                {filteredItems.map((item) => (
-                                    <StockProductCard
-                                        key={item.id}
-                                        item={item}
-                                        onEdit={openEdit}
-                                        onDelete={setDeletingItem}
-                                        onBlocked={showApprovalBlocked}
+                    <section className="stock-page-section stock-page-section--toolbar">
+                        <div className="stock-toolbar-panel">
+                            <div className="stock-toolbar-shell">
+                                <SearchToolbar
+                                    className="stock-toolbar-search"
+                                    value={searchInput}
+                                    onChange={(e) => setSearchInput(e.target.value)}
+                                    onSubmit={() => {
+                                        setPage(1);
+                                        setSearch(searchInput.trim());
+                                    }}
+                                    onClear={
+                                        search || searchInput || productFilter
+                                            ? () => {
+                                                setSearch("");
+                                                setSearchInput("");
+                                                setProductFilter("");
+                                                setStockFilter("all");
+                                                setPage(1);
+                                            }
+                                            : undefined
+                                    }
+                                    placeholder="Search system SKU, vendor SKU, variant, or product name…"
+                                >
+                                    <SelectFilter
+                                        value={productFilter}
+                                        onChange={(e) => {
+                                            setProductFilter(e.target.value);
+                                            setPage(1);
+                                        }}
+                                        options={productOptions}
+                                        placeholder="All products"
+                                        aria-label="Filter by product"
+                                        className="stock-product-filter w-[11rem] min-w-[9rem] shrink-0"
                                     />
-                                ))}
-                            </div>
+                                </SearchToolbar>
 
-                            <PaginationBar
-                                page={page}
-                                pageSize={pageSize}
-                                totalCount={totalCount}
-                                onPageChange={setPage}
-                                onPageSizeChange={setPageSize}
-                                storageKey="vendor:stock"
-                                itemLabel="records"
+                                <div className="stock-filter-row">
+                                    {STOCK_FILTERS.map((filter) => (
+                                        <button
+                                            key={filter.key}
+                                            type="button"
+                                            className={`stock-filter-chip ${stockFilter === filter.key ? "stock-filter-chip--active" : ""}`}
+                                            onClick={() => setStockFilter(filter.key)}
+                                        >
+                                            {filter.label}
+                                            <span className="stock-filter-count">{filterCounts[filter.key] ?? 0}</span>
+                                        </button>
+                                    ))}
+                                    <span className="stock-filter-hint">Filters apply to the current page</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section className={`stock-page-section stock-page-section--list stock-content-shell ${refreshing ? "stock-content-shell--refreshing" : ""}`}>
+                        {loading ? (
+                            <StockCardGridSkeleton count={Math.min(pageSize, 6)} />
+                        ) : error ? (
+                            <PageError message={error} onRetry={reloadAll} />
+                        ) : filteredItems.length === 0 ? (
+                            <PageEmpty
+                                title={items.length === 0 ? "No stock records found" : "No records match this filter"}
+                                description={
+                                    items.length === 0
+                                        ? search || productFilter
+                                            ? "Try adjusting your search or product filter."
+                                            : "Inventory records are created when you add products with variants. Manage quantities here after catalog setup."
+                                        : "Try a different stock health filter or clear your selection."
+                                }
+                                action={
+                                    items.length === 0 && !search && !productFilter ? (
+                                        <Button onClick={() => navigate("/vendor/products")}>Go to Products</Button>
+                                    ) : stockFilter !== "all" ? (
+                                        <Button variant="secondary" onClick={() => setStockFilter("all")}>
+                                            Show all on this page
+                                        </Button>
+                                    ) : null
+                                }
                             />
-                        </TableCard>
-                    )}
-                </section>
+                        ) : (
+                            <TableCard className="stock-records-panel">
+                                <div className="stock-results-meta">
+                                    <span>
+                                        Showing <strong>{filteredItems.length}</strong> of <strong>{items.length}</strong>{" "}
+                                        on this page · <strong>{totalCount.toLocaleString()}</strong> total records
+                                    </span>
+                                    {activeFilterLabels.length > 0 && (
+                                        <div className="stock-active-filters">
+                                            {activeFilterLabels.map((label) => (
+                                                <span key={label} className="stock-active-filter-tag">
+                                                    {label}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="stock-list-header" aria-hidden="true">
+                                    <span className="stock-list-header__product">Product</span>
+                                    <span className="stock-list-header__status">Status</span>
+                                    <span>Quantity</span>
+                                    <span>Approval</span>
+                                    <span>Sync</span>
+                                    <span>Vendor SKU</span>
+                                    <span className="stock-list-header__actions">Actions</span>
+                                </div>
+
+                                <div className="stock-card-grid">
+                                    {filteredItems.map((item) => (
+                                        <StockProductCard
+                                            key={item.id}
+                                            item={item}
+                                            onEdit={openEdit}
+                                            onDelete={setDeletingItem}
+                                            onBlocked={showApprovalBlocked}
+                                        />
+                                    ))}
+                                </div>
+
+                                <PaginationBar
+                                    page={page}
+                                    pageSize={pageSize}
+                                    totalCount={totalCount}
+                                    onPageChange={setPage}
+                                    onPageSizeChange={setPageSize}
+                                    storageKey="vendor:stock"
+                                    itemLabel="records"
+                                />
+                            </TableCard>
+                        )}
+                    </section>
                 </div>
 
                 <QuantityUnavailableModal
@@ -874,11 +874,10 @@ export default function StockManagement() {
                     onClose={closeApprovalBlocked}
                     onViewProduct={viewBlockedProductStatus}
                 />
-
                 <Modal
                     open={Boolean(editingItem)}
                     onClose={() => !saving && setEditingItem(null)}
-                    title="Update stock quantity"
+                    title="Update Stock Quantity"
                     subtitle={
                         editingItem
                             ? `${editingItem.product_name} · ${editingItem.variant_title || "Default variant"}`
@@ -887,117 +886,175 @@ export default function StockManagement() {
                     size="md"
                     footer={
                         <>
-                            <Button variant="secondary" onClick={() => setEditingItem(null)} disabled={saving}>
+                            <Button
+                                variant="secondary"
+                                onClick={() => setEditingItem(null)}
+                                disabled={saving}
+                            >
                                 Cancel
                             </Button>
                             <Button
                                 onClick={saveQuantity}
                                 loading={saving}
                                 disabled={editQuantityUnchanged || saving || editBlocked}
+                                variant="primary"
                             >
-                                Save quantity
+                                {saving ? "Saving..." : "Save Quantity"}
                             </Button>
                         </>
                     }
                 >
                     {editingItem && (
-                        <>
-                            <div className="stock-sku-stack mb-4">
-                                <span className="text-xs text-gray-500">Vendor SKU</span>
-                                <code className="stock-sku-vendor">{editingItem.vendor_sku_code || "—"}</code>
-                                {editingItem.sku_code && (
-                                    <>
-                                        <span className="text-xs text-gray-500 mt-2">System SKU</span>
-                                        <code className="stock-sku-system">{editingItem.sku_code}</code>
-                                    </>
-                                )}
+                        <div className="space-y-6">
+                            {/* SKU Information */}
+                            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                                            Vendor SKU
+                                        </p>
+                                        <p className="font-mono text-sm bg-white px-3 py-1.5 rounded border border-gray-200 inline-block">
+                                            {editingItem.vendor_sku_code || "—"}
+                                        </p>
+                                    </div>
+                                    {editingItem.sku_code && (
+                                        <div>
+                                            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                                                System SKU
+                                            </p>
+                                            <p className="font-mono text-sm bg-white px-3 py-1.5 rounded border border-gray-200 inline-block">
+                                                {editingItem.sku_code}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
-                            <div className="stock-update-preview">
-                                <div className="stock-update-stat">
-                                    <p className="stock-update-stat-label">Current</p>
-                                    <p className="stock-update-stat-value">{editingItem.quantity ?? 0}</p>
+                            {/* Stock Preview Cards */}
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="bg-blue-50 rounded-lg p-4 text-center border border-blue-100">
+                                    <p className="text-xs font-medium text-blue-600 uppercase tracking-wider mb-1">
+                                        Current
+                                    </p>
+                                    <p className="text-2xl font-bold text-blue-700">
+                                        {editingItem.quantity ?? 0}
+                                    </p>
                                 </div>
-                                <div className="stock-update-stat">
-                                    <p className="stock-update-stat-label">New</p>
-                                    <p className="stock-update-stat-value">{Number(editQuantity) || 0}</p>
+
+                                <div className="bg-green-50 rounded-lg p-4 text-center border border-green-100">
+                                    <p className="text-xs font-medium text-green-600 uppercase tracking-wider mb-1">
+                                        New
+                                    </p>
+                                    <p className="text-2xl font-bold text-green-700">
+                                        {Number(editQuantity) || 0}
+                                    </p>
                                 </div>
-                                <div className="stock-update-stat">
-                                    <p className="stock-update-stat-label">Change</p>
-                                    <p
-                                        className={`stock-update-stat-value ${editDelta > 0
-                                            ? "stock-update-stat-value--delta-positive"
+
+                                <div className={`rounded-lg p-4 text-center border ${editDelta > 0
+                                        ? "bg-emerald-50 border-emerald-100"
+                                        : editDelta < 0
+                                            ? "bg-red-50 border-red-100"
+                                            : "bg-gray-50 border-gray-200"
+                                    }`}>
+                                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                                        Change
+                                    </p>
+                                    <p className={`text-2xl font-bold ${editDelta > 0
+                                            ? "text-emerald-600"
                                             : editDelta < 0
-                                                ? "stock-update-stat-value--delta-negative"
-                                                : ""
-                                            }`}
-                                    >
-                                        {editDelta > 0 ? "+" : ""}
-                                        {editDelta}
+                                                ? "text-red-600"
+                                                : "text-gray-600"
+                                        }`}>
+                                        {editDelta > 0 ? "+" : ""}{editDelta}
                                     </p>
                                 </div>
                             </div>
 
-                            <label htmlFor="stock-quantity" className="block text-sm font-medium text-gray-700 mb-2">
-                                Quantity on hand
-                            </label>
-                            <div className="stock-qty-stepper">
-                                <button
-                                    type="button"
-                                    className="stock-qty-stepper-btn"
-                                    onClick={() => adjustQuantity(-1)}
-                                    disabled={saving || (Number(editQuantity) || 0) <= 0}
-                                    aria-label="Decrease quantity"
-                                >
-                                    −
-                                </button>
-                                <input
-                                    id="stock-quantity"
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    autoFocus
-                                    value={editQuantity}
-                                    onChange={(e) => setEditQuantity(e.target.value)}
-                                    onWheel={(e) => e.currentTarget.blur()}
-                                    onKeyDown={(e) => {
-                                        if (e.key === "Enter" && !editQuantityUnchanged && !saving) {
-                                            e.preventDefault();
-                                            saveQuantity();
-                                        }
-                                    }}
-                                    className="stock-qty-stepper-input"
-                                />
-                                <button
-                                    type="button"
-                                    className="stock-qty-stepper-btn"
-                                    onClick={() => adjustQuantity(1)}
-                                    disabled={saving}
-                                    aria-label="Increase quantity"
-                                >
-                                    +
-                                </button>
+                            {/* Quantity Input */}
+                            <div>
+                                <label htmlFor="stock-quantity" className="block text-sm font-semibold text-gray-700 mb-2">
+                                    Quantity on Hand
+                                </label>
+                                <div className="flex items-center gap-3">
+                                    <div className="flex-1 relative">
+                                        <div className="flex items-center border-2 border-gray-300 rounded-lg overflow-hidden focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200 transition-all">
+                                            <button
+                                                type="button"
+                                                className="px-4 py-3 text-xl font-bold text-gray-600 hover:bg-gray-100 hover:text-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                onClick={() => adjustQuantity(-1)}
+                                                disabled={saving || (Number(editQuantity) || 0) <= 0}
+                                                aria-label="Decrease quantity"
+                                            >
+                                                −
+                                            </button>
+                                            <input
+                                                id="stock-quantity"
+                                                type="number"
+                                                min="0"
+                                                step="1"
+                                                autoFocus
+                                                value={editQuantity}
+                                                onChange={(e) => setEditQuantity(e.target.value)}
+                                                onWheel={(e) => e.currentTarget.blur()}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter" && !editQuantityUnchanged && !saving) {
+                                                        e.preventDefault();
+                                                        saveQuantity();
+                                                    }
+                                                }}
+                                                className="w-full py-3 text-center text-lg font-semibold border-0 focus:ring-0 bg-transparent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                placeholder="0"
+                                            />
+                                            <button
+                                                type="button"
+                                                className="px-4 py-3 text-xl font-bold text-gray-600 hover:bg-gray-100 hover:text-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                onClick={() => adjustQuantity(1)}
+                                                disabled={saving}
+                                                aria-label="Increase quantity"
+                                            >
+                                                +
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="stock-qty-presets">
-                                {QTY_PRESETS.map((preset) => (
-                                    <button
-                                        key={preset}
-                                        type="button"
-                                        className="stock-qty-preset"
-                                        disabled={saving}
-                                        onClick={() => setPresetQuantity(preset)}
-                                    >
-                                        Set {preset}
-                                    </button>
-                                ))}
+                            {/* Preset Buttons */}
+                            <div>
+                                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">
+                                    Quick Set
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {QTY_PRESETS.map((preset) => (
+                                        <button
+                                            key={preset}
+                                            type="button"
+                                            className="px-4 py-2 text-sm font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 hover:text-gray-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-gray-200"
+                                            disabled={saving}
+                                            onClick={() => setPresetQuantity(preset)}
+                                        >
+                                            Set {preset}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
-                            <div className="stock-modal-notice stock-modal-notice--sync">
-                                <strong>Unicommerce sync:</strong> Saving updates inventory and syncs to Unicommerce.
-                                If sync fails, you will see an error and the quantity will not be saved.
+                            {/* Sync Notice */}
+                            <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg">
+                                <div className="flex items-start">
+                                    <div className="flex-shrink-0">
+                                        <svg className="h-5 w-5 text-amber-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9a1 1 0 00-1-1z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                    <div className="ml-3">
+                                        <p className="text-sm text-amber-700">
+                                            <strong className="font-medium">Unicommerce Sync:</strong> Saving updates inventory and syncs to Unicommerce. If sync fails, you will see an error and the quantity will not be saved.
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
-                        </>
+                        </div>
                     )}
                 </Modal>
 

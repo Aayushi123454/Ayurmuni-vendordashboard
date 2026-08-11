@@ -19,9 +19,12 @@ import EditProduct from "./Vendor_dashboard/Pages/Inventory/editproduct";
 import Messenger from "./Doctor_dashboard/components/messenger/messanger";
 import { Rnd } from "react-rnd";
 import { X } from "lucide-react";
+import DietPlanList from "./Doctor_dashboard/components/Diets/Diets";
 
 // Doctor Pages
 const DoctorDashboard = lazy(() => import("./Doctor_dashboard/components/dashboard/Dashboard"));
+const DietPlanManager = lazy(() => import("./Doctor_dashboard/components/Diets/Editdiet"));
+const BulkUploadDietPlans = lazy(() => import("./Doctor_dashboard/components/Diets/bulkupload"));
 const DoctorOnboarding = lazy(() => import("./Doctor_dashboard/components/onboarding/Onboarding"));
 const AppointmentsPage = lazy(() => import("./Doctor_dashboard/components/Appointment/Appointment"));
 const PatientManagement = lazy(() => import("./Doctor_dashboard/components/Patients/Patients"));
@@ -50,6 +53,7 @@ const ForgotPassword = lazy(() => import("./Vendor_dashboard/Auth/ForgotPassword
 const ResetPassword = lazy(() => import("./Vendor_dashboard/Auth/ResetPassword"));
 const Unauthorized = lazy(() => import("./Vendor_dashboard/Pages/Unauthorized/Unauthorized"));
 const ProductDetail = lazy(() => import("./Vendor_dashboard/Pages/Inventory/ProductDetail/ProductDetail"));
+const BulkUploadProducts = lazy(() => import("./Vendor_dashboard/Pages/Inventory/bulkUpdate"));
 const UnavailableFeature = lazy(() => import("./Vendor_dashboard/Pages/Unavailable/UnavailableFeature"));
 const CustomerDetail = lazy(() => import("./Vendor_dashboard/Pages/Customers/CustomerDetail"));
 const VendorSettings = lazy(() => import("./Vendor_dashboard/Pages/Settings/Settings"));
@@ -108,6 +112,8 @@ function OnboardingRedirect() {
 function App() {
   const token = sessionStorage.getItem("accessToken");
   const role = sessionStorage.getItem("role");
+  const isdietitian = sessionStorage.getItem("profile") ? JSON.parse(sessionStorage.getItem("profile")).is_dietitian : false;
+
   const isAuthenticated = !!token;
   const [videodetails, setvideodetails] = useState({
     appointment: null,
@@ -178,6 +184,16 @@ function App() {
                 <Route path="messenger" element={<Messenger />} />
                 <Route path="messenger/:patientId" element={<Messenger />} />
 
+                {
+                  isdietitian && (
+                    <>
+                      <Route path="diets" element={<DietPlanList />} />
+                      <Route path="add-diet" element={<DietPlanManager />} />
+                      <Route path="edit-diet/:id" element={<DietPlanManager />} />
+                      <Route path="bulk-upload-diets" element={<BulkUploadDietPlans />} />
+                    </>
+                  )
+                }
                 <Route path="assessments" element={<Navigate to="/doctor/appointments" replace />} />
                 <Route path="earnings" element={<FinanceDashboard />} />
                 <Route path="reviews" element={<DoctorReviewInsights />} />
@@ -210,6 +226,7 @@ function App() {
                 <Route path="banners" element={<VendorBanners />} />
                 <Route path="catalog" element={<VendorCatalog />} />
                 <Route path="new-product" element={<AddProduct />} />
+                <Route path="bulk-upload-products" element={<BulkUploadProducts />} />
                 <Route path="edit-product/:id" element={<EditProduct />} />
                 <Route path="orders" element={<Order />} />
                 <Route path="orders/:id" element={<OrderDetail />} />
@@ -260,11 +277,11 @@ export default App;
 
 function DoctorLayout() {
   return (
-    <div style={{ display: "flex" }}>
+    <div style={{ display: "flex", paddingLeft: "250px" }}>
       <DoctorSidebar />
       <div className="main-content">
         <Header />
-        <div className="page-content">
+        <div className="page-content mt-28">
           <Suspense fallback={<LoadingFallback />}>
             <Outlet />
           </Suspense>

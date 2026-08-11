@@ -731,6 +731,42 @@ export const doctorService = {
         );
     },
 
+    postdietplan: (dietPlanData) => {
+        if (!dietPlanData) {
+            return Promise.reject({
+                message: "Diet plan data is required",
+                status: 400,
+                data: null
+            });
+        }
+        return handleApiCall(
+            () => API.post(`/doctors/patient-plans/suggest/`, dietPlanData),
+            "Failed to save diet plan"
+        );
+    },
+
+    getDosDonts: (prakriti) => {
+        return handleApiCall(
+            () => API.get(`/doctors/do-donts-templates/` + (prakriti && "?prakriti=" + prakriti)),
+            "Failed to fetch do's and don'ts"
+        );
+    },
+
+    getDietPlans: (search) => {
+        if (!search) {
+            return Promise.reject({
+                message: "Search term is required",
+                status: 400,
+                data: null
+            });
+        }
+        return handleApiCall(
+            () => API.get(`/diet/plans/?search=${search}`),
+            "Failed to fetch diet plan by ID"
+        );
+    },
+
+
     // 🔹 Get patient questions
     questionforpatient: (id) => {
         if (!id) {
@@ -804,4 +840,79 @@ export const doctorService = {
             "Failed to submit notification delete"
         );
     },
+
+    adddiet: (payload) => {
+        return handleApiCall(
+            () => API.post(`/diet/plans/`, payload),
+            "Failed to submit diet plan"
+        );
+    },
+    getdiet: (url) => {
+        return handleApiCall(
+            () => API.get(`/diet/plans/?page=` + url),
+            "Failed to submit diet plan"
+        );
+    },
+    // getdiet: (url) => {
+    //     return handleApiCall(
+    //         () => API.get(`/diet/plans/?page=` + url),
+    //         "Failed to submit diet plan"
+    //     );
+    // },
+    getdietbyid: (id) => {
+        return handleApiCall(
+            () => API.get(`/diet/plans/?id=${id}`),
+            "Failed to submit diet plan"
+        );
+    },
+    updatediet: (id, payload) => {
+        if (!id) {
+            return Promise.reject({
+                message: "Diet plan ID is required",
+                status: 400,
+                data: null
+            });
+        }
+        return handleApiCall(
+            () => API.patch(`/diet/plans/?id=${id}`, payload),
+            "Failed to update diet plan"
+        );
+    },
+    bulkupload: (file) => {
+        if (!file) {
+            return Promise.reject({
+                message: "Excel file is required",
+                status: 400,
+                data: null,
+            });
+        }
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+            return handleApiCall(
+                () =>
+                    API.post(`/diet/plans/bulk-upload/`, formData, {
+                        headers: {
+                            "Content-Type": "multipart/form-data",
+                        },
+                    }),
+                "Failed to submit bulk upload"
+            );
+        } catch (error) {
+            return handleServiceError(error, "Failed to prepare bulk upload");
+        }
+    },
+    deletediet: (id) => {
+        if (!id) {
+            return Promise.reject({
+                message: "Diet plan ID is required",
+                status: 400,
+                data: null
+            });
+        }
+        return handleApiCall(
+            () => API.delete(`/diet/plans/?id=${id}`),
+            "Failed to delete diet plan"
+        );
+    }
 };
