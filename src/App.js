@@ -24,6 +24,7 @@ import DietPlanList from "./Doctor_dashboard/components/Diets/Diets";
 // Doctor Pages
 const DoctorDashboard = lazy(() => import("./Doctor_dashboard/components/dashboard/Dashboard"));
 const DietPlanManager = lazy(() => import("./Doctor_dashboard/components/Diets/Editdiet"));
+const BulkUploadDietPlans = lazy(() => import("./Doctor_dashboard/components/Diets/bulkupload"));
 const DoctorOnboarding = lazy(() => import("./Doctor_dashboard/components/onboarding/Onboarding"));
 const AppointmentsPage = lazy(() => import("./Doctor_dashboard/components/Appointment/Appointment"));
 const PatientManagement = lazy(() => import("./Doctor_dashboard/components/Patients/Patients"));
@@ -52,6 +53,7 @@ const ForgotPassword = lazy(() => import("./Vendor_dashboard/Auth/ForgotPassword
 const ResetPassword = lazy(() => import("./Vendor_dashboard/Auth/ResetPassword"));
 const Unauthorized = lazy(() => import("./Vendor_dashboard/Pages/Unauthorized/Unauthorized"));
 const ProductDetail = lazy(() => import("./Vendor_dashboard/Pages/Inventory/ProductDetail/ProductDetail"));
+const BulkUploadProducts = lazy(() => import("./Vendor_dashboard/Pages/Inventory/bulkUpdate"));
 const UnavailableFeature = lazy(() => import("./Vendor_dashboard/Pages/Unavailable/UnavailableFeature"));
 const CustomerDetail = lazy(() => import("./Vendor_dashboard/Pages/Customers/CustomerDetail"));
 const VendorSettings = lazy(() => import("./Vendor_dashboard/Pages/Settings/Settings"));
@@ -188,6 +190,7 @@ function App() {
                       <Route path="diets" element={<DietPlanList />} />
                       <Route path="add-diet" element={<DietPlanManager />} />
                       <Route path="edit-diet/:id" element={<DietPlanManager />} />
+                      <Route path="bulk-upload-diets" element={<BulkUploadDietPlans />} />
                     </>
                   )
                 }
@@ -223,6 +226,7 @@ function App() {
                 <Route path="banners" element={<VendorBanners />} />
                 <Route path="catalog" element={<VendorCatalog />} />
                 <Route path="new-product" element={<AddProduct />} />
+                <Route path="bulk-upload-products" element={<BulkUploadProducts />} />
                 <Route path="edit-product/:id" element={<EditProduct />} />
                 <Route path="orders" element={<Order />} />
                 <Route path="orders/:id" element={<OrderDetail />} />

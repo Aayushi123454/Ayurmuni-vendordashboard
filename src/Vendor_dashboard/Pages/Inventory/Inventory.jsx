@@ -268,6 +268,9 @@ export default function InventoryVault() {
           {lowStockCount > 0 && (
             <Button variant="pill">{lowStockCount} low stock variant{lowStockCount > 1 ? "s" : ""}</Button>
           )}
+          <Button variant="secondary" onClick={() => navigate("/vendor/bulk-upload-products")}>
+            Bulk Upload
+          </Button>
           <Button onClick={() => navigate("/vendor/new-product")}>+ Add Product</Button>
         </>
       }
@@ -303,7 +306,12 @@ export default function InventoryVault() {
           }
           action={
             !search && (
-              <Button onClick={() => navigate("/vendor/new-product")}>+ Add Product</Button>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Button variant="secondary" onClick={() => navigate("/vendor/bulk-upload-products")}>
+                  Bulk Upload
+                </Button>
+                <Button onClick={() => navigate("/vendor/new-product")}>+ Add Product</Button>
+              </div>
             )
           }
         />

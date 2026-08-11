@@ -17,6 +17,7 @@ import {
     Sun,
     RefreshCw,
     Inbox,
+    Upload,
 } from 'lucide-react';
 import { doctorService } from '../../../services/doctorService';
 import { Link } from 'react-router-dom';
@@ -172,6 +173,12 @@ const DietPlanList = ({ onEdit, onCreateNew }) => {
                         <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
                         Refresh
                     </button>
+                    <Link
+                        to="/doctor/bulk-upload-diets"
+                        className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[#0D614E] border border-[#0D614E]/30 bg-[#0D614E]/5 rounded-lg hover:bg-[#0D614E]/10 transition-colors"
+                    >
+                        <Upload size={14} /> Bulk Upload
+                    </Link>
                     {/* {onCreateNew && ( */}
                     <Link
                         to={"/doctor/add-diet"}

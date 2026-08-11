@@ -73,6 +73,23 @@ export const vendorService = {
     deleteVariant: (productId, variantId) =>
         API.delete(`/vendors/product/?id=${productId}&variant_id=${variantId}`),
 
+    bulkUploadProducts: (file) => {
+        if (!file) {
+            return Promise.reject({
+                message: "Excel file is required",
+                status: 400,
+                data: null,
+            });
+        }
+        const formData = new FormData();
+        formData.append("file", file);
+        return API.post("/vendors/product/bulk-upload/", formData, {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        });
+    },
+
     getFieldInfo: (searchKey, extraParams = {}) =>
         API.get(`/vendors/fields/info/${buildQuery({ search: searchKey, ...extraParams })}`),
 

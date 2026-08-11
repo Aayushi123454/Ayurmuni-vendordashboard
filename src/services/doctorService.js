@@ -878,6 +878,30 @@ export const doctorService = {
             "Failed to update diet plan"
         );
     },
+    bulkupload: (file) => {
+        if (!file) {
+            return Promise.reject({
+                message: "Excel file is required",
+                status: 400,
+                data: null,
+            });
+        }
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+            return handleApiCall(
+                () =>
+                    API.post(`/diet/plans/bulk-upload/`, formData, {
+                        headers: {
+                            "Content-Type": "multipart/form-data",
+                        },
+                    }),
+                "Failed to submit bulk upload"
+            );
+        } catch (error) {
+            return handleServiceError(error, "Failed to prepare bulk upload");
+        }
+    },
     deletediet: (id) => {
         if (!id) {
             return Promise.reject({
