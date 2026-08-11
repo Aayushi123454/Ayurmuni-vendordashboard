@@ -1262,6 +1262,12 @@ const SectionHeader = ({ title }) => (
 
 const ChipInput = ({ items, name, onAdd, onRemove, options, disabled, placeholder = "Add item", colorClass = "bg-emerald-100 text-emerald-700" }) => (
     <div className="md:col-span-2">
+        <label
+        for="health-diseases"
+        className="block text-sm font-medium text-gray-700 mb-1"
+    >
+        Health Diseases
+    </label>
         <div className="flex flex-wrap gap-2 mb-2">
             {items.map((item, idx) => {
                 let selectedOption = ""
@@ -2168,7 +2174,7 @@ const DoctorProfile = () => {
                                         <FormInput label="Consultation Fee (₹)" value={doctorData.consultation_fee}
                                             onChange={(e) => handleInputChange('consultation_fee', e.target.value)}
                                             onBlur={() => handleBlurValidation('consultation_fee')}
-                                            disabled={true} type="number" error={validationErrors.consultation_fee} />
+                                              disabled={!isEditing} type="number" error={validationErrors.consultation_fee} />
                                         <FormInput label="Follow-up Fee (₹)" disabled={true} value={doctorData.followup_fee} onChange={(e) => handleInputChange('followup_fee', e.target.value)} disabled={!isEditing} type="number" />
                                         <FormInput label="Average Consultation Time (min)" value={doctorData.average_consultation_time} onChange={(e) => handleInputChange('average_consultation_time', e.target.value)} disabled={true} type="number" />
                                         <FormInput label="Max Patients Per Day" value={doctorData.max_patients_per_day} onChange={(e) => handleInputChange('max_patients_per_day', e.target.value)} disabled={!isEditing} type="number" />
@@ -2176,9 +2182,10 @@ const DoctorProfile = () => {
 
                                     <SectionHeader title="Ayurvedic Information" />
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
                                         {
                                             prakritiAndDiseases?.diseases?.data &&
-                                            <ChipInput name="primaryDisease" items={doctorData.health_diseases || []} onAdd={(val) => handleInputChange('health_diseases', [...(doctorData.health_diseases || []), val])}
+                                            <ChipInput label="Health Diseases" name="primaryDisease" items={doctorData.health_diseases || []} onAdd={(val) => handleInputChange('health_diseases', [...(doctorData.health_diseases || []), val])}
                                                 onRemove={(idx) => handleInputChange('health_diseases', doctorData.health_diseases.filter((_, i) => i !== idx))}
                                                 options={prakritiAndDiseases?.diseases?.data} disabled={!isEditing} colorClass="bg-purple-100 text-purple-700" />
                                         }
