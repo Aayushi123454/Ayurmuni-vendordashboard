@@ -21,54 +21,51 @@ export default function DashboardWelcome({
     onViewProducts,
 }) {
     return (
-        <section className="relative overflow-hidden rounded-2xl border border-[#0D614E]/10 bg-gradient-to-br from-white via-white to-[#0D614E]/[0.06] p-6 sm:p-8 shadow-sm">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(13,97,78,0.08),transparent_55%)] pointer-events-none" />
-
-            <div className="relative grid grid-cols-12 gap-6 items-center">
-                <div className="col-span-12 lg:col-span-8 flex flex-col sm:flex-row gap-5 items-start sm:items-center">
+        <section className="relative overflow-hidden rounded-xl border border-[#0D614E]/10 bg-gradient-to-r from-white to-[#0D614E]/[0.04] px-4 py-3.5 sm:px-5 sm:py-4 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3 min-w-0">
                     <div className="relative flex-shrink-0">
-                        <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl border-2 border-white shadow-lg overflow-hidden bg-[#0D614E]/10 flex items-center justify-center">
+                        <div className="h-11 w-11 sm:h-12 sm:w-12 rounded-xl border border-white shadow-sm overflow-hidden bg-[#0D614E]/10 flex items-center justify-center">
                             {logoUrl ? (
                                 <img src={logoUrl} alt="" className="h-full w-full object-cover" />
                             ) : (
-                                <Store size={32} className="text-[#0D614E]" />
+                                <Store size={22} className="text-[#0D614E]" />
                             )}
                         </div>
-                        <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-emerald-500 border-2 border-white" title="Active session" />
+                        <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 border-2 border-white" title="Active" />
                     </div>
 
                     <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-500">{getGreeting()}</p>
-                        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight mt-0.5 truncate">
-                            {businessName}
-                        </h1>
-                        <div className="flex flex-wrap items-center gap-3 mt-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h1 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight truncate">
+                                {getGreeting()}, {businessName}
+                            </h1>
                             <StatusBadge status={approvalStatus} />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+                            {summary && <p className="text-xs sm:text-sm text-gray-500 truncate">{summary}</p>}
                             {lastSync && (
-                                <span className="inline-flex items-center gap-1.5 text-xs text-gray-500">
-                                    <RefreshCw size={12} className="text-[#0D614E]" />
-                                    Last sync {lastSync}
+                                <span className="inline-flex items-center gap-1 text-[11px] text-gray-400 shrink-0">
+                                    <RefreshCw size={10} className="text-[#0D614E]" />
+                                    Synced {lastSync}
                                 </span>
                             )}
                         </div>
-                        {summary && (
-                            <p className="mt-3 text-sm text-gray-600 max-w-xl leading-relaxed">{summary}</p>
-                        )}
                     </div>
                 </div>
 
-                <div className="col-span-12 lg:col-span-4 flex flex-wrap lg:flex-col gap-2 lg:items-stretch">
-                    <Button onClick={onAddProduct} className="flex-1 lg:flex-none justify-center">
-                        <Plus size={16} />
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <Button onClick={onAddProduct} className="!py-2 !px-3 text-sm">
+                        <Plus size={15} />
                         Add Product
                     </Button>
-                    <Button variant="secondary" onClick={onManageStock} className="flex-1 lg:flex-none justify-center">
-                        <Layers size={16} />
-                        Manage Stock
+                    <Button variant="secondary" onClick={onManageStock} className="!py-2 !px-3 text-sm">
+                        <Layers size={15} />
+                        Stock
                     </Button>
-                    <Button variant="secondary" onClick={onViewProducts} className="flex-1 lg:flex-none justify-center">
-                        <Package size={16} />
-                        View Catalog
+                    <Button variant="secondary" onClick={onViewProducts} className="!py-2 !px-3 text-sm">
+                        <Package size={15} />
+                        Catalog
                     </Button>
                 </div>
             </div>

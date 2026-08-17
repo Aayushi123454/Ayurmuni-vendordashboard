@@ -18,6 +18,7 @@ import {
     RefreshCw,
     Inbox,
     Upload,
+    SearchIcon,
 } from 'lucide-react';
 import { doctorService } from '../../../services/doctorService';
 import { Link } from 'react-router-dom';
@@ -75,12 +76,33 @@ const DietPlanList = ({ onEdit, onCreateNew }) => {
     const [deletingId, setDeletingId] = useState(null);
 
     const fetchPlans = useCallback(async (url) => {
+
+
         setLoading(true);
         setError('');
-        const next = url?.split("=")?.[1] || 1;
+        const next = url?.split("page=")?.[1] ? url?.split("page=")?.[1]?.split("&")?.[0] : url?.split("page=")?.[1] || 1;
+        console.log(
+            {
+                url,
+                next,
+                search: search.trim(),
+                season: seasonFilter,
+                is_paid: typeFilter,
+                is_common: visibilityFilter
+            }
+        );
         try {
-            const response = await doctorService.getdiet(next);
-            const body = response.data;
+            // const response = await doctorService.getdiet(next);
+            const filtereddata = await doctorService.getdietbysearch({
+                page: next,
+                search: search.trim(),
+                season: seasonFilter === 'all' ? null : seasonFilter?.toLowerCase(),
+                is_paid: typeFilter === 'all' ? null : typeFilter !== 'free' ? true : false,
+                is_common: visibilityFilter === 'all' ? null : visibilityFilter === 'common'
+            });
+
+
+            const body = filtereddata.data;
             const data = body?.data || [];
             setPlans(data);
             setCount(body?.count ?? data.length);
@@ -100,16 +122,16 @@ const DietPlanList = ({ onEdit, onCreateNew }) => {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [search, seasonFilter, typeFilter, visibilityFilter]);
 
     useEffect(() => {
         fetchPlans();
     }, [fetchPlans]);
 
-    const toggleActive = async (id) => {
+    const toggleActive = async (id, isActive) => {
         setTogglingId(id);
         const payload = {
-            is_active: !activeMap[id],
+            is_active: isActive,
         };
         try {
             const response = await doctorService.updatediet(id, payload);
@@ -138,17 +160,17 @@ const DietPlanList = ({ onEdit, onCreateNew }) => {
     };
 
     const filteredPlans = plans.filter((plan) => {
-        if (search.trim()) {
-            const q = search.trim().toLowerCase();
-            const matchesName = plan.name?.toLowerCase().includes(q);
-            const matchesDisease = plan.health_diseases?.some((d) => d.name?.toLowerCase().includes(q));
-            if (!matchesName && !matchesDisease) return false;
-        }
-        if (seasonFilter !== 'all' && plan.season !== seasonFilter) return false;
-        if (typeFilter === 'paid' && !plan.is_paid) return false;
-        if (typeFilter === 'free' && plan.is_paid) return false;
-        if (visibilityFilter === 'common' && !plan.is_common) return false;
-        if (visibilityFilter === 'personal' && plan.is_common) return false;
+        // if (search.trim()) {
+        //     const q = search.trim().toLowerCase();
+        //     const matchesName = plan.name?.toLowerCase().includes(q);
+        //     const matchesDisease = plan.health_diseases?.some((d) => d.name?.toLowerCase().includes(q));
+        //     if (!matchesName && !matchesDisease) return false;
+        // }
+        // if (seasonFilter !== 'all' && plan.season !== seasonFilter) return false;
+        // if (typeFilter === 'paid' && !plan.is_paid) return false;
+        // if (typeFilter === 'free' && plan.is_paid) return false;
+        // if (visibilityFilter === 'common' && !plan.is_common) return false;
+        // if (visibilityFilter === 'personal' && plan.is_common) return false;
         return true;
     });
 
@@ -196,8 +218,10 @@ const DietPlanList = ({ onEdit, onCreateNew }) => {
                     <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                         type="text"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        defaultValue={search}
+                        onBlur={(e) => {
+                            setSearch(e.target.value)
+                        }}
                         placeholder="Search by name or condition…"
                         className="px-8"
                     />
@@ -349,7 +373,7 @@ const DietPlanList = ({ onEdit, onCreateNew }) => {
                                             <td className="px-4 py-3">
                                                 <button
                                                     type="button"
-                                                    onClick={() => toggleActive(plan.id)}
+                                                    onClick={() => toggleActive(plan.id, !isActive)}
                                                     // disabled={isActive}
                                                     title="Status is tracked locally until an activate/deactivate API exists"
                                                     className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-50"

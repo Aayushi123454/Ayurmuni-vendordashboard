@@ -746,9 +746,57 @@ export const doctorService = {
     },
 
     getDosDonts: (prakriti) => {
+        const query = new URLSearchParams();
+        if (prakriti) query.append("prakriti", prakriti);
+        const qs = query.toString();
         return handleApiCall(
-            () => API.get(`/doctors/do-donts-templates/` + (prakriti && "?prakriti=" + prakriti)),
+            () => API.get(`/doctors/do-donts-templates/${qs ? `?${qs}` : ""}`),
             "Failed to fetch do's and don'ts"
+        );
+    },
+
+    getDoDontsTemplates: (filters = {}) => {
+        const query = new URLSearchParams();
+        if (filters.id) query.append("id", filters.id);
+        if (filters.prakriti && filters.prakriti !== "all") {
+            query.append("prakriti", filters.prakriti);
+        }
+        if (filters.health_disease_id && filters.health_disease_id !== "all") {
+            query.append("health_disease_id", filters.health_disease_id);
+        }
+        if (filters.page) query.append("page", filters.page);
+        const qs = query.toString();
+        return handleApiCall(
+            () => API.get(`/doctors/do-donts-templates/${qs ? `?${qs}` : ""}`),
+            "Failed to fetch do's and don'ts templates"
+        );
+    },
+
+    createDoDontsTemplate: (payload) => {
+        if (!payload) {
+            return Promise.reject({
+                message: "Template data is required",
+                status: 400,
+                data: null,
+            });
+        }
+        return handleApiCall(
+            () => API.post(`/doctors/do-donts-templates/`, payload),
+            "Failed to create do's and don'ts template"
+        );
+    },
+
+    updateDoDontsTemplate: (id, payload) => {
+        if (!id) {
+            return Promise.reject({
+                message: "Template ID is required",
+                status: 400,
+                data: null,
+            });
+        }
+        return handleApiCall(
+            () => API.patch(`/doctors/do-donts-templates/?id=${id}`, payload),
+            "Failed to update do's and don'ts template"
         );
     },
 
@@ -847,18 +895,51 @@ export const doctorService = {
             "Failed to submit diet plan"
         );
     },
-    getdiet: (url) => {
-        return handleApiCall(
-            () => API.get(`/diet/plans/?page=` + url),
-            "Failed to submit diet plan"
-        );
-    },
     // getdiet: (url) => {
     //     return handleApiCall(
     //         () => API.get(`/diet/plans/?page=` + url),
     //         "Failed to submit diet plan"
     //     );
     // },
+    getdietbysearch: (filters = {}) => {
+        const query = new URLSearchParams();
+
+        if (typeof filters === "string" || typeof filters === "number") {
+            query.append("page", filters);
+        } else if (filters && typeof filters === "object") {
+            if (filters.page !== undefined && filters.page !== null) {
+                query.append("page", filters.page);
+            }
+            if (filters.search !== undefined && filters.search !== null) {
+                if (Array.isArray(filters.search)) {
+                    filters.search.forEach((value) => {
+                        if (value !== undefined && value !== null && value !== "") {
+                            query.append("search", value);
+                        }
+                    });
+                } else if (filters.search !== "") {
+                    query.append("search", filters.search);
+                }
+            }
+            if (filters.is_paid !== undefined && filters.is_paid !== null) {
+                query.append("is_paid", filters.is_paid);
+            }
+            if (filters.is_common !== undefined && filters.is_common !== null) {
+                query.append("is_common", filters.is_common);
+            }
+            if (filters.season !== undefined && filters.season !== null && filters.season !== "") {
+                query.append("season", filters.season);
+            }
+        }
+
+        const queryString = query.toString();
+        const path = queryString ? `/diet/plans/?${queryString}` : `/diet/plans/`;
+
+        return handleApiCall(
+            () => API.get(path),
+            "Failed to submit diet plan"
+        );
+    },
     getdietbyid: (id) => {
         return handleApiCall(
             () => API.get(`/diet/plans/?id=${id}`),

@@ -65,8 +65,6 @@ const mealMeta = {
 
 const DietPlanManager = () => {
     const { id } = useParams();
-
-
     const [formData, setFormData] = useState({
         name: '',
         prakriti: '',
