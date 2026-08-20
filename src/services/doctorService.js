@@ -652,6 +652,39 @@ export const doctorService = {
         );
     },
 
+    uploadAppointmentDocument: (appointmentId, payload) => {
+        if (!appointmentId) {
+            return Promise.reject({
+                message: "Appointment ID is required",
+                status: 400,
+                data: null
+            });
+        }
+        return handleApiCall(
+            () => API.post(
+                `/doctors/appointments/documents/?appointment_id=${appointmentId}`,
+                payload
+            ),
+            "Failed to upload appointment document"
+        );
+    },
+
+    deleteAppointmentDocument: (documentId) => {
+        if (!documentId) {
+            return Promise.reject({
+                message: "Document ID is required",
+                status: 400,
+                data: null
+            });
+        }
+        return handleApiCall(
+            () => API.delete(
+                `/doctors/appointments/documents/?document_id=${documentId}`
+            ),
+            "Failed to Delete appointment document"
+        );
+    },
+
     getUpcomingAppointment: () => {
         return handleApiCall(
             () => API.get(`/doctors/appointments/upcoming/`),
@@ -731,6 +764,59 @@ export const doctorService = {
         );
     },
 
+    editPrescription: (patient_id, prescription_id, prescriptionData) => {
+        if (!patient_id || !prescription_id) {
+            return Promise.reject({
+                message: "Patient ID and prescription ID are required",
+                status: 400,
+                data: null
+            });
+        }
+        if (!prescriptionData) {
+            return Promise.reject({
+                message: "Prescription data is required",
+                status: 400,
+                data: null
+            });
+        }
+        return handleApiCall(
+            () => API.put(`/doctors/prescription/?patient_id=${patient_id}&prescription_id=${prescription_id}`, prescriptionData),
+            "Failed to edit prescription"
+        );
+    },
+
+    updatePrescriptionItem: (item_id, itemData) => {
+        if (!item_id || !itemData) {
+            return Promise.reject({
+                message: "Item ID and medicine data are required",
+                status: 400,
+                data: null
+            });
+        }
+        return handleApiCall(
+            () => API.patch(`/doctors/prescription/?item_id=${item_id}`, itemData),
+            "Failed to update prescription item"
+        );
+    },
+
+    getprescribedietplan: (patient_id, patient_diet_plan_id, day) => {
+        if (!patient_id) {
+            return Promise.reject({
+                message: "Patient ID is required",
+                status: 400,
+                data: null
+            });
+        }
+        const query = new URLSearchParams();
+        query.append("patient_id", patient_id);
+        if (patient_diet_plan_id) query.append("id", patient_diet_plan_id);
+        if (day !== undefined && day !== null && day !== "") query.append("day", day);
+        return handleApiCall(
+            () => API.get(`/doctors/patient-plans/progress/?${query.toString()}`),
+            "Failed to fetch prescribed diet plan"
+        );
+    },
+
     postdietplan: (dietPlanData) => {
         if (!dietPlanData) {
             return Promise.reject({
@@ -745,10 +831,72 @@ export const doctorService = {
         );
     },
 
-    getDosDonts: (prakriti) => {
+    replacedietplan: (dietPlanData) => {
+        if (!dietPlanData) {
+            return Promise.reject({
+                message: "Diet plan data is required",
+                status: 400,
+                data: null
+            });
+        }
         return handleApiCall(
-            () => API.get(`/doctors/do-donts-templates/` + (prakriti && "?prakriti=" + prakriti)),
+            () => API.put(`/doctors/patient-plans/replace/`, dietPlanData),
+            "Failed to replace diet plan"
+        );
+    },
+
+    getDosDonts: (prakriti) => {
+        const query = new URLSearchParams();
+        if (prakriti) query.append("prakriti", prakriti);
+        const qs = query.toString();
+        return handleApiCall(
+            () => API.get(`/doctors/do-donts-templates/${qs ? `?${qs}` : ""}`),
             "Failed to fetch do's and don'ts"
+        );
+    },
+
+    getDoDontsTemplates: (filters = {}) => {
+        const query = new URLSearchParams();
+        if (filters.id) query.append("id", filters.id);
+        if (filters.prakriti && filters.prakriti !== "all") {
+            query.append("prakriti", filters.prakriti);
+        }
+        if (filters.health_disease_id && filters.health_disease_id !== "all") {
+            query.append("health_disease_id", filters.health_disease_id);
+        }
+        if (filters.page) query.append("page", filters.page);
+        const qs = query.toString();
+        return handleApiCall(
+            () => API.get(`/doctors/do-donts-templates/${qs ? `?${qs}` : ""}`),
+            "Failed to fetch do's and don'ts templates"
+        );
+    },
+
+    createDoDontsTemplate: (payload) => {
+        if (!payload) {
+            return Promise.reject({
+                message: "Template data is required",
+                status: 400,
+                data: null,
+            });
+        }
+        return handleApiCall(
+            () => API.post(`/doctors/do-donts-templates/`, payload),
+            "Failed to create do's and don'ts template"
+        );
+    },
+
+    updateDoDontsTemplate: (id, payload) => {
+        if (!id) {
+            return Promise.reject({
+                message: "Template ID is required",
+                status: 400,
+                data: null,
+            });
+        }
+        return handleApiCall(
+            () => API.patch(`/doctors/do-donts-templates/?id=${id}`, payload),
+            "Failed to update do's and don'ts template"
         );
     },
 
@@ -847,18 +995,51 @@ export const doctorService = {
             "Failed to submit diet plan"
         );
     },
-    getdiet: (url) => {
-        return handleApiCall(
-            () => API.get(`/diet/plans/?page=` + url),
-            "Failed to submit diet plan"
-        );
-    },
     // getdiet: (url) => {
     //     return handleApiCall(
     //         () => API.get(`/diet/plans/?page=` + url),
     //         "Failed to submit diet plan"
     //     );
     // },
+    getdietbysearch: (filters = {}) => {
+        const query = new URLSearchParams();
+
+        if (typeof filters === "string" || typeof filters === "number") {
+            query.append("page", filters);
+        } else if (filters && typeof filters === "object") {
+            if (filters.page !== undefined && filters.page !== null) {
+                query.append("page", filters.page);
+            }
+            if (filters.search !== undefined && filters.search !== null) {
+                if (Array.isArray(filters.search)) {
+                    filters.search.forEach((value) => {
+                        if (value !== undefined && value !== null && value !== "") {
+                            query.append("search", value);
+                        }
+                    });
+                } else if (filters.search !== "") {
+                    query.append("search", filters.search);
+                }
+            }
+            if (filters.is_paid !== undefined && filters.is_paid !== null) {
+                query.append("is_paid", filters.is_paid);
+            }
+            if (filters.is_common !== undefined && filters.is_common !== null) {
+                query.append("is_common", filters.is_common);
+            }
+            if (filters.season !== undefined && filters.season !== null && filters.season !== "") {
+                query.append("season", filters.season);
+            }
+        }
+
+        const queryString = query.toString();
+        const path = queryString ? `/diet/plans/?${queryString}` : `/diet/plans/`;
+
+        return handleApiCall(
+            () => API.get(path),
+            "Failed to submit diet plan"
+        );
+    },
     getdietbyid: (id) => {
         return handleApiCall(
             () => API.get(`/diet/plans/?id=${id}`),

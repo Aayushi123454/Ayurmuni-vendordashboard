@@ -77,7 +77,7 @@ const Notification = () => {
         }
         setTotalCount(data.count || 0);
         setHasMore(data.next !== null);
-        setUnreadCount(data.results?.filter(n => !n.is_read).length || 0);
+        setUnreadCount((prev) => prev + (results?.filter(n => !n.is_read).length || 0));
       }
     } catch (error) {
       toast.error("Failed to load notifications");
@@ -108,6 +108,7 @@ const Notification = () => {
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
       toast.success("Marked as read");
+      window.location.reload(); // Refresh the page to reflect changes
     } catch (error) {
       toast.error("Failed to mark as read");
     } finally {
@@ -126,6 +127,7 @@ const Notification = () => {
       );
       setUnreadCount(0);
       toast.success("All notifications marked as read");
+      window.location.reload(); // Refresh the page to reflect changes
     } catch (error) {
       toast.error("Failed to mark all as read");
     } finally {
@@ -142,7 +144,9 @@ const Notification = () => {
       setNotifications((prev) =>
         prev.filter((notif) => notif.id !== notificationId)
       );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
       toast.success("Notification deleted");
+      window.location.reload(); // Refresh the page to reflect changes
     } catch (error) {
       toast.error("Failed to delete notification");
     } finally {
@@ -159,6 +163,7 @@ const Notification = () => {
       setNotifications([]);
       setUnreadCount(0);
       toast.success("All notifications cleared");
+      window.location.reload(); // Refresh the page to reflect changes
     } catch (error) {
       toast.error("Failed to clear notifications");
     } finally {
@@ -379,12 +384,12 @@ const Notification = () => {
               </div>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
-              {unreadCount > 0 && (
+              {/* {unreadCount > 0 && (
                 <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-[#0D614E]/10 text-[#0D614E] border border-[#0D614E]/20">
                   <Bell className="w-4 h-4 mr-1.5" />
                   {unreadCount} unread
                 </span>
-              )}
+              )} */}
               <button
                 onClick={markAllAsRead}
                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-[#0D614E] to-[#0D614E]/80 hover:from-[#0D614E]/90 hover:to-[#0D614E] rounded-xl transition-all duration-200 shadow-md shadow-[#0D614E]/20 hover:shadow-lg hover:shadow-[#0D614E]/30 disabled:opacity-50 disabled:cursor-not-allowed"

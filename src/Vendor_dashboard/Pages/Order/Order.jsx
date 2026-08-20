@@ -33,8 +33,10 @@ import {
     formatOrderDate,
     formatPaymentLabel,
     formatStatusLabel,
+    groupOrderLineItems,
     parseOrdersListResponse,
     parseOrdersSummaryResponse,
+    truncateAddress,
 } from "./orderHelpers";
 import OrderCustomersPanel from "./OrderCustomersPanel";
 import "../../components/shared/vendor-shared.css";
@@ -47,7 +49,7 @@ const ORDER_VIEWS = [
 
 const COLUMNS = [
     { key: "order", label: "Order" },
-    { key: "product", label: "Product" },
+    { key: "items", label: "Items" },
     { key: "qty", label: "Qty" },
     { key: "amount", label: "Amount" },
     { key: "payment", label: "Payment" },
@@ -129,6 +131,8 @@ export default function Order() {
     const [toDate, setToDate] = useState("");
 
     const hasActiveQuery = Boolean(search || statusFilter || paymentType || fromDate || toDate);
+
+    const orders = useMemo(() => groupOrderLineItems(items), [items]);
 
     const fetchList = useCallback(async () => {
         const response = await vendorService.getOrders({
@@ -362,7 +366,7 @@ export default function Order() {
                 <TableSkeleton columns={COLUMNS.length} rows={Math.min(pageSize, 8)} />
             ) : error ? (
                 <PageError message={error} onRetry={reloadAll} />
-            ) : items.length === 0 ? (
+            ) : orders.length === 0 ? (
                 <PageEmpty
                     icon={Package}
                     title="No orders found"
@@ -382,7 +386,10 @@ export default function Order() {
             ) : (
                 <TableCard>
                     <div className="px-4 pt-4 pb-2 text-sm text-gray-500">
-                        Showing <strong>{items.length}</strong> of{" "}
+                        Showing <strong>{orders.length}</strong> order
+                        {orders.length === 1 ? "" : "s"}
+                        {" · "}
+                        <strong>{items.length}</strong> of{" "}
                         <strong>{totalCount.toLocaleString()}</strong> line items
                         {statusFilter ? (
                             <>
@@ -392,53 +399,84 @@ export default function Order() {
                         ) : null}
                     </div>
                     <DataTable columns={COLUMNS}>
-                        {items.map((row) => {
-                            const { date, time } = formatOrderDate(row.date);
+                        {orders.map((order) => {
+                            const { date, time } = formatOrderDate(order.date);
+                            const previewItems = order.items.slice(0, 2);
+                            const extraCount = Math.max(0, order.items.length - previewItems.length);
                             return (
                                 <TableRow
-                                    key={row.order_item_id}
-                                    onClick={() => navigate(`/vendor/orders/${row.order_id}`)}
+                                    key={order.order_id}
+                                    onClick={() => navigate(`/vendor/orders/${order.order_id}`)}
                                 >
                                     <TableCell>
                                         <div className="font-semibold text-gray-800">
-                                            {row.order_display_code || row.order_code || "—"}
+                                            {order.order_display_code || order.order_code || "—"}
                                         </div>
                                         <div className="text-xs text-gray-400 mt-0.5">
-                                            {row.order_code}
+                                            {order.order_code}
                                         </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="order-product-cell">
-                                            <img
-                                                src={row.product_image || Ayurvedaimage}
-                                                alt=""
-                                                className="order-product-thumb"
-                                                onError={(e) => {
-                                                    e.currentTarget.src = Ayurvedaimage;
-                                                }}
-                                            />
-                                            <div className="order-product-meta">
-                                                <div className="order-product-name">
-                                                    {row.product_name || "Product"}
-                                                </div>
-                                                <div className="order-product-variant">
-                                                    {row.variant_title || "—"}
-                                                    {row.sku_code ? ` · ${row.sku_code}` : ""}
-                                                </div>
+                                        {order.address ? (
+                                            <div
+                                                className="order-address-preview"
+                                                title={order.address}
+                                            >
+                                                {truncateAddress(order.address)}
                                             </div>
-                                        </div>
-                                    </TableCell>
-                                    <TableCell>{row.quantity ?? "—"}</TableCell>
-                                    <TableCell className="font-semibold text-[#0D614E]">
-                                        {formatCurrency(row.total_amount)}
+                                        ) : null}
                                     </TableCell>
                                     <TableCell>
-                                        {formatPaymentLabel(row.payment_type, row.payment_method)}
+                                        <div className="order-items-stack">
+                                            {previewItems.map((item) => (
+                                                <div
+                                                    key={item.order_item_id}
+                                                    className="order-product-cell"
+                                                >
+                                                    <img
+                                                        src={item.product_image || Ayurvedaimage}
+                                                        alt=""
+                                                        className="order-product-thumb"
+                                                        onError={(e) => {
+                                                            e.currentTarget.src = Ayurvedaimage;
+                                                        }}
+                                                    />
+                                                    <div className="order-product-meta">
+                                                        <div className="order-product-name">
+                                                            {item.product_name || "Product"}
+                                                        </div>
+                                                        <div className="order-product-variant">
+                                                            {item.variant_title || "—"}
+                                                            {item.sku_code
+                                                                ? ` · ${item.sku_code}`
+                                                                : ""}
+                                                            {item.quantity != null
+                                                                ? ` · ×${item.quantity}`
+                                                                : ""}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {extraCount > 0 ? (
+                                                <div className="order-items-more">
+                                                    +{extraCount} more item
+                                                    {extraCount === 1 ? "" : "s"}
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>{order.quantity ?? "—"}</TableCell>
+                                    <TableCell className="font-semibold text-[#0D614E]">
+                                        {formatCurrency(order.amount)}
+                                    </TableCell>
+                                    <TableCell>
+                                        {formatPaymentLabel(
+                                            order.payment_type,
+                                            order.payment_method
+                                        )}
                                     </TableCell>
                                     <TableCell>
                                         <StatusBadge
-                                            status={row.status}
-                                            label={formatStatusLabel(row.status)}
+                                            status={order.status}
+                                            label={formatStatusLabel(order.status)}
                                         />
                                     </TableCell>
                                     <TableCell>
@@ -461,7 +499,7 @@ export default function Order() {
                             setPage(1);
                         }}
                         storageKey="vendor:orders"
-                        itemLabel="items"
+                        itemLabel="line items"
                     />
                 </TableCard>
             )}

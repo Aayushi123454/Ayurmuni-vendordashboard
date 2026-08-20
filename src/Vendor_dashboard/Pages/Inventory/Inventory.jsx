@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import "./Inventory.css";
 import Ayurvedaimage from "../../../Assests/Ayurvedaimage.png";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { FaEdit } from "react-icons/fa";
+import { FaEdit, FaEye } from "react-icons/fa";
 import { FiTrash2 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { vendorService } from "../../../services/vendorService";
@@ -46,7 +46,7 @@ const getTagLabel = (product) => {
   return "Ayurveda Herbs";
 };
 
-function VariantRow({ variant }) {
+function VariantRow({ product, variant, onToggleStatus }) {
   const qty = getVariantQuantity(variant);
   const stockStatus = getVariantStatus(qty);
   const avatarUrl = getVariantCoverImageUrl(variant) || Ayurvedaimage;
@@ -85,12 +85,17 @@ function VariantRow({ variant }) {
       <td className="font-semibold text-[#0D614E]">₹{Number(variant.selling_price || 0).toLocaleString()}</td>
       <td>{qty} units</td>
       <td><StatusBadge status={stockStatus} /></td>
-      <td><StatusBadge status={variant.status || "draft"} /></td>
+      <td className="flex items-center gap-2">
+        <StatusBadge status={variant.status || "draft"} />
+        <button type="button" className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-gray-600 transition hover:bg-gray-50" onClick={() => onToggleStatus(product.id, variant.id, variant.status === "active" ? "inactive" : "active")}>
+          {variant.status === "active" ? "Inactive" : "Active"}
+        </button>
+      </td>
     </tr>
   );
 }
 
-function ProductBlock({ product, expanded, onToggle, onDelete }) {
+function ProductBlock({ product, expanded, onToggle, onToggleStatus, onDelete }) {
   const firstVariantWithImage =
     (product.variants || []).find((v) => getVariantCoverImageUrl(v)) || product.variants?.[0];
   const avatarUrl = getVariantCoverImageUrl(firstVariantWithImage) || Ayurvedaimage;
@@ -171,7 +176,7 @@ function ProductBlock({ product, expanded, onToggle, onDelete }) {
             </thead>
             <tbody>
               {(product.variants || []).map((variant) => (
-                <VariantRow key={variant.id} variant={variant} />
+                <VariantRow key={variant.id} product={product} variant={variant} onToggleStatus={onToggleStatus} />
               ))}
             </tbody>
           </table>
@@ -257,6 +262,15 @@ export default function InventoryVault() {
     }
   };
 
+  const handleToggleStatus = async (productId, variantId, status) => {
+    try {
+      await vendorService.updateVariants(productId, variantId, { status });
+      fetchProducts(currentPage);
+      toast.success(`Variant status updated to ${status}`);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to update variant status");
+    }
+  };
   return (
     <DashboardPageShell
       title="Product"
@@ -318,15 +332,16 @@ export default function InventoryVault() {
       ) : (
         <>
           <div className="ds-stagger space-y-4">
-          {filteredProducts.map((product) => (
-            <ProductBlock
-              key={product.id}
-              product={product}
-              expanded={expanded}
-              onToggle={(id) => setExpanded((prev) => (prev === id ? "" : id))}
-              onDelete={handleDeleteProduct}
-            />
-          ))}
+            {filteredProducts.map((product) => (
+              <ProductBlock
+                key={product.id}
+                product={product}
+                expanded={expanded}
+                onToggle={(id) => setExpanded((prev) => (prev === id ? "" : id))}
+                onDelete={handleDeleteProduct}
+                onToggleStatus={handleToggleStatus}
+              />
+            ))}
           </div>
           {!search && (
             <PaginationBar

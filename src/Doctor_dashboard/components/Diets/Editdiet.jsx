@@ -63,10 +63,177 @@ const mealMeta = {
     dinner: { label: 'Dinner', Icon: Moon },
 };
 
+const mealTypes = ['morning', 'breakfast', 'midday', 'lunch', 'dinner'];
+const SEASON_OPTIONS = ['summer', 'winter', 'spring', 'autumn', 'monsoon', 'all_seasons'];
+
+const emptyDietItem = () => ({
+    name: '',
+    quantity: '',
+    recipe: [''],
+    notes: '',
+});
+
+const emptyNutrition = () => ({
+    total_calories: { value: '', unit: 'kcal' },
+    carbs: { value: '', unit: 'g' },
+    protein: { value: '', unit: 'g' },
+    fat: { value: '', unit: 'g' },
+});
+
+const emptyMeal = () => ({
+    diet: [emptyDietItem()],
+    diet_gallery: [],
+    preparation_steps: [''],
+    nutrition: emptyNutrition(),
+});
+
+const emptyGuidance = () => [''];
+
+const toStringArray = (value, fallback = ['']) => {
+    if (Array.isArray(value) && value.length) {
+        return value.map((v) => (v == null ? '' : String(v)));
+    }
+    if (typeof value === 'string' && value.trim()) return [value];
+    return fallback;
+};
+
+const normalizeDietItem = (item) => {
+    if (item && typeof item === 'object' && !Array.isArray(item)) {
+        const recipes = toStringArray(item.recipe, ['']);
+        return {
+            name: item.name || '',
+            quantity: item.quantity || '',
+            recipe: recipes.length ? recipes : [''],
+            notes: item.notes || '',
+        };
+    }
+    return {
+        name: typeof item === 'string' ? item : '',
+        quantity: '',
+        recipe: [''],
+        notes: '',
+    };
+};
+
+const normalizeNutrition = (nutrition) => {
+    const src = nutrition || {};
+    const pick = (key, unit) => ({
+        value: src[key]?.value ?? '',
+        unit: src[key]?.unit || unit,
+    });
+    return {
+        total_calories: pick('total_calories', 'kcal'),
+        carbs: pick('carbs', 'g'),
+        protein: pick('protein', 'g'),
+        fat: pick('fat', 'g'),
+    };
+};
+
+const normalizeMealGalleryItem = (img) => ({
+    image_url: img?.image_url || img?.url || '',
+    caption: img?.caption || '',
+});
+
+const normalizeMeal = (meal) => {
+    const src = meal || {};
+    const diet = Array.isArray(src.diet) && src.diet.length
+        ? src.diet.map(normalizeDietItem)
+        : [emptyDietItem()];
+    return {
+        diet,
+        diet_gallery: Array.isArray(src.diet_gallery)
+            ? src.diet_gallery.map(normalizeMealGalleryItem).filter((img) => img.image_url)
+            : [],
+        preparation_steps: toStringArray(src.preparation_steps, ['']),
+        nutrition: normalizeNutrition(src.nutrition),
+    };
+};
+
+const initializeSchedule = (days) => {
+    const schedule = {};
+    for (let i = 1; i <= days; i++) {
+        const dayKey = `day_${i}`;
+        schedule[dayKey] = {};
+        mealTypes.forEach((meal) => {
+            schedule[dayKey][meal] = emptyMeal();
+        });
+    }
+    return schedule;
+};
+
+const normalizeSchedule = (schedule) => {
+    if (!schedule || typeof schedule !== 'object') return initializeSchedule(1);
+    const keys = Object.keys(schedule)
+        .filter((k) => /^day_\d+$/.test(k))
+        .sort((a, b) => Number(a.split('_')[1]) - Number(b.split('_')[1]));
+    if (!keys.length) return initializeSchedule(1);
+    const next = {};
+    keys.forEach((dayKey) => {
+        next[dayKey] = {};
+        mealTypes.forEach((meal) => {
+            next[dayKey][meal] = normalizeMeal(schedule[dayKey]?.[meal]);
+        });
+    });
+    return next;
+};
+
+const normalizeGuidance = (plan) => {
+    const src = plan?.guidance ?? plan?.Guidance;
+
+    const fromItem = (item) => {
+        if (typeof item === 'string') return [item];
+        if (item && typeof item === 'object') {
+            const nested = [
+                ...(Array.isArray(item.content) ? item.content : []),
+                ...(Array.isArray(item.tips) ? item.tips : []),
+                item.content,
+                item.description,
+                item.message,
+                item.text,
+            ];
+            return nested.filter((v) => typeof v === 'string');
+        }
+        return [];
+    };
+
+    let items = [];
+    if (Array.isArray(src)) {
+        items = src.flatMap(fromItem);
+    } else if (src && typeof src === 'object') {
+        items = fromItem(src);
+    } else if (typeof src === 'string') {
+        items = [src];
+    }
+
+    const cleaned = items.map((s) => String(s).trim()).filter(Boolean);
+    return cleaned.length ? cleaned : emptyGuidance();
+};
+
+const nutrientNumber = (value) => {
+    const n = parseFloat(value);
+    return Number.isFinite(n) ? n : 0;
+};
+
+const cloneMeal = (meal) => {
+    const src = meal || emptyMeal();
+    return {
+        diet: (src.diet || []).map((item) => ({
+            ...normalizeDietItem(item),
+            recipe: [...toStringArray(item?.recipe, [''])],
+        })),
+        diet_gallery: (src.diet_gallery || []).map((img) => ({ ...img })),
+        preparation_steps: [...(src.preparation_steps || [''])],
+        nutrition: {
+            total_calories: { ...(src.nutrition?.total_calories || { value: '', unit: 'kcal' }) },
+            carbs: { ...(src.nutrition?.carbs || { value: '', unit: 'g' }) },
+            protein: { ...(src.nutrition?.protein || { value: '', unit: 'g' }) },
+            fat: { ...(src.nutrition?.fat || { value: '', unit: 'g' }) },
+        },
+    };
+};
+
 const DietPlanManager = () => {
     const { id } = useParams();
-
-
     const [formData, setFormData] = useState({
         name: '',
         prakriti: '',
@@ -76,7 +243,8 @@ const DietPlanManager = () => {
         price: '',
         is_common: false,
         diet_plan_gallery: [],
-        schedule: {}
+        schedule: {},
+        guidance: emptyGuidance(),
     });
 
     const [numberOfDays, setNumberOfDays] = useState(1);
@@ -91,10 +259,11 @@ const DietPlanManager = () => {
     const [draggedIndex, setDraggedIndex] = useState(null);
     // UI-only: which meal accordions are open per day (key = `${dayKey}-${meal}`)
     const [expandedMeals, setExpandedMeals] = useState(new Set(['day_1-morning']));
+    const [uploadingMealImages, setUploadingMealImages] = useState(false);
+    const [mealUploadTarget, setMealUploadTarget] = useState(null);
     const fileInputRef = useRef(null);
-
-    // Meal types for each day
-    const mealTypes = ['morning', 'breakfast', 'midday', 'lunch', 'dinner'];
+    const mealFileInputRef = useRef(null);
+    const mealUploadTargetRef = useRef(null);
 
     useEffect(() => {
         fetchdatabrandcat();
@@ -106,10 +275,26 @@ const DietPlanManager = () => {
     const fetchDietPlanData = async (id) => {
         try {
             const response = await doctorService.getdietbyid(id);
-            const dietPlan = response?.data?.data || response?.data || {};
-            setFormData(dietPlan);
+            const raw = response?.data?.data || response?.data || {};
+            const dietPlan = Array.isArray(raw) ? (raw[0] || {}) : raw;
+            const schedule = normalizeSchedule(dietPlan.schedule);
+            setFormData({
+                name: dietPlan.name || '',
+                prakriti: dietPlan.prakriti || '',
+                season: dietPlan.season || '',
+                health_diseases: Array.isArray(dietPlan.health_diseases) ? dietPlan.health_diseases : [],
+                is_paid: !!dietPlan.is_paid,
+                price: dietPlan.price ?? '',
+                is_common: !!dietPlan.is_common,
+                diet_plan_gallery: dietPlan.diet_plan_gallery || [],
+                schedule,
+                guidance: normalizeGuidance(dietPlan),
+            });
             setGalleryImages(dietPlan?.diet_plan_gallery || []);
-            setNumberOfDays(Object.keys(dietPlan.schedule).length || 1);
+            const dayCount = Object.keys(schedule).length || 1;
+            setNumberOfDays(dayCount);
+            setActiveDay('day_1');
+            setExpandedMeals(new Set(['day_1-morning']));
         } catch (error) {
             console.error("Error fetching diet plan data:", error);
             toast.error(error?.message || "Failed to fetch diet plan data");
@@ -130,33 +315,13 @@ const DietPlanManager = () => {
         }
     };
 
-    // Initialize schedule with empty days
-    const initializeSchedule = (days) => {
-        const schedule = {};
-        for (let i = 1; i <= days; i++) {
-            const dayKey = `day_${i}`;
-            schedule[dayKey] = {};
-            mealTypes.forEach(meal => {
-                schedule[dayKey][meal] = {
-                    diet: [''],
-                    preparation_steps: [''],
-                    nutrition: {
-                        total_calories: { value: '', unit: 'kcal' },
-                        carbs: { value: '', unit: 'g' },
-                        protein: { value: '', unit: 'g' },
-                        fat: { value: '', unit: 'g' }
-                    }
-                };
-            });
-        }
-        return schedule;
-    };
-
-    // Initialize form
+    // Initialize form for create mode only
     useEffect(() => {
-        setFormData(prev => ({
+        if (id) return;
+        setFormData((prev) => ({
             ...prev,
-            schedule: initializeSchedule(numberOfDays)
+            schedule: initializeSchedule(1),
+            guidance: emptyGuidance(),
         }));
     }, []);
 
@@ -314,43 +479,201 @@ const DietPlanManager = () => {
         toast.success('Image removed successfully');
     };
 
-    // Handle day schedule changes
-    const handleDayScheduleChange = (dayKey, mealType, field, value, subField = null, subSubField = null) => {
-        setFormData(prev => {
-            const updatedSchedule = { ...prev.schedule };
+    const handleGalleryCaption = (index, caption) => {
+        setGalleryImages((prev) => prev.map((img, idx) => (idx === index ? { ...img, caption } : img)));
+    };
 
-            if (field === 'diet' || field === 'preparation_steps') {
-                if (subField !== null) {
-                    const newArray = [...updatedSchedule[dayKey][mealType][field]];
-                    newArray[subField] = value;
-                    updatedSchedule[dayKey][mealType][field] = newArray;
-                }
-            } else if (field === 'nutrition') {
-                if (subField && subSubField !== null) {
-                    updatedSchedule[dayKey][mealType].nutrition[subField][subSubField] = value;
+    // Handle day schedule changes
+    const updateMeal = (dayKey, mealType, updater) => {
+        setFormData((prev) => {
+            const updatedSchedule = { ...prev.schedule };
+            const day = { ...(updatedSchedule[dayKey] || {}) };
+            const meal = cloneMeal(day[mealType]);
+            day[mealType] = updater(meal);
+            updatedSchedule[dayKey] = day;
+            return { ...prev, schedule: updatedSchedule };
+        });
+    };
+
+    const handleDayScheduleChange = (dayKey, mealType, field, value, subField = null, subSubField = null) => {
+        updateMeal(dayKey, mealType, (meal) => {
+            if (field === 'preparation_steps' && subField !== null) {
+                const next = [...meal.preparation_steps];
+                next[subField] = value;
+                meal.preparation_steps = next;
+            } else if (field === 'nutrition' && subField && subSubField !== null) {
+                meal.nutrition[subField][subSubField] = value;
+            }
+            return meal;
+        });
+    };
+
+    const handleDietItemChange = (dayKey, mealType, index, field, value) => {
+        updateMeal(dayKey, mealType, (meal) => {
+            const diet = [...meal.diet];
+            diet[index] = { ...normalizeDietItem(diet[index]), [field]: value };
+            meal.diet = diet;
+            return meal;
+        });
+    };
+
+    const handleDietRecipeChange = (dayKey, mealType, dietIndex, recipeIndex, value) => {
+        updateMeal(dayKey, mealType, (meal) => {
+            const diet = [...meal.diet];
+            const item = normalizeDietItem(diet[dietIndex]);
+            const recipe = [...(item.recipe || [''])];
+            recipe[recipeIndex] = value;
+            diet[dietIndex] = { ...item, recipe };
+            meal.diet = diet;
+            return meal;
+        });
+    };
+
+    const addDietRecipe = (dayKey, mealType, dietIndex) => {
+        updateMeal(dayKey, mealType, (meal) => {
+            const diet = [...meal.diet];
+            const item = normalizeDietItem(diet[dietIndex]);
+            diet[dietIndex] = { ...item, recipe: [...(item.recipe || ['']), ''] };
+            meal.diet = diet;
+            return meal;
+        });
+    };
+
+    const removeDietRecipe = (dayKey, mealType, dietIndex, recipeIndex) => {
+        updateMeal(dayKey, mealType, (meal) => {
+            const diet = [...meal.diet];
+            const item = normalizeDietItem(diet[dietIndex]);
+            const recipe = [...(item.recipe || [''])];
+            if (recipe.length <= 1) {
+                diet[dietIndex] = { ...item, recipe: [''] };
+            } else {
+                recipe.splice(recipeIndex, 1);
+                diet[dietIndex] = { ...item, recipe };
+            }
+            meal.diet = diet;
+            return meal;
+        });
+    };
+
+    const handleMealGalleryCaption = (dayKey, mealType, index, caption) => {
+        updateMeal(dayKey, mealType, (meal) => {
+            const gallery = [...(meal.diet_gallery || [])];
+            if (!gallery[index]) return meal;
+            gallery[index] = { ...gallery[index], caption };
+            meal.diet_gallery = gallery;
+            return meal;
+        });
+    };
+
+    const removeMealGalleryImage = (dayKey, mealType, index) => {
+        updateMeal(dayKey, mealType, (meal) => {
+            meal.diet_gallery = (meal.diet_gallery || []).filter((_, idx) => idx !== index);
+            return meal;
+        });
+    };
+
+    const openMealGalleryPicker = (dayKey, mealType) => {
+        const target = { dayKey, mealType };
+        mealUploadTargetRef.current = target;
+        setMealUploadTarget(target);
+        if (mealFileInputRef.current) {
+            mealFileInputRef.current.click();
+        }
+    };
+
+    const handleMealGalleryUpload = async (e) => {
+        const files = e.target.files;
+        const target = mealUploadTargetRef.current || mealUploadTarget;
+        if (!files || files.length === 0 || !target) return;
+
+        setUploadingMealImages(true);
+        try {
+            const validFiles = Array.from(files).filter((file) => file && file.type && file.type.startsWith('image/'));
+            if (validFiles.length === 0) {
+                toast.error('Please select valid image files');
+                return;
+            }
+
+            const uploaded = [];
+            for (let i = 0; i < validFiles.length; i++) {
+                try {
+                    const response = await vendorService.uploadfiles(validFiles[i], 'diet_plan_images');
+                    const imageUrl = response?.data?.data?.url || response?.data?.url;
+                    if (imageUrl) {
+                        uploaded.push({ image_url: imageUrl, caption: '' });
+                    } else {
+                        toast.error(`Failed to upload meal image ${i + 1}`);
+                    }
+                } catch (error) {
+                    toast.error(`Error uploading meal image ${i + 1}: ${error.message || 'Unknown error'}`);
                 }
             }
 
-            return { ...prev, schedule: updatedSchedule };
+            if (uploaded.length > 0) {
+                updateMeal(target.dayKey, target.mealType, (meal) => {
+                    meal.diet_gallery = [...(meal.diet_gallery || []), ...uploaded];
+                    return meal;
+                });
+                toast.success(`Successfully uploaded ${uploaded.length} meal image(s)`);
+            }
+        } catch (error) {
+            toast.error('Failed to upload meal images');
+        } finally {
+            setUploadingMealImages(false);
+            mealUploadTargetRef.current = null;
+            setMealUploadTarget(null);
+            if (mealFileInputRef.current) mealFileInputRef.current.value = '';
+        }
+    };
+
+    const handleGuidanceChange = (index, value) => {
+        setFormData((prev) => {
+            const next = [...(prev.guidance || [''])];
+            next[index] = value;
+            return { ...prev, guidance: next };
+        });
+    };
+
+    const addGuidanceItem = () => {
+        setFormData((prev) => ({
+            ...prev,
+            guidance: [...(prev.guidance || ['']), ''],
+        }));
+    };
+
+    const removeGuidanceItem = (index) => {
+        setFormData((prev) => {
+            const list = [...(prev.guidance || [''])];
+            return {
+                ...prev,
+                guidance: list.length <= 1 ? [''] : list.filter((_, i) => i !== index),
+            };
         });
     };
 
     // Add item to diet or preparation steps
     const addScheduleItem = (dayKey, mealType, field) => {
-        setFormData(prev => {
-            const updatedSchedule = { ...prev.schedule };
-            updatedSchedule[dayKey][mealType][field].push('');
-            return { ...prev, schedule: updatedSchedule };
+        updateMeal(dayKey, mealType, (meal) => {
+            if (field === 'diet') {
+                meal.diet = [...(meal.diet || []), emptyDietItem()];
+            } else {
+                meal[field] = [...(meal[field] || []), ''];
+            }
+            return meal;
         });
     };
 
     // Remove item from diet or preparation steps
     const removeScheduleItem = (dayKey, mealType, field, index) => {
-        if (formData.schedule[dayKey][mealType][field].length <= 1) return;
-        setFormData(prev => {
-            const updatedSchedule = { ...prev.schedule };
-            updatedSchedule[dayKey][mealType][field].splice(index, 1);
-            return { ...prev, schedule: updatedSchedule };
+        updateMeal(dayKey, mealType, (meal) => {
+            const list = [...(meal[field] || [])];
+            if (list.length <= 1) {
+                meal[field] = field === 'diet' ? [emptyDietItem()] : [''];
+                return meal;
+            }
+            list.splice(index, 1);
+            meal[field] = list;
+            return meal;
         });
     };
 
@@ -363,16 +686,7 @@ const DietPlanManager = () => {
             const updatedSchedule = { ...prev.schedule };
             updatedSchedule[newDayKey] = {};
             mealTypes.forEach(meal => {
-                updatedSchedule[newDayKey][meal] = {
-                    diet: [''],
-                    preparation_steps: [''],
-                    nutrition: {
-                        total_calories: { value: '', unit: 'kcal' },
-                        carbs: { value: '', unit: 'g' },
-                        protein: { value: '', unit: 'g' },
-                        fat: { value: '', unit: 'g' }
-                    }
-                };
+                updatedSchedule[newDayKey][meal] = emptyMeal();
             });
             console.log('Added new day:', updatedSchedule);
             return { ...prev, schedule: updatedSchedule };
@@ -395,6 +709,79 @@ const DietPlanManager = () => {
         setActiveDay(`day_${numberOfDays - 1}`);
     };
 
+    const buildPayload = () => {
+        const validGallery = galleryImages
+            .filter((img) => img.image_url && img.image_url.trim() !== '')
+            .map((img) => ({
+                image_url: img.image_url,
+                is_cover: img.is_cover || false,
+                caption: img.caption || '',
+            }));
+
+        const schedule = {};
+        Object.keys(formData.schedule || {}).forEach((dayKey) => {
+            schedule[dayKey] = {};
+            mealTypes.forEach((mealType) => {
+                const mealData = cloneMeal(formData.schedule[dayKey]?.[mealType]);
+                schedule[dayKey][mealType] = {
+                    diet: (mealData.diet || [])
+                        .map((item) => {
+                            const normalized = normalizeDietItem(item);
+                            return {
+                                name: (normalized.name || '').trim(),
+                                quantity: (normalized.quantity || '').trim(),
+                                recipe: (normalized.recipe || []).map((url) => (url || '').trim()).filter(Boolean),
+                                notes: (normalized.notes || '').trim(),
+                            };
+                        })
+                        .filter((item) => item.name),
+                    diet_gallery: (mealData.diet_gallery || [])
+                        .filter((img) => img.image_url)
+                        .map((img) => ({
+                            image_url: img.image_url,
+                            caption: img.caption || '',
+                        })),
+                    preparation_steps: (mealData.preparation_steps || [])
+                        .map((step) => (step || '').trim())
+                        .filter(Boolean),
+                    nutrition: {
+                        total_calories: {
+                            value: nutrientNumber(mealData.nutrition?.total_calories?.value),
+                            unit: mealData.nutrition?.total_calories?.unit || 'kcal',
+                        },
+                        carbs: {
+                            value: nutrientNumber(mealData.nutrition?.carbs?.value),
+                            unit: mealData.nutrition?.carbs?.unit || 'g',
+                        },
+                        protein: {
+                            value: nutrientNumber(mealData.nutrition?.protein?.value),
+                            unit: mealData.nutrition?.protein?.unit || 'g',
+                        },
+                        fat: {
+                            value: nutrientNumber(mealData.nutrition?.fat?.value),
+                            unit: mealData.nutrition?.fat?.unit || 'g',
+                        },
+                    },
+                };
+            });
+        });
+
+        return {
+            name: formData.name,
+            prakriti: formData.prakriti,
+            season: formData.season,
+            health_diseases: formData.health_diseases,
+            is_paid: formData.is_paid,
+            price: formData.is_paid ? nutrientNumber(formData.price) : 0.00,
+            is_common: formData.is_common,
+            diet_plan_gallery: validGallery,
+            schedule,
+            guidance: (formData.guidance || [])
+                .map((item) => (item || '').trim())
+                .filter(Boolean),
+        };
+    };
+
     // Submit form (Create)
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -402,27 +789,8 @@ const DietPlanManager = () => {
         setMessage({ type: '', text: '' });
 
         try {
-            const validGallery = galleryImages
-                .filter(img => img.image_url && img.image_url.trim() !== '')
-                .map(img => ({
-                    image_url: img.image_url,
-                    is_cover: img.is_cover || false,
-                    caption: img.caption || ''
-                }));
-
-            const payload = {
-                name: formData.name,
-                prakriti: formData.prakriti,
-                season: formData.season,
-                health_diseases: formData.health_diseases,
-                diet_plan_gallery: validGallery,
-                is_paid: formData.is_paid,
-                price: parseFloat(formData.price) || 0,
-                is_common: formData.is_common,
-                schedule: formData.schedule
-            };
-
-            const response = await doctorService.adddiet(payload);
+            const payload = buildPayload();
+            await doctorService.adddiet(payload);
             setMessage({ type: 'success', text: 'Diet plan created successfully!' });
             toast.success('Diet plan created successfully!');
             resetForm();
@@ -444,26 +812,7 @@ const DietPlanManager = () => {
         setLoading(true);
         setMessage({ type: '', text: '' });
         try {
-            const validGallery = galleryImages
-                .filter(img => img.image_url && img.image_url.trim() !== '')
-                .map(img => ({
-                    image_url: img.image_url,
-                    is_cover: img.is_cover || false,
-                    caption: img.caption || ''
-                }));
-
-            const payload = {
-                name: formData.name,
-                prakriti: formData.prakriti,
-                season: formData.season,
-                health_diseases: formData.health_diseases,
-                diet_plan_gallery: validGallery,
-                is_paid: formData.is_paid,
-                price: parseFloat(formData.price) || 0,
-                is_common: formData.is_common,
-                schedule: formData.schedule
-            };
-
+            const payload = buildPayload();
             const response = await doctorService.updatediet(dietPlanId, payload);
             setMessage({ type: 'success', text: 'Diet plan updated successfully!' });
             toast.success('Diet plan updated successfully!');
@@ -487,10 +836,11 @@ const DietPlanManager = () => {
             price: '',
             is_common: false,
             diet_plan_gallery: [],
-            schedule: initializeSchedule(1)
+            schedule: initializeSchedule(1),
+            guidance: emptyGuidance(),
         });
         setGalleryImages([]);
-        setNumberOfDays(7);
+        setNumberOfDays(1);
         setActiveDay('day_1');
         setIsEditMode(false);
         setDietPlanId('');
@@ -500,13 +850,25 @@ const DietPlanManager = () => {
     // Load data for edit mode
     const loadEditData = (data) => {
         setIsEditMode(true);
-        setFormData(data);
+        const schedule = normalizeSchedule(data.schedule);
+        setFormData({
+            name: data.name || '',
+            prakriti: data.prakriti || '',
+            season: data.season || '',
+            health_diseases: Array.isArray(data.health_diseases) ? data.health_diseases : [],
+            is_paid: !!data.is_paid,
+            price: data.price ?? '',
+            is_common: !!data.is_common,
+            diet_plan_gallery: data.diet_plan_gallery || [],
+            schedule,
+            guidance: normalizeGuidance(data),
+        });
         const gallery = data.diet_plan_gallery || [];
         setGalleryImages(gallery.map((img, index) => ({
             ...img,
             id: img.id || `existing_${index}`
         })));
-        const days = Object.keys(data.schedule).length;
+        const days = Object.keys(schedule).length;
         setNumberOfDays(days);
         setActiveDay('day_1');
     };
@@ -531,20 +893,19 @@ const DietPlanManager = () => {
     };
 
     // UI-only: how many diet items have real content, for the meal summary chip
-    const filledCount = (arr) => arr.filter(v => v && v?.trim() !== '').length;
+    const filledCount = (arr) => (arr || []).filter((v) => {
+        if (typeof v === 'string') return v.trim() !== '';
+        return v && String(v.name || '').trim() !== '';
+    }).length;
 
     // Render meal section for a day
     const renderMealSection = (dayKey, mealType) => {
-        console.log('Rendering meal section for', dayKey, mealType);
         const mealData = formData.schedule[dayKey]?.[mealType];
-        console.log(formData, 'Current schedule data');
-
-
         if (!mealData) return null;
 
         const { label: mealLabel, Icon: MealIcon } = mealMeta[mealType] || { label: mealType, Icon: UtensilsCrossed };
         const isOpen = expandedMeals.has(`${dayKey}-${mealType}`);
-        const dietCount = 1 || filledCount(mealData.diet);
+        const dietCount = filledCount(mealData.diet);
         return (
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 <button
@@ -577,27 +938,77 @@ const DietPlanManager = () => {
                                 Diet Items
                             </label>
                             <div className="space-y-2">
-                                {mealData.diet.map((item, idx) => (
-                                    <div key={idx} className="flex items-center gap-2">
-                                        <input
-                                            type="text"
-                                            value={item?.name ? item?.name : item}
-                                            onChange={(e) => handleDayScheduleChange(dayKey, mealType, 'diet', e.target.value, idx)}
-                                            className=""
-                                            placeholder={`Item ${idx + 1}`}
-                                        />
-                                        {mealData.diet.length > 1 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => removeScheduleItem(dayKey, mealType, 'diet', idx)}
-                                                className="shrink-0 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
-                                                title="Remove item"
-                                            >
-                                                <X size={14} />
-                                            </button>
-                                        )}
-                                    </div>
-                                ))}
+                                {(mealData.diet || []).map((item, idx) => {
+                                    const dietItem = normalizeDietItem(item);
+                                    return (
+                                        <div key={idx} className="rounded-md border border-gray-100 p-2.5 space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={dietItem.name}
+                                                    onChange={(e) => handleDietItemChange(dayKey, mealType, idx, 'name', e.target.value)}
+                                                    placeholder={`Item ${idx + 1}`}
+                                                />
+                                                {mealData.diet.length > 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeScheduleItem(dayKey, mealType, 'diet', idx)}
+                                                        className="shrink-0 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                                                        title="Remove item"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={dietItem.quantity}
+                                                    onChange={(e) => handleDietItemChange(dayKey, mealType, idx, 'quantity', e.target.value)}
+                                                    placeholder="Quantity (e.g. 1 cup)"
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={dietItem.notes}
+                                                    onChange={(e) => handleDietItemChange(dayKey, mealType, idx, 'notes', e.target.value)}
+                                                    placeholder="Notes"
+                                                />
+                                            </div>
+                                            <div>
+                                                <p className="text-[11px] text-gray-400 mb-1">Recipe links</p>
+                                                <div className="space-y-1.5">
+                                                    {(dietItem.recipe || ['']).map((url, rIdx) => (
+                                                        <div key={rIdx} className="flex items-center gap-2">
+                                                            <input
+                                                                type="text"
+                                                                value={url}
+                                                                onChange={(e) => handleDietRecipeChange(dayKey, mealType, idx, rIdx, e.target.value)}
+                                                                placeholder="youtube.abc.com"
+                                                            />
+                                                            {(dietItem.recipe || []).length > 1 && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => removeDietRecipe(dayKey, mealType, idx, rIdx)}
+                                                                    className="shrink-0 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                                                                    title="Remove recipe link"
+                                                                >
+                                                                    <X size={14} />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => addDietRecipe(dayKey, mealType, idx)}
+                                                    className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-[#0D614E] hover:text-[#0A4D3D]"
+                                                >
+                                                    <Plus size={12} /> Add recipe link
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                             <button
                                 type="button"
@@ -608,13 +1019,67 @@ const DietPlanManager = () => {
                             </button>
                         </div>
 
+                        {/* Meal gallery */}
+                        <div>
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                                Meal Images
+                            </label>
+                            <div className="flex flex-wrap gap-2.5">
+                                {(mealData.diet_gallery || []).map((image, index) => (
+                                    <div key={`${image.image_url}-${index}`} className="w-24">
+                                        <div className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 bg-gray-50 group">
+                                            <img
+                                                src={image.image_url}
+                                                alt={image.caption || `Meal ${index + 1}`}
+                                                className="w-full h-full object-cover"
+                                                onError={(e) => {
+                                                    e.target.onerror = null;
+                                                    e.target.src = 'https://via.placeholder.com/200x200?text=No+Image';
+                                                }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => removeMealGalleryImage(dayKey, mealType, index)}
+                                                className="absolute top-1 right-1 w-4 h-4 rounded-full bg-black/55 hover:bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                title="Remove image"
+                                            >
+                                                <X size={9} />
+                                            </button>
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={image.caption || ''}
+                                            onChange={(e) => handleMealGalleryCaption(dayKey, mealType, index, e.target.value)}
+                                            placeholder="Caption"
+                                            className="mt-1"
+                                        />
+                                    </div>
+                                ))}
+                                <button
+                                    type="button"
+                                    onClick={() => openMealGalleryPicker(dayKey, mealType)}
+                                    disabled={uploadingMealImages}
+                                    className="w-24 aspect-square rounded-lg border-2 border-dashed border-gray-300 hover:border-[#0D614E] hover:bg-gray-50 transition-colors flex flex-col items-center justify-center gap-1 disabled:opacity-50"
+                                >
+                                    {uploadingMealImages && mealUploadTarget?.dayKey === dayKey && mealUploadTarget?.mealType === mealType ? (
+                                        <Loader2 className="w-4 h-4 text-[#0D614E] animate-spin" />
+                                    ) : (
+                                        <>
+                                            <Plus className="w-4 h-4 text-gray-400" />
+                                            <span className="text-[9px] font-medium text-gray-600">Upload</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+
                         {/* Preparation Steps */}
                         <div>
                             <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
                                 Preparation Steps
                             </label>
                             <div className="space-y-2">
-                                {mealData.preparation_steps.map((step, idx) => (
+                                {(mealData.preparation_steps || []).map((step, idx) => (
                                     <div key={idx} className="flex items-center gap-2">
                                         <span className="shrink-0 w-5 h-5 rounded-full bg-gray-100 text-gray-500 text-[11px] font-semibold flex items-center justify-center">
                                             {idx + 1}
@@ -623,7 +1088,6 @@ const DietPlanManager = () => {
                                             type="text"
                                             value={step}
                                             onChange={(e) => handleDayScheduleChange(dayKey, mealType, 'preparation_steps', e.target.value, idx)}
-                                            className=""
                                             placeholder={`Step ${idx + 1}`}
                                         />
                                         {mealData.preparation_steps.length > 1 && (
@@ -663,13 +1127,12 @@ const DietPlanManager = () => {
                                             <input
                                                 type="number"
                                                 step="0.01"
-                                                value={mealData.nutrition[nutrient].value}
+                                                value={mealData.nutrition?.[nutrient]?.value ?? ''}
                                                 onChange={(e) => handleDayScheduleChange(dayKey, mealType, 'nutrition', e.target.value, nutrient, 'value')}
-                                                className=""
                                                 placeholder="0"
                                             />
                                             <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] text-gray-400">
-                                                {mealData.nutrition[nutrient].unit}
+                                                {mealData.nutrition?.[nutrient]?.unit}
                                             </span>
                                         </div>
                                     </div>
@@ -774,6 +1237,14 @@ const DietPlanManager = () => {
                             onChange={handleFileSelect}
                             className="hidden"
                         />
+                        <input
+                            ref={mealFileInputRef}
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handleMealGalleryUpload}
+                            className="hidden"
+                        />
 
                         {/* Cover + tips */}
                         <div className="flex flex-col sm:flex-row gap-5 mb-5">
@@ -783,7 +1254,7 @@ const DietPlanManager = () => {
                                         <img
                                             src={cover.image_url}
                                             alt="Cover"
-                                            className=" object-cover mx-auto min-h-[300px] "
+                                            className=" object-cover mx-auto min-h-[300px] max-h-[450px] "
                                             onError={(e) => {
                                                 e.target.onerror = null;
                                                 e.target.src = 'https://via.placeholder.com/200x200?text=No+Image';
@@ -870,52 +1341,59 @@ const DietPlanManager = () => {
                                 className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2.5 max-w-6xl"
                             >
                                 {galleryImages.map((image, index) => (
-                                    <div
-                                        key={image.id || index}
-                                        draggable
-                                        onDragStart={(e) => handleDragStart(e, index)}
-                                        onDragOver={(e) => handleDragOverItem(e, index, 'diet')}
-                                        onDragEnd={handleDragEnd}
-                                        className={`relative group aspect-square rounded-lg overflow-hidden border-2 bg-gray-50 cursor-move transition-all ${image.is_cover ? 'border-[#0D614E] ring-2 ring-[#0D614E]/25' : 'border-transparent'
-                                            }`}
-                                    >
-                                        <img
-                                            src={image.image_url}
-                                            alt={`Gallery ${index + 1}`}
-                                            className="w-full h-full object-cover"
-                                            onError={(e) => {
-                                                e.target.onerror = null;
-                                                e.target.src = 'https://via.placeholder.com/200x200?text=No+Image';
-                                            }}
-                                        />
-                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
-
-                                        {image.is_cover && (
-                                            <div className="absolute top-1 left-1 flex items-center gap-0.5 bg-white text-gray-800 text-[9px] font-semibold px-1.5 py-0.5 rounded-full shadow">
-                                                <Star size={8} className="text-amber-400 fill-amber-400" />
-                                                Cover
-                                            </div>
-                                        )}
-
-                                        <button
-                                            type="button"
-                                            onClick={() => handleRemoveImage(index)}
-                                            className="absolute top-1 right-1 w-4 h-4 rounded-full bg-black/55 hover:bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                            title="Remove image"
+                                    <div key={image.id || index} className="space-y-1">
+                                        <div
+                                            draggable
+                                            onDragStart={(e) => handleDragStart(e, index)}
+                                            onDragOver={(e) => handleDragOverItem(e, index, 'diet')}
+                                            onDragEnd={handleDragEnd}
+                                            className={`relative group aspect-square rounded-lg overflow-hidden border-2 bg-gray-50 cursor-move transition-all ${image.is_cover ? 'border-[#0D614E] ring-2 ring-[#0D614E]/25' : 'border-transparent'
+                                                }`}
                                         >
-                                            <X size={9} />
-                                        </button>
+                                            <img
+                                                src={image.image_url}
+                                                alt={`Gallery ${index + 1}`}
+                                                className="w-full h-full object-cover"
+                                                onError={(e) => {
+                                                    e.target.onerror = null;
+                                                    e.target.src = 'https://via.placeholder.com/200x200?text=No+Image';
+                                                }}
+                                            />
+                                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
 
-                                        {!image.is_cover && (
+                                            {image.is_cover && (
+                                                <div className="absolute top-1 left-1 flex items-center gap-0.5 bg-white text-gray-800 text-[9px] font-semibold px-1.5 py-0.5 rounded-full shadow">
+                                                    <Star size={8} className="text-amber-400 fill-amber-400" />
+                                                    Cover
+                                                </div>
+                                            )}
+
                                             <button
                                                 type="button"
-                                                onClick={() => handleSetAsCover(index)}
-                                                className="absolute bottom-1 left-1 right-1 flex items-center justify-center gap-0.5 bg-white/90 hover:bg-white text-gray-700 text-[8px] font-medium py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                                                onClick={() => handleRemoveImage(index)}
+                                                className="absolute top-1 right-1 w-4 h-4 rounded-full bg-black/55 hover:bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                                title="Remove image"
                                             >
-                                                <Star size={8} />
-                                                Cover
+                                                <X size={9} />
                                             </button>
-                                        )}
+
+                                            {!image.is_cover && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleSetAsCover(index)}
+                                                    className="absolute bottom-1 left-1 right-1 flex items-center justify-center gap-0.5 bg-white/90 hover:bg-white text-gray-700 text-[8px] font-medium py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                                                >
+                                                    <Star size={8} />
+                                                    Cover
+                                                </button>
+                                            )}
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={image.caption || ''}
+                                            onChange={(e) => handleGalleryCaption(index, e.target.value)}
+                                            placeholder="Caption"
+                                        />
                                     </div>
                                 ))}
 
@@ -999,11 +1477,14 @@ const DietPlanManager = () => {
                                     required
                                 >
                                     <option value="">Select Season</option>
-                                    <option value="summer">Summer</option>
-                                    <option value="winter">Winter</option>
-                                    <option value="spring">Spring</option>
-                                    <option value="autumn">Autumn</option>
-                                    <option value="rainy">Rainy</option>
+                                    {(SEASON_OPTIONS.includes(formData.season) || !formData.season
+                                        ? SEASON_OPTIONS
+                                        : [...SEASON_OPTIONS, formData.season]
+                                    ).map((season) => (
+                                        <option key={season} value={season}>
+                                            {season.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
 
@@ -1051,7 +1532,7 @@ const DietPlanManager = () => {
 
                         {formData.is_paid && (
                             <div className="max-w-xs animate-in fade-in">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Price ($)</label>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Price</label>
                                 <input
                                     type="number"
                                     name="price"
@@ -1062,6 +1543,48 @@ const DietPlanManager = () => {
                                 />
                             </div>
                         )}
+                    </div>
+
+                    {/* ---------------------------------------------------- */}
+                    {/* Guidance                                             */}
+                    {/* ---------------------------------------------------- */}
+                    <div className="pb-6 mb-6 border-b border-gray-100">
+                        <SectionHeader
+                            title="Guidance"
+                            description="Add practical guidance points for patients."
+                        />
+                        <div className="space-y-2">
+                            {(formData.guidance || ['']).map((item, idx) => (
+                                <div key={idx} className="flex items-center gap-2">
+                                    <span className="shrink-0 w-5 h-5 rounded-full bg-gray-100 text-gray-500 text-[11px] font-semibold flex items-center justify-center">
+                                        {idx + 1}
+                                    </span>
+                                    <input
+                                        type="text"
+                                        value={item}
+                                        onChange={(e) => handleGuidanceChange(idx, e.target.value)}
+                                        placeholder={`Guidance ${idx + 1}`}
+                                    />
+                                    {(formData.guidance || []).length > 1 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => removeGuidanceItem(idx)}
+                                            className="shrink-0 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                                            title="Remove guidance"
+                                        >
+                                            <X size={14} />
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={addGuidanceItem}
+                            className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-[#0D614E] hover:text-[#0A4D3D]"
+                        >
+                            <Plus size={14} /> Add guidance
+                        </button>
                     </div>
 
                     {/* ---------------------------------------------------- */}
@@ -1112,7 +1635,6 @@ const DietPlanManager = () => {
                             </div>
                         </div>
 
-                        {console.log(activeDay, formData.schedule[activeDay])}
                         {activeDay && formData.schedule[activeDay] && (
                             <div className="space-y-2.5">
 
@@ -1129,7 +1651,7 @@ const DietPlanManager = () => {
                     <div className="sticky bottom-0 -mx-6 mt-6 px-6 py-4 bg-white/95 backdrop-blur border-t border-gray-100 flex flex-wrap gap-3">
                         <button
                             type="submit"
-                            disabled={loading || uploadingImages}
+                            disabled={loading || uploadingImages || uploadingMealImages}
                             className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#0D614E] text-white rounded-lg hover:bg-[#0A4D3D] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {loading && <Loader2 size={16} className="animate-spin" />}

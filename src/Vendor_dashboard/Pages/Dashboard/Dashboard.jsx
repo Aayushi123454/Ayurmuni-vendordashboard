@@ -249,12 +249,12 @@ const Dashboard = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#f5f5f5] p-4 sm:p-6 lg:p-8 space-y-6">
-                <div className="h-40 ds-skeleton rounded-2xl" />
-                <MetricSkeleton count={6} />
-                <div className="grid grid-cols-12 gap-6">
-                    <div className="col-span-12 xl:col-span-8 h-80 ds-skeleton rounded-2xl" />
-                    <div className="col-span-12 xl:col-span-4 h-80 ds-skeleton rounded-2xl" />
+            <div className="min-h-screen bg-[#f5f5f5] p-3 sm:p-4 lg:p-5 space-y-3">
+                <div className="h-16 ds-skeleton rounded-xl" />
+                <MetricSkeleton count={7} />
+                <div className="grid grid-cols-12 gap-3">
+                    <div className="col-span-12 xl:col-span-8 h-64 ds-skeleton rounded-xl" />
+                    <div className="col-span-12 xl:col-span-4 h-64 ds-skeleton rounded-xl" />
                 </div>
             </div>
         );
@@ -262,7 +262,7 @@ const Dashboard = () => {
 
     if (error) {
         return (
-            <div className="min-h-screen bg-[#f5f5f5] p-4 sm:p-6 lg:p-8">
+            <div className="min-h-screen bg-[#f5f5f5] p-3 sm:p-4 lg:p-5">
                 <PageError message={error} onRetry={fetchDashboardData} />
             </div>
         );
@@ -270,8 +270,7 @@ const Dashboard = () => {
 
     return (
         <div className="min-h-screen bg-[#f5f5f5]">
-            <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-6 lg:space-y-8">
-                {/* Section 1 — Welcome */}
+            <div className="mx-auto max-w-[1600px] px-3 sm:px-4 lg:px-5 py-3 sm:py-4 space-y-3">
                 <DashboardWelcome
                     businessName={stats.businessName}
                     approvalStatus={stats.approvalStatus}
@@ -283,107 +282,97 @@ const Dashboard = () => {
                     onViewProducts={() => navigate("/vendor/products")}
                 />
 
-                {/* Section 2 — KPI Cards */}
-                <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 lg:gap-5">
-                    <div className="h-full">
-                        <PremiumKPICard
-                            variant="hero"
-                            icon={Package}
-                            label="Products"
-                            value={stats.totalProducts}
-                            subtitle={`${stats.totalVariants} active variants`}
-                            trend={`+${stats.approvedVariants} approved`}
-                            sparkData={sparklines.products}
-                            onAction={() => navigate("/vendor/products")}
-                            actionLabel="Catalog"
-                        />
-                    </div>
-                    <div className="h-full">
-                        <PremiumKPICard
-                            variant="accent"
-                            icon={Layers}
-                            label="Inventory"
-                            value={stats.totalStockUnits}
-                            subtitle="Total units on hand"
-                            trend={stats.lowStockCount > 0 ? `${stats.lowStockCount} low stock` : "All healthy"}
-                            trendDirection={stats.lowStockCount > 0 ? "down" : "up"}
-                            sparkData={sparklines.inventory}
-                            onAction={() => navigate("/vendor/stock")}
-                            actionLabel="Stock"
-                        />
-                    </div>
-                    <div className="h-full sm:col-span-2 xl:col-span-1">
-                        <PremiumKPICard
-                            variant="muted"
-                            icon={ShoppingBag}
-                            label="Orders"
-                            value={recentOrders.length > 0 ? recentOrders.length : "0"}
-                            subtitle="Recent order activity"
-                            onAction={() => navigate("/vendor/orders")}
-                            actionLabel="Orders"
-                        />
-                    </div>
+                {/* Unified KPI strip */}
+                <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-7">
+                    <PremiumKPICard
+                        variant="hero"
+                        compact
+                        icon={Package}
+                        label="Products"
+                        value={stats.totalProducts}
+                        subtitle={`${stats.totalVariants} variants`}
+                        trend={`+${stats.approvedVariants} approved`}
+                        sparkData={sparklines.products}
+                        onAction={() => navigate("/vendor/products")}
+                        actionLabel="Catalog"
+                    />
+                    <PremiumKPICard
+                        variant="accent"
+                        compact
+                        icon={Layers}
+                        label="Inventory"
+                        value={stats.totalStockUnits}
+                        subtitle="Units on hand"
+                        trend={stats.lowStockCount > 0 ? `${stats.lowStockCount} low` : "Healthy"}
+                        trendDirection={stats.lowStockCount > 0 ? "down" : "up"}
+                        sparkData={sparklines.inventory}
+                        onAction={() => navigate("/vendor/stock")}
+                        actionLabel="Stock"
+                    />
+                    <PremiumKPICard
+                        variant="muted"
+                        compact
+                        icon={ShoppingBag}
+                        label="Orders"
+                        value={recentOrders.length > 0 ? recentOrders.length : "0"}
+                        subtitle="Recent activity"
+                        onAction={() => navigate("/vendor/orders")}
+                        actionLabel="Orders"
+                    />
+                    <PremiumKPICard
+                        variant="soft"
+                        compact
+                        icon={IndianRupee}
+                        label="Revenue"
+                        value={formatCurrency(financeMetrics?.total_revenue?.value ?? 0)}
+                        subtitle="Delivered"
+                        trend={
+                            financeMetrics?.total_revenue?.trend_percent != null
+                                ? `${financeMetrics.total_revenue.trend_percent > 0 ? "+" : ""}${financeMetrics.total_revenue.trend_percent}%`
+                                : undefined
+                        }
+                        onAction={() => navigate("/vendor/finance")}
+                        actionLabel="Finance"
+                    />
+                    <PremiumKPICard
+                        variant="alert"
+                        compact
+                        icon={Clock}
+                        label="Pending"
+                        value={stats.pendingCount}
+                        subtitle="Awaiting review"
+                        trend={stats.pendingCount > 0 ? "Action needed" : "All clear"}
+                        trendDirection={stats.pendingCount > 0 ? "down" : "up"}
+                        sparkData={sparklines.pending}
+                        onAction={() => navigate("/vendor/products")}
+                    />
+                    <PremiumKPICard
+                        variant="soft"
+                        compact
+                        icon={Bell}
+                        label="Alerts"
+                        value={stats.unreadCount}
+                        subtitle="Unread"
+                        trend={stats.unreadCount > 0 ? "New" : "Clear"}
+                        sparkData={sparklines.notifications}
+                        onAction={() => navigate("/vendor/notifications")}
+                    />
+                    <PremiumKPICard
+                        variant="accent"
+                        compact
+                        icon={Box}
+                        label="Low Stock"
+                        value={stats.lowStockCount}
+                        subtitle={`≤ ${LOW_STOCK_THRESHOLD} units`}
+                        trend={stats.lowStockCount > 0 ? "Restock" : "OK"}
+                        trendDirection={stats.lowStockCount > 0 ? "down" : "up"}
+                        onAction={() => navigate("/vendor/stock")}
+                        className="col-span-2 sm:col-span-1"
+                    />
                 </section>
 
-                <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 lg:gap-5">
-                    <div className="h-full">
-                        <PremiumKPICard
-                            variant="soft"
-                            icon={IndianRupee}
-                            label="Revenue"
-                            value={formatCurrency(financeMetrics?.total_revenue?.value ?? 0)}
-                            subtitle="Delivered order revenue"
-                            trend={
-                                financeMetrics?.total_revenue?.trend_percent != null
-                                    ? `${financeMetrics.total_revenue.trend_percent > 0 ? "+" : ""}${financeMetrics.total_revenue.trend_percent}% vs last month`
-                                    : undefined
-                            }
-                            onAction={() => navigate("/vendor/finance")}
-                            actionLabel="Finance"
-                        />
-                    </div>
-                    <div className="h-full">
-                        <PremiumKPICard
-                            variant="alert"
-                            icon={Clock}
-                            label="Pending Approvals"
-                            value={stats.pendingCount}
-                            subtitle="Variants awaiting review"
-                            trend={stats.pendingCount > 0 ? "Action needed" : "All clear"}
-                            trendDirection={stats.pendingCount > 0 ? "down" : "up"}
-                            sparkData={sparklines.pending}
-                            onAction={() => navigate("/vendor/products")}
-                        />
-                    </div>
-                    <div className="h-full">
-                        <PremiumKPICard
-                            variant="soft"
-                            icon={Bell}
-                            label="Notifications"
-                            value={stats.unreadCount}
-                            subtitle="Unread messages"
-                            trend={stats.unreadCount > 0 ? "New updates" : "Up to date"}
-                            sparkData={sparklines.notifications}
-                            onAction={() => navigate("/vendor/notifications")}
-                        />
-                    </div>
-                    <div className="h-full">
-                        <PremiumKPICard
-                            variant="accent"
-                            icon={Box}
-                            label="Low Stock"
-                            value={stats.lowStockCount}
-                            subtitle={`Threshold: ${LOW_STOCK_THRESHOLD} units`}
-                            trend={stats.lowStockCount > 0 ? "Restock needed" : "Healthy levels"}
-                            trendDirection={stats.lowStockCount > 0 ? "down" : "up"}
-                            onAction={() => navigate("/vendor/stock")}
-                        />
-                    </div>
-                </section>
-
-                {/* Main + Right Panel */}
-                <div className="grid grid-cols-12 gap-6 lg:gap-8">
-                    <div className="col-span-12 xl:col-span-8 space-y-6 lg:space-y-8">
+                <div className="grid grid-cols-12 gap-3">
+                    <div className="col-span-12 xl:col-span-8 space-y-3">
                         <DashboardAnalytics
                             stockChartData={stockChartData}
                             categoryChartData={categoryChartData}
@@ -398,7 +387,7 @@ const Dashboard = () => {
                     </div>
 
                     <div className="col-span-12 xl:col-span-4">
-                        <div className="xl:sticky xl:top-24">
+                        <div className="xl:sticky xl:top-20">
                             <DashboardRightPanel
                                 notifications={recentNotifications}
                                 recentOrders={recentOrders}

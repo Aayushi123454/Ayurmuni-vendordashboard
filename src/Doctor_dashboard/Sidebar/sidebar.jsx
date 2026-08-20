@@ -13,7 +13,7 @@ import {
   Message,
   Bowlrice,
 } from "./Icons";
-import { Clock3 } from "lucide-react";
+import { Clock3, ListChecks } from "lucide-react";
 
 const AVAILABILITY_ICON = Appointment;
 
@@ -35,6 +35,11 @@ const DoctorSidebar = () => {
       name: "Diets",
       icon: <Bowlrice />,
       path: "/doctor/diets",
+    },
+    isdietitian &&  {
+      name: "Do's & Don'ts",
+      icon: <ListChecks size={18} />,
+      path: "/doctor/do-donts",
     },
     {
       name: "Reviews & Feedback",
@@ -69,6 +74,9 @@ const DoctorSidebar = () => {
   const isPathActive = (path) => {
     const basePath = path.split("?")[0];
     if (basePath === "/doctor/dashboard") return location.pathname === basePath;
+    if (basePath === "/doctor/do-donts") {
+      return location.pathname.includes("do-donts");
+    }
     return location.pathname === basePath || location.pathname.startsWith(`${basePath}/`);
   };
 

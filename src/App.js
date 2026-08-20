@@ -25,6 +25,8 @@ import DietPlanList from "./Doctor_dashboard/components/Diets/Diets";
 const DoctorDashboard = lazy(() => import("./Doctor_dashboard/components/dashboard/Dashboard"));
 const DietPlanManager = lazy(() => import("./Doctor_dashboard/components/Diets/Editdiet"));
 const BulkUploadDietPlans = lazy(() => import("./Doctor_dashboard/components/Diets/bulkupload"));
+const DoDontsPage = lazy(() => import("./Doctor_dashboard/components/DoDonts/dodonts"));
+const EditDoDonts = lazy(() => import("./Doctor_dashboard/components/DoDonts/EditDoDonts"));
 const DoctorOnboarding = lazy(() => import("./Doctor_dashboard/components/onboarding/Onboarding"));
 const AppointmentsPage = lazy(() => import("./Doctor_dashboard/components/Appointment/Appointment"));
 const PatientManagement = lazy(() => import("./Doctor_dashboard/components/Patients/Patients"));
@@ -194,6 +196,10 @@ function App() {
                     </>
                   )
                 }
+                <Route path="do-donts" element={<DoDontsPage />} />
+                <Route path="do-donts/:id" element={<DoDontsPage />} />
+                <Route path="add-do-donts" element={<EditDoDonts />} />
+                <Route path="edit-do-donts/:id" element={<EditDoDonts />} />
                 <Route path="assessments" element={<Navigate to="/doctor/appointments" replace />} />
                 <Route path="earnings" element={<FinanceDashboard />} />
                 <Route path="reviews" element={<DoctorReviewInsights />} />

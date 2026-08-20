@@ -1,15 +1,33 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, Layers, Package, Tag } from "lucide-react";
+import {
+    ChevronDown,
+    ChevronRight,
+    FolderTree,
+    Layers,
+    Package,
+    RefreshCw,
+    SearchX,
+    Tag,
+} from "lucide-react";
 import { vendorService } from "../../../services/vendorService";
 import { fetchAllVendorProducts } from "../Stock/stockHelpers";
 import { getVariantCoverImageUrl, mapVariantFromApi } from "../../../utils/unicommerceHelpers";
 import Ayurvedaimage from "../../../Assests/Ayurvedaimage.png";
 import DashboardPageShell from "../../components/shared/DashboardPageShell";
 import { PageEmpty, PageError } from "../../components/shared/PageState";
+import { MetricSkeleton } from "../../components/shared/Skeleton";
 import StatusBadge from "../../components/shared/StatusBadge";
 import SearchToolbar from "../../components/shared/SearchToolbar";
+import Button from "../../components/shared/Button";
+import PremiumKPICard from "../Dashboard/components/PremiumKPICard";
+import "../../components/shared/vendor-shared.css";
 import "./Catalog.css";
+
+const CATALOG_VIEWS = [
+    { id: "tree", label: "Catalog", icon: FolderTree },
+    { id: "brands", label: "Brands", icon: Tag },
+];
 
 function getCategoryIdForSubcategory(sub) {
     return sub.product_category_id ?? sub.category_id ?? sub.product_category ?? null;
@@ -66,10 +84,15 @@ function ProductCatalogCard({ product }) {
                 <p className="catalog-product-card__name">{product.name}</p>
                 <p className="catalog-product-card__brand">{product.brand_name || "No brand"}</p>
                 <div className="catalog-product-card__meta">
-                    <span>{variantCount} variant{variantCount === 1 ? "" : "s"}</span>
+                    <span className="catalog-product-card__variants">
+                        {variantCount} variant{variantCount === 1 ? "" : "s"}
+                    </span>
                     <StatusBadge status={approval} />
                 </div>
             </div>
+            <span className="catalog-product-card__arrow" aria-hidden>
+                <ChevronRight size={16} strokeWidth={2.25} />
+            </span>
         </Link>
     );
 }
@@ -87,6 +110,7 @@ function SubcategoryAccordionItem({
     }, [products, search]);
 
     const productCount = products.length;
+    const matchCount = search ? visibleProducts.length : productCount;
 
     return (
         <li className={`catalog-subcategory ${expanded ? "catalog-subcategory--open" : ""}`}>
@@ -96,7 +120,11 @@ function SubcategoryAccordionItem({
                 onClick={onToggle}
                 aria-expanded={expanded}
             >
-                <span className={`catalog-subcategory__chevron ${expanded ? "catalog-subcategory__chevron--open" : ""}`}>
+                <span
+                    className={`catalog-subcategory__chevron ${
+                        expanded ? "catalog-subcategory__chevron--open" : ""
+                    }`}
+                >
                     <ChevronRight size={16} strokeWidth={2.25} aria-hidden />
                 </span>
                 <div className="catalog-subcategory-item__main min-w-0">
@@ -106,21 +134,31 @@ function SubcategoryAccordionItem({
                             <code className="catalog-subcategory-item__code">{subcategory.code}</code>
                         )}
                         {subcategory.hsn_code && (
-                            <span className="catalog-subcategory-item__hsn">HSN {subcategory.hsn_code}</span>
+                            <span className="catalog-subcategory-item__hsn">
+                                HSN {subcategory.hsn_code}
+                            </span>
                         )}
                         <span className="catalog-subcategory-item__products">
-                            {productCount} product{productCount === 1 ? "" : "s"}
+                            {search && matchCount !== productCount
+                                ? `${matchCount} of ${productCount} products`
+                                : `${productCount} product${productCount === 1 ? "" : "s"}`}
                         </span>
                     </div>
                 </div>
                 <StatusBadge status={subcategory.is_active === false ? "inactive" : "active"} />
             </button>
 
-            <div className={`catalog-subcategory__panel ${expanded ? "catalog-subcategory__panel--open" : ""}`}>
+            <div
+                className={`catalog-subcategory__panel ${
+                    expanded ? "catalog-subcategory__panel--open" : ""
+                }`}
+            >
                 <div className="catalog-subcategory__panel-inner">
                     {visibleProducts.length === 0 ? (
                         <p className="catalog-subcategory__empty">
-                            {search ? "No matching products" : "No products in this subcategory yet"}
+                            {search
+                                ? "No matching products"
+                                : "No products in this subcategory yet"}
                         </p>
                     ) : (
                         <div className="catalog-product-grid">
@@ -168,7 +206,11 @@ function CategoryAccordionItem({
                 onClick={onToggle}
                 aria-expanded={expanded}
             >
-                <span className={`catalog-category__chevron ${expanded ? "catalog-category__chevron--open" : ""}`}>
+                <span
+                    className={`catalog-category__chevron ${
+                        expanded ? "catalog-category__chevron--open" : ""
+                    }`}
+                >
                     <ChevronRight size={18} strokeWidth={2.25} aria-hidden />
                 </span>
                 <span className="catalog-category__icon">
@@ -184,11 +226,15 @@ function CategoryAccordionItem({
                 <StatusBadge status={category.is_active === false ? "inactive" : "active"} />
             </button>
 
-            <div className={`catalog-category__panel ${expanded ? "catalog-category__panel--open" : ""}`}>
+            <div
+                className={`catalog-category__panel ${expanded ? "catalog-category__panel--open" : ""}`}
+            >
                 <div className="catalog-category__panel-inner">
                     {visibleSubs.length === 0 ? (
                         <p className="catalog-category__empty">
-                            {search ? "No matching subcategories" : "No subcategories under this category"}
+                            {search
+                                ? "No matching subcategories"
+                                : "No subcategories under this category"}
                         </p>
                     ) : (
                         <ul className="catalog-subcategory-list">
@@ -231,21 +277,70 @@ function BrandCard({ brand }) {
     );
 }
 
+function CatalogKpiSection({ summary, loading, onFocusBrands }) {
+    if (loading) {
+        return <MetricSkeleton count={4} />;
+    }
+
+    return (
+        <div className="catalog-kpi-grid ds-stagger">
+            <PremiumKPICard
+                variant="hero"
+                icon={Layers}
+                label="Categories"
+                value={summary.categories}
+                subtitle="Top-level catalog groups"
+            />
+            <PremiumKPICard
+                variant="soft"
+                icon={FolderTree}
+                label="Subcategories"
+                value={summary.subcategories}
+                subtitle="Under your categories"
+            />
+            <PremiumKPICard
+                variant="accent"
+                icon={Package}
+                label="Products"
+                value={summary.products}
+                subtitle={
+                    summary.unassigned > 0
+                        ? `${summary.unassigned} without subcategory`
+                        : "Mapped in your catalog"
+                }
+            />
+            <PremiumKPICard
+                variant="muted"
+                icon={Tag}
+                label="Brands"
+                value={summary.brands}
+                subtitle="Approved listing brands"
+                className="catalog-kpi-clickable"
+                onAction={onFocusBrands}
+                actionLabel="View"
+            />
+        </div>
+    );
+}
+
 export default function Catalog() {
     const [categories, setCategories] = useState([]);
     const [subcategories, setSubcategories] = useState([]);
     const [brands, setBrands] = useState([]);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState("");
     const [search, setSearch] = useState("");
     const [searchInput, setSearchInput] = useState("");
+    const [activeView, setActiveView] = useState("tree");
     const [expandedCategoryIds, setExpandedCategoryIds] = useState(() => new Set());
     const [expandedSubIds, setExpandedSubIds] = useState(() => new Set());
 
-    const fetchAll = useCallback(async () => {
+    const fetchAll = useCallback(async ({ soft = false } = {}) => {
         try {
-            setLoading(true);
+            if (soft) setRefreshing(true);
+            else setLoading(true);
             setError("");
 
             const [catRes, subRes, brandRes, productList] = await Promise.all([
@@ -268,12 +363,22 @@ export default function Catalog() {
             setError(err?.response?.data?.message || err.message || "Failed to load catalog data");
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     }, []);
 
     useEffect(() => {
         fetchAll();
     }, [fetchAll]);
+
+    const applySearch = useCallback(() => {
+        setSearch(searchInput.trim());
+    }, [searchInput]);
+
+    const clearSearch = useCallback(() => {
+        setSearch("");
+        setSearchInput("");
+    }, []);
 
     const subcategoriesByCategory = useMemo(() => {
         const map = new Map();
@@ -326,6 +431,11 @@ export default function Catalog() {
         if (!search) return unassignedProducts;
         return unassignedProducts.filter((p) => matchesSearch(p, search, "product"));
     }, [unassignedProducts, search]);
+
+    const matchedProductCount = useMemo(() => {
+        if (!search) return products.length;
+        return products.filter((p) => matchesSearch(p, search, "product")).length;
+    }, [products, search]);
 
     useEffect(() => {
         if (!search) return;
@@ -380,122 +490,292 @@ export default function Catalog() {
         });
     };
 
-    const totalProducts = products.length;
+    const expandAll = () => {
+        setExpandedCategoryIds(new Set(visibleCategories.map((c) => String(c.id))));
+        const subIds = new Set();
+        visibleCategories.forEach((cat) => {
+            const subs = subcategoriesByCategory.get(String(cat.id)) || [];
+            subs.forEach((sub) => {
+                if (!search) {
+                    subIds.add(String(sub.id));
+                    return;
+                }
+                if (matchesSearch(sub, search)) {
+                    subIds.add(String(sub.id));
+                    return;
+                }
+                const prods = productsBySubcategory.get(String(sub.id)) || [];
+                if (prods.some((p) => matchesSearch(p, search, "product"))) {
+                    subIds.add(String(sub.id));
+                }
+            });
+        });
+        setExpandedSubIds(subIds);
+    };
+
+    const collapseAll = () => {
+        setExpandedCategoryIds(new Set());
+        setExpandedSubIds(new Set());
+    };
+
+    const summary = useMemo(
+        () => ({
+            categories: categories.length,
+            subcategories: subcategories.length,
+            products: products.length,
+            brands: brands.length,
+            unassigned: unassignedProducts.length,
+        }),
+        [categories.length, subcategories.length, products.length, brands.length, unassignedProducts.length]
+    );
+
+    const hasExpanded = expandedCategoryIds.size > 0 || expandedSubIds.size > 0;
+    const treeEmpty = visibleCategories.length === 0 && filteredUnassigned.length === 0;
 
     return (
         <div className="catalog-page">
-            <DashboardPageShell contentClassName="vendor-page-content">
+            <DashboardPageShell
+                compact
+                hidePageHeader
+                contentClassName="vendor-page-content catalog-page-content"
+                actions={
+                    <Button
+                        variant="secondary"
+                        onClick={() => fetchAll({ soft: true })}
+                        loading={refreshing}
+                        disabled={loading}
+                        className="!text-sm"
+                    >
+                        {!refreshing && <RefreshCw size={16} />}
+                        Refresh
+                    </Button>
+                }
+            >
                 <div className="catalog-premium">
+                    <div className="catalog-view-tabs" role="tablist" aria-label="Catalog sections">
+                        {CATALOG_VIEWS.map(({ id, label, icon: Icon }) => (
+                            <button
+                                key={id}
+                                type="button"
+                                role="tab"
+                                aria-selected={activeView === id}
+                                className={`catalog-view-tab ${
+                                    activeView === id ? "catalog-view-tab--active" : ""
+                                }`}
+                                onClick={() => setActiveView(id)}
+                            >
+                                <Icon size={16} aria-hidden />
+                                {label}
+                                <span className="catalog-view-tab__count">
+                                    {id === "tree"
+                                        ? loading
+                                            ? "…"
+                                            : summary.categories
+                                        : loading
+                                          ? "…"
+                                          : summary.brands}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+
+                    <CatalogKpiSection
+                        summary={summary}
+                        loading={loading}
+                        onFocusBrands={() => setActiveView("brands")}
+                    />
+
                     <SearchToolbar
                         className="catalog-toolbar-search"
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
-                        onSubmit={() => setSearch(searchInput.trim())}
-                        onClear={searchInput ? () => { setSearch(""); setSearchInput(""); } : undefined}
+                        onSubmit={applySearch}
+                        onClear={searchInput || search ? clearSearch : undefined}
+                        live
                         placeholder="Search categories, subcategories, products, or brands…"
                     />
 
-                    <div className="catalog-layout">
-                    <section className="catalog-panel catalog-panel--tree">
-                        <header className="catalog-panel__header">
-                            <div className="catalog-panel__heading">
-                                <Layers size={18} className="catalog-panel__heading-icon" aria-hidden />
-                                <div>
-                                    <h2 className="catalog-panel__title">Catalog tree</h2>
-                                    <p className="catalog-panel__subtitle">
-                                        Category → Subcategory → Your products with images
-                                    </p>
-                                </div>
-                            </div>
-                            {!loading && !error && (
-                                <span className="catalog-panel__badge">
-                                    {visibleCategories.length} cat · {totalProducts} products
-                                </span>
-                            )}
-                        </header>
+                    {search && !loading && !error && (
+                        <div className="catalog-search-meta" role="status">
+                            <span>
+                                Showing matches for <strong>“{search}”</strong>
+                                {" · "}
+                                {visibleCategories.length} categor
+                                {visibleCategories.length === 1 ? "y" : "ies"}
+                                {" · "}
+                                {matchedProductCount} product
+                                {matchedProductCount === 1 ? "" : "s"}
+                                {" · "}
+                                {filteredBrands.length} brand
+                                {filteredBrands.length === 1 ? "" : "s"}
+                            </span>
+                            <button type="button" className="catalog-search-meta__clear" onClick={clearSearch}>
+                                Clear search
+                            </button>
+                        </div>
+                    )}
 
-                        <div className="catalog-panel__body">
-                            {loading ? (
-                                <div className="catalog-skeleton-list">
-                                    {Array.from({ length: 5 }).map((_, i) => (
-                                        <div key={i} className="catalog-skeleton-row ds-skeleton" />
-                                    ))}
+                    <div className="catalog-layout">
+                        <section
+                            className={`catalog-panel catalog-panel--tree ${
+                                activeView === "tree" ? "catalog-panel--active" : "catalog-panel--hidden-mobile"
+                            }`}
+                        >
+                            <header className="catalog-panel__header">
+                                <div className="catalog-panel__heading">
+                                    <Layers size={18} className="catalog-panel__heading-icon" aria-hidden />
+                                    <div>
+                                        <h2 className="catalog-panel__title">Catalog tree</h2>
+                                        <p className="catalog-panel__subtitle">
+                                            Category → Subcategory → Products
+                                        </p>
+                                    </div>
                                 </div>
-                            ) : error ? (
-                                <PageError message={error} onRetry={fetchAll} />
-                            ) : visibleCategories.length === 0 && filteredUnassigned.length === 0 ? (
-                                <PageEmpty title="No catalog items found" description="Try a different search term." />
-                            ) : (
-                                <>
-                                    <div className="catalog-category-list">
-                                        {visibleCategories.map((category) => (
-                                            <CategoryAccordionItem
-                                                key={category.id}
-                                                category={category}
-                                                subcategories={subcategoriesByCategory.get(String(category.id)) || []}
-                                                productsBySubcategory={productsBySubcategory}
-                                                expanded={expandedCategoryIds.has(String(category.id))}
-                                                onToggle={() => toggleCategory(category.id)}
-                                                expandedSubIds={expandedSubIds}
-                                                onToggleSub={toggleSubcategory}
-                                                search={search}
+                                {!loading && !error && (
+                                    <div className="catalog-panel__actions">
+                                        <button
+                                            type="button"
+                                            className="catalog-panel__action"
+                                            onClick={expandAll}
+                                            disabled={treeEmpty}
+                                        >
+                                            <ChevronDown size={14} aria-hidden />
+                                            Expand
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="catalog-panel__action"
+                                            onClick={collapseAll}
+                                            disabled={!hasExpanded}
+                                        >
+                                            Collapse
+                                        </button>
+                                        <span className="catalog-panel__badge">
+                                            {visibleCategories.length} cat · {summary.products} products
+                                        </span>
+                                    </div>
+                                )}
+                            </header>
+
+                            <div className="catalog-panel__body">
+                                {loading ? (
+                                    <div className="catalog-skeleton-list">
+                                        {Array.from({ length: 5 }).map((_, i) => (
+                                            <div key={i} className="catalog-skeleton-row ds-skeleton" />
+                                        ))}
+                                    </div>
+                                ) : error ? (
+                                    <PageError message={error} onRetry={() => fetchAll()} />
+                                ) : treeEmpty ? (
+                                    <PageEmpty
+                                        title={search ? "No catalog matches" : "No catalog items yet"}
+                                        description={
+                                            search
+                                                ? "Try a different search term, or clear the filter."
+                                                : "Categories and products will appear here once available."
+                                        }
+                                        icon={search ? SearchX : Package}
+                                    />
+                                ) : (
+                                    <>
+                                        <div className="catalog-category-list">
+                                            {visibleCategories.map((category) => (
+                                                <CategoryAccordionItem
+                                                    key={category.id}
+                                                    category={category}
+                                                    subcategories={
+                                                        subcategoriesByCategory.get(String(category.id)) || []
+                                                    }
+                                                    productsBySubcategory={productsBySubcategory}
+                                                    expanded={expandedCategoryIds.has(String(category.id))}
+                                                    onToggle={() => toggleCategory(category.id)}
+                                                    expandedSubIds={expandedSubIds}
+                                                    onToggleSub={toggleSubcategory}
+                                                    search={search}
+                                                />
+                                            ))}
+                                        </div>
+
+                                        {filteredUnassigned.length > 0 && (
+                                            <div className="catalog-unassigned">
+                                                <header className="catalog-unassigned__header">
+                                                    <Package size={16} aria-hidden />
+                                                    <span>Other products</span>
+                                                    <span className="catalog-unassigned__hint">
+                                                        No subcategory assigned
+                                                    </span>
+                                                    <span className="catalog-unassigned__count">
+                                                        {filteredUnassigned.length}
+                                                    </span>
+                                                </header>
+                                                <div className="catalog-product-grid catalog-product-grid--flat">
+                                                    {filteredUnassigned.map((product) => (
+                                                        <ProductCatalogCard
+                                                            key={product.id}
+                                                            product={product}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        </section>
+
+                        <section
+                            className={`catalog-panel catalog-panel--brands ${
+                                activeView === "brands"
+                                    ? "catalog-panel--active"
+                                    : "catalog-panel--hidden-mobile"
+                            }`}
+                        >
+                            <header className="catalog-panel__header">
+                                <div className="catalog-panel__heading">
+                                    <Tag size={18} className="catalog-panel__heading-icon" aria-hidden />
+                                    <div>
+                                        <h2 className="catalog-panel__title">Brands</h2>
+                                        <p className="catalog-panel__subtitle">
+                                            Approved brand names for listings
+                                        </p>
+                                    </div>
+                                </div>
+                                {!loading && !error && (
+                                    <span className="catalog-panel__badge">
+                                        {filteredBrands.length} brands
+                                    </span>
+                                )}
+                            </header>
+
+                            <div className="catalog-panel__body">
+                                {loading ? (
+                                    <div className="catalog-brand-grid catalog-brand-grid--loading">
+                                        {Array.from({ length: 6 }).map((_, i) => (
+                                            <div
+                                                key={i}
+                                                className="catalog-brand-card ds-skeleton catalog-skeleton-brand"
                                             />
                                         ))}
                                     </div>
-
-                                    {filteredUnassigned.length > 0 && (
-                                        <div className="catalog-unassigned">
-                                            <header className="catalog-unassigned__header">
-                                                <Package size={16} aria-hidden />
-                                                <span>Other products</span>
-                                                <span className="catalog-unassigned__count">
-                                                    {filteredUnassigned.length}
-                                                </span>
-                                            </header>
-                                            <div className="catalog-product-grid catalog-product-grid--flat">
-                                                {filteredUnassigned.map((product) => (
-                                                    <ProductCatalogCard key={product.id} product={product} />
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </>
-                            )}
-                        </div>
-                    </section>
-
-                    <section className="catalog-panel catalog-panel--brands">
-                        <header className="catalog-panel__header">
-                            <div className="catalog-panel__heading">
-                                <Tag size={18} className="catalog-panel__heading-icon" aria-hidden />
-                                <div>
-                                    <h2 className="catalog-panel__title">Brands</h2>
-                                    <p className="catalog-panel__subtitle">Approved brand names for product listings</p>
-                                </div>
+                                ) : error ? null : filteredBrands.length === 0 ? (
+                                    <PageEmpty
+                                        title={search ? "No brands found" : "No brands yet"}
+                                        description={
+                                            search
+                                                ? "Try a different search term."
+                                                : "Approved brands will show up here."
+                                        }
+                                        icon={Tag}
+                                    />
+                                ) : (
+                                    <div className="catalog-brand-grid">
+                                        {filteredBrands.map((brand) => (
+                                            <BrandCard key={brand.id} brand={brand} />
+                                        ))}
+                                    </div>
+                                )}
                             </div>
-                            {!loading && !error && (
-                                <span className="catalog-panel__badge">{filteredBrands.length} brands</span>
-                            )}
-                        </header>
-
-                        <div className="catalog-panel__body">
-                            {loading ? (
-                                <div className="catalog-brand-grid catalog-brand-grid--loading">
-                                    {Array.from({ length: 6 }).map((_, i) => (
-                                        <div key={i} className="catalog-brand-card ds-skeleton catalog-skeleton-brand" />
-                                    ))}
-                                </div>
-                            ) : error ? null : filteredBrands.length === 0 ? (
-                                <PageEmpty title="No brands found" description="Try a different search term." />
-                            ) : (
-                                <div className="catalog-brand-grid">
-                                    {filteredBrands.map((brand) => (
-                                        <BrandCard key={brand.id} brand={brand} />
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </section>
+                        </section>
                     </div>
                 </div>
             </DashboardPageShell>
