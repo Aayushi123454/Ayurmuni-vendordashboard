@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { doctorService } from '../../../services/doctorService';
+import { vendorService } from '../../../services/vendorService';
 import logo from "../../../Assests/Aurmunilogo.png";
 import { Rnd } from "react-rnd";
 
@@ -25,7 +26,9 @@ import {
     RefreshCw,
     DeleteIcon,
     Leaf,
-    Loader2
+    Loader2,
+    XCircleIcon,
+    PencilIcon
 } from 'lucide-react';
 import { BsLungs, BsPrescription } from 'react-icons/bs';
 import toast from 'react-hot-toast';
@@ -33,6 +36,7 @@ import { FaAllergies } from 'react-icons/fa';
 import { MdFamilyRestroom } from 'react-icons/md';
 import DoctorQAPanelPremium from './questionsforpatient';
 import DoctorVideoCall from '../videocall/DoctorVideoCall';
+import DietProgress from './dietprogress';
 import { BiFoodMenu } from 'react-icons/bi';
 // import html2canvas from 'html2canvas';
 // import jsPDF from 'jspdf';
@@ -713,6 +717,10 @@ const AppointmentDetail = ({ videodetails }) => {
     const [showAddMed, setShowAddMed] = useState(false);
     const [expandedIdx, setExpandedIdx] = useState(null);
     const [editingPrescription, setEditingPrescription] = useState(null);
+    const [editingPrescriptionId, setEditingPrescriptionId] = useState(null);
+    const [editingAppointmentId, setEditingAppointmentId] = useState(null);
+    const [editingPrescriptionStatus, setEditingPrescriptionStatus] = useState("sent");
+    const [originalPrescriptionItems, setOriginalPrescriptionItems] = useState([]);
     const [savingPrescription, setSavingPrescription] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
     const [showCall, setshowCall] = useState(false)
@@ -764,6 +772,22 @@ const AppointmentDetail = ({ videodetails }) => {
     const [patientHistory, setPatientHistory] = useState([]);
     const [patientDocument, setPatientDocument] = useState([]);
     const [loader, setloader] = useState(false)
+    const [showUploadModal, setShowUploadModal] = useState(false);
+    const [selectedUploadFiles, setSelectedUploadFiles] = useState([]);
+    const [uploadMeta, setUploadMeta] = useState({
+        medical_record_type: 'prescription',
+        description: ''
+    });
+    const fileInputRef = useRef(null);
+
+    const MEDICAL_RECORD_TYPES = [
+        { value: 'prescription', label: 'Prescription' },
+        { value: 'lab_report', label: 'Lab Report' },
+        // { value: 'scan', label: 'Scan' },
+        // { value: 'xray', label: 'X-Ray' },
+        // { value: 'discharge_summary', label: 'Discharge Summary' },
+        { value: 'other', label: 'Other' },
+    ];
 
     useEffect(() => {
         fetchAppointmentDetails();
@@ -826,12 +850,33 @@ const AppointmentDetail = ({ videodetails }) => {
     const fetchPatientDocuments = async (id) => {
         try {
             const response = await doctorService.getAppointmentDoc(type, id);
-            if (response?.data?.data) {
-                setPatientDocument(response?.data?.data)
-            }
+            const payload = response?.data?.data;
+            const list = Array.isArray(payload)
+                ? payload
+                : Array.isArray(payload?.results)
+                    ? payload.results
+                    : [];
+            setPatientDocument(list);
         } catch (error) {
-            toast.error(error?.response?.data?.message || 'Failed to load Document history');
+            toast.error(error?.message || error?.response?.data?.message || 'Failed to load Document history');
         }
+    };
+
+    const getDocumentFileType = (file) => {
+        const ext = (file?.name?.split('.').pop() || '').toLowerCase();
+        if (file?.type?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+            return 'image';
+        }
+        if (ext === 'pdf' || file?.type === 'application/pdf') return 'pdf';
+        if (['doc', 'docx'].includes(ext)) return ext;
+        return ext || 'file';
+    };
+
+    const resetUploadForm = () => {
+        setShowUploadModal(false);
+        setSelectedUploadFiles([]);
+        setUploadMeta({ medical_record_type: 'prescription', description: '' });
+        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     const handleInputChange = (field, value) => {
@@ -956,20 +1001,172 @@ const AppointmentDetail = ({ videodetails }) => {
         }));
     };
 
+    const handleDeleteDocument = async (id) => {
+        try {
+            const res = await doctorService.deleteAppointmentDocument(id);
+            if (res.data.success) {
+                toast.success('Document deleted successfully');
+            }
+        } catch (error) {
+            toast.error(error?.message || error?.response?.data?.message || 'Failed to delete document');
+        }
+    };
+
+    const getEmptyPrescriptionForm = () => ({
+        symptom_description: "",
+        history_of_past_illness: "",
+        surgical_history: "",
+        allergies: "",
+        family_history: "",
+        clinical_notes: "",
+        diagnosis: "",
+        prescriptions: [],
+        follow_up: {
+            schedule: false,
+            date: "",
+            reason: "",
+        },
+        dos: "",
+        donts: "",
+    });
+
+    const convertArrayToBulletText = (items) => {
+        if (!items) return "";
+        if (typeof items === "string") return items;
+        if (!Array.isArray(items)) return "";
+        return items.map((item) => `• ${item}`).join("\n");
+    };
+
+    const isExistingPrescriptionItem = (id) =>
+        typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+    const getMedicineItemPayload = (med) => ({
+        medicine: med?.medicine?.id || med?.medicine || med?.medicine_id || "",
+        dosage: med?.dosage || "",
+        frequency: med?.frequency || "",
+        duration: med?.duration || "",
+        instruction: med?.instruction || "",
+    });
+
+    const mapPrescriptionItems = (items = []) =>
+        items.map((med) => ({
+            ...med,
+            id: med.id || Date.now() + Math.random(),
+            medicine_name: med.product_name || med.medicine_name || med.medicine?.product_name || "",
+            medicine: med.medicine?.id || med.medicine || med.medicine_id || "",
+            dosage: med.dosage || "",
+            frequency: med.frequency || "",
+            duration: med.duration || "",
+            instruction: med.instruction || "",
+            medicinedata: med.medicinedata || med.medicine || med,
+        }));
+
+    const handleEditPrescriptionForm = (record, e) => {
+        e?.stopPropagation?.();
+        e?.preventDefault?.();
+        try {
+            const followUp = record?.follow_up || {};
+            const followUpDate = followUp.date
+                ? String(followUp.date).slice(0, 10)
+                : "";
+            const mappedItems = mapPrescriptionItems(record?.prescription_items || record?.prescriptions || []);
+            setFormData({
+                symptom_description: record?.symptom_description || "",
+                history_of_past_illness: record?.history_of_past_illness || "",
+                surgical_history: record?.surgical_history || "",
+                allergies: record?.allergies || "",
+                family_history: record?.family_history || "",
+                clinical_notes: record?.clinical_notes || "",
+                diagnosis: record?.diagnosis_advice || record?.diagnosis || "",
+                prescriptions: mappedItems,
+                follow_up: {
+                    schedule: Boolean(followUp.schedule),
+                    date: followUpDate,
+                    reason: followUp.reason || "",
+                },
+                dos: convertArrayToBulletText(record?.dos),
+                donts: convertArrayToBulletText(record?.donts),
+            });
+            setEditingPrescriptionId(record?.id || null);
+            setEditingAppointmentId(record?.appointment_id || record?.appointment || appointment?.id || null);
+            setEditingPrescriptionStatus(record?.status || "sent");
+            setOriginalPrescriptionItems(mappedItems);
+            setShowAddMed(false);
+            setEditingPrescription(null);
+            setActiveTab("prescription");
+            toast.success("Prescription loaded for editing");
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to load prescription for editing");
+        }
+    };
+
+    const handleCancelEditPrescription = () => {
+        setEditingPrescriptionId(null);
+        setEditingAppointmentId(null);
+        setEditingPrescriptionStatus("sent");
+        setOriginalPrescriptionItems([]);
+        setFormData(getEmptyPrescriptionForm());
+        setShowAddMed(false);
+        setEditingPrescription(null);
+        setActiveTab("history");
+    };
+
     const handleFileUpload = (e) => {
-        const files = Array.from(e.target.files);
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        setSelectedUploadFiles(files);
+        setShowUploadModal(true);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const handleSubmitDocumentUpload = async () => {
+        if (!selectedUploadFiles.length) {
+            toast.error('Please select at least one document');
+            return;
+        }
+        if (!uploadMeta.medical_record_type) {
+            toast.error('Please select a medical record type');
+            return;
+        }
+
+        const currentAppointmentId = appointment?.id || (type !== 'patient' ? appointmentId : null);
+        if (!currentAppointmentId) {
+            toast.error('Appointment ID is required to upload documents');
+            return;
+        }
+
         setUploading(true);
-        setTimeout(() => {
-            setDocuments(prev => [...prev, ...files.map(f => ({
-                id: Date.now() + Math.random(),
-                name: f.name,
-                type: f.type,
-                size: f.size,
-                upload_date: new Date().toISOString(),
-                url: URL.createObjectURL(f)
-            }))]);
+        try {
+            let uploadedCount = 0;
+            for (const file of selectedUploadFiles) {
+                const uploadRes = await vendorService.uploadfiles(file, 'appointment_documents');
+                const fileUrl = uploadRes?.data?.data?.url || uploadRes?.data?.url;
+                if (!fileUrl) {
+                    toast.error(`Failed to upload ${file.name}`);
+                    continue;
+                }
+
+                await doctorService.uploadAppointmentDocument(currentAppointmentId, {
+                    file_url: fileUrl,
+                    file_type: getDocumentFileType(file),
+                    medical_record_type: uploadMeta.medical_record_type,
+                    description: uploadMeta.description?.trim() || file.name,
+                });
+                uploadedCount += 1;
+            }
+
+            if (uploadedCount > 0) {
+                toast.success(`${uploadedCount} document(s) uploaded successfully`);
+                resetUploadForm();
+                const docsId = type === 'patient' ? appointment?.patient?.id : appointment?.id;
+                await fetchPatientDocuments(docsId);
+            }
+        } catch (error) {
+            toast.error(error?.message || error?.response?.data?.message || 'Failed to upload document');
+        } finally {
             setUploading(false);
-        }, 1000);
+        }
     };
 
 
@@ -988,7 +1185,9 @@ const AppointmentDetail = ({ videodetails }) => {
     };
 
     const convertBulletTextToArray = (text) => {
-        return text
+        if (Array.isArray(text)) return text.filter(Boolean);
+        if (!text) return [];
+        return String(text)
             .split("\n")
             .map(line => line.replace(/^•\s*/, "").trim())
             .filter(Boolean);
@@ -999,25 +1198,42 @@ const AppointmentDetail = ({ videodetails }) => {
         setSavingPrescription(true);
         setUpdating(true)
 
-        const prescriptionData = {
-            id: Date.now().toString(),
-            appointment_id: appointment?.id,
-            surgical_history: formData.surgical_history,
-            allergies: formData.allergies,
-            family_history: formData.family_history,
-            symptom_description: formData.symptom_description,
-            history_of_past_illness: formData.history_of_past_illness,
-            clinical_notes: formData.clinical_notes,
-            diagnosis_advice: formData.diagnosis,
-            prescription_items: formData.prescriptions,
-            follow_up: formData.follow_up,
-            dos: convertBulletTextToArray(formData?.dos),
-            donts: convertBulletTextToArray(formData?.donts)
-        };
+        const isEditing = Boolean(editingPrescriptionId);
+        const prescriptionData = isEditing
+            ? {
+                symptom_description: formData.symptom_description,
+                history_of_past_illness: formData.history_of_past_illness,
+                surgical_history: formData.surgical_history,
+                allergies: formData.allergies,
+                family_history: formData.family_history,
+                clinical_notes: formData.clinical_notes,
+                diagnosis_advice: formData.diagnosis,
+                dos: convertBulletTextToArray(formData?.dos),
+                donts: convertBulletTextToArray(formData?.donts),
+                follow_up: formData.follow_up,
+                status: editingPrescriptionStatus || "sent",
+                prescription_items: formData.prescriptions,
+            }
+            : {
+                id: Date.now().toString(),
+                appointment_id: appointment?.id,
+                surgical_history: formData.surgical_history,
+                allergies: formData.allergies,
+                family_history: formData.family_history,
+                symptom_description: formData.symptom_description,
+                history_of_past_illness: formData.history_of_past_illness,
+                clinical_notes: formData.clinical_notes,
+                diagnosis_advice: formData.diagnosis,
+                prescription_items: formData.prescriptions,
+                follow_up: formData.follow_up,
+                dos: convertBulletTextToArray(formData?.dos),
+                donts: convertBulletTextToArray(formData?.donts)
+            };
 
         const dietplanData = {
             "patient_id": appointment?.patient?.id,
             "diet_plan_id": selecteddietplan?.id,
+            "appointment_id": appointment?.id,
             // "additional_notes": [
             //     "Avoid cold drinks",
             //     "Drink warm water in the morning"
@@ -1026,12 +1242,59 @@ const AppointmentDetail = ({ videodetails }) => {
         }
 
         try {
-            const res = await doctorService.postprescription(
-                appointment?.patient?.id,
-                prescriptionData
-            );
+            const res = isEditing
+                ? await doctorService.editPrescription(
+                    appointment?.patient?.id,
+                    editingPrescriptionId,
+                    prescriptionData
+                )
+                : await doctorService.postprescription(
+                    appointment?.patient?.id,
+                    prescriptionData
+                );
 
             if (res.data.success) {
+                if (isEditing) {
+                    const currentItems = formData.prescriptions || [];
+                    const currentIds = new Set(
+                        currentItems.map((med) => med.id).filter(isExistingPrescriptionItem)
+                    );
+
+                    const removedItems = originalPrescriptionItems.filter(
+                        (med) => isExistingPrescriptionItem(med.id) && !currentIds.has(med.id)
+                    );
+                    for (const med of removedItems) {
+                        await doctorService.deletePrescriptionItem(med.id);
+                    }
+
+                    const originalById = Object.fromEntries(
+                        originalPrescriptionItems
+                            .filter((med) => isExistingPrescriptionItem(med.id))
+                            .map((med) => [med.id, med])
+                    );
+
+                    for (const med of currentItems) {
+                        const payload = getMedicineItemPayload(med);
+                        if (!payload.medicine) continue;
+
+                        if (isExistingPrescriptionItem(med.id)) {
+                            const original = originalById[med.id];
+                            const hasChanged = !original ||
+                                String(original.medicine) !== String(payload.medicine) ||
+                                String(original.dosage || "") !== String(payload.dosage) ||
+                                String(original.frequency || "") !== String(payload.frequency) ||
+                                String(original.duration || "") !== String(payload.duration) ||
+                                String(original.instruction || "") !== String(payload.instruction);
+                            if (hasChanged) {
+                                await doctorService.updatePrescriptionItem(med.id, payload);
+                            }
+                        }
+                        // else {
+                        //     await doctorService.addPrescriptionItem(editingPrescriptionId, payload);
+                        // }
+                    }
+                }
+
                 // Save diet plan if selected
                 if (selecteddietplan?.id) {
                     const getdietplan = await doctorService.getdietbyid(
@@ -1048,27 +1311,14 @@ const AppointmentDetail = ({ videodetails }) => {
                     }
                 }
 
-                toast.success("Prescription saved successfully!");
+                toast.success(isEditing ? "Prescription updated successfully!" : "Prescription saved successfully!");
 
                 setShowPreview(false);
-
-                setFormData({
-                    symptom_description: "",
-                    history_of_past_illness: "",
-                    surgical_history: "",
-                    allergies: "",
-                    family_history: "",
-                    clinical_notes: "",
-                    diagnosis: "",
-                    prescriptions: [],
-                    follow_up: {
-                        schedule: false,
-                        date: "",
-                        reason: "",
-                    },
-                    dos: "",
-                    donts: "",
-                });
+                setEditingPrescriptionId(null);
+                setEditingAppointmentId(null);
+                setEditingPrescriptionStatus("sent");
+                setOriginalPrescriptionItems([]);
+                setFormData(getEmptyPrescriptionForm());
 
                 fetchAppointmentDetails();
                 setActiveTab("history");
@@ -1076,18 +1326,18 @@ const AppointmentDetail = ({ videodetails }) => {
             } else {
                 toast.error(
                     res?.data?.errors?.appointment_id?.[0] ||
-                    "Failed to save prescription"
+                    (isEditing ? "Failed to update prescription" : "Failed to save prescription")
                 );
             }
         } catch (err) {
-            console.error("Failed to save prescription:", err);
+            console.error(isEditing ? "Failed to update prescription:" : "Failed to save prescription:", err);
 
             setUpdating(false);
 
             toast.error(
                 err?.response?.data?.message ||
                 err?.message ||
-                "Failed to save prescription"
+                (isEditing ? "Failed to update prescription" : "Failed to save prescription")
             );
         } finally {
             setSavingPrescription(false);
@@ -1246,6 +1496,7 @@ const AppointmentDetail = ({ videodetails }) => {
     const tabs = [
         { id: 'prescription', label: 'Prescription', icon: Pill },
         { id: 'questions', label: 'Questions', icon: Notebook },
+        { id: 'diet-progress', label: 'Diet Progress', icon: Leaf },
         { id: 'history', label: 'History', icon: History },
         { id: 'documents', label: 'Documents', icon: FileHeart },
         // { id: 'billing', label: 'Billing', icon: IndianRupee },
@@ -1409,10 +1660,25 @@ const AppointmentDetail = ({ videodetails }) => {
 
                                 {/* Prescription Tab */}
                                 {activeTab === 'prescription' && (
-                                    appointment?.status == "confirmed"
+                                    appointment?.status == "confirmed" || editingPrescriptionId
                                         // || appointment?.status == "completed"
                                         ?
                                         <div className="space-y-6">
+                                            {editingPrescriptionId && (
+                                                <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-emerald-200 bg-emerald-50">
+                                                    <div className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
+                                                        <PencilIcon className="w-4 h-4" />
+                                                        Editing existing prescription
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleCancelEditPrescription}
+                                                        className="text-xs font-semibold text-emerald-700 hover:text-emerald-900"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            )}
                                             {/* Chief Complaint */}
                                             <div className="space-y-2">
                                                 <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
@@ -2746,6 +3012,17 @@ const AppointmentDetail = ({ videodetails }) => {
 
                                             {/* Save Prescription Button */}
                                             <div className="flex justify-end gap-3 pt-4">
+                                                {editingPrescriptionId && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleCancelEditPrescription}
+                                                        disabled={updating}
+                                                        className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold hover:bg-gray-200 transition-all disabled:opacity-50"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                        Cancel Edit
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={handleSavePrescription}
                                                     disabled={
@@ -2761,7 +3038,9 @@ const AppointmentDetail = ({ videodetails }) => {
                                                         }`}
                                                 >
                                                     <Save className="w-4 h-4" />
-                                                    {updating ? "Saving..." : "Save Prescription"}
+                                                    {updating
+                                                        ? (editingPrescriptionId ? "Updating..." : "Saving...")
+                                                        : (editingPrescriptionId ? "Update Prescription" : "Save Prescription")}
                                                 </button>
                                             </div>
                                         </div>
@@ -2823,6 +3102,10 @@ const AppointmentDetail = ({ videodetails }) => {
                                     <DoctorQAPanelPremium patientid={appointment?.patient?.id} />
                                 )}
 
+                                {activeTab === 'diet-progress' && (
+                                    <DietProgress patientId={appointment?.patient?.id} />
+                                )}
+
                                 {/* History Tab */}
                                 {activeTab === 'history' && (
                                     <>
@@ -2862,9 +3145,9 @@ const AppointmentDetail = ({ videodetails }) => {
                                                             <div className="ml-16 bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-all">
 
                                                                 {/* Card Header - Click to Expand */}
-                                                                <button
+                                                                <div
                                                                     onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)}
-                                                                    className="w-full flex items-center justify-between px-6 py-5 hover:bg-gray-50 transition-colors group"
+                                                                    className="w-full flex items-center justify-between px-6 py-5 hover:bg-gray-50 transition-colors group cursor-pointer"
                                                                 >
                                                                     <div className="flex-1 text-left">
                                                                         {/* Date & Time */}
@@ -2898,12 +3181,25 @@ const AppointmentDetail = ({ videodetails }) => {
                                                                             </span>
                                                                         </div>
 
+                                                                        {/* Edit Icon */}
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={(e) => handleEditPrescriptionForm(record, e)}
+                                                                            className={`cursor-pointer p-2 rounded-xl transition ${editingPrescriptionId === record.id
+                                                                                ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                                                                                : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                                                                                }`}
+                                                                            title="Edit prescription"
+                                                                        >
+                                                                            <PencilIcon className={`w-5 h-5 ${editingPrescriptionId === record.id ? "text-white" : "text-emerald-600"}`} />
+                                                                        </button>
+
                                                                         {/* Expand Icon */}
                                                                         <div className={`text-gray-400 transition-transform ${expandedIdx === idx ? 'rotate-180' : ''}`}>
                                                                             {expandedIdx === idx ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                                                                         </div>
                                                                     </div>
-                                                                </button>
+                                                                </div>
 
                                                                 {/* Expandable Content */}
                                                                 {expandedIdx === idx && (
@@ -3233,7 +3529,7 @@ const AppointmentDetail = ({ videodetails }) => {
                                 {/* Documents Tab */}
                                 {activeTab === 'documents' && (
                                     <div className="space-y-5">
-                                        {/* <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between">
                                             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
                                                 <FileHeart className="w-3.5 h-3.5 text-emerald-600" />
                                                 Medical Records
@@ -3243,16 +3539,23 @@ const AppointmentDetail = ({ videodetails }) => {
                                                     style={{ background: '#0D614E' }}>
                                                     <Upload className="w-4 h-4" /> Upload Document
                                                 </span>
-                                                <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                                                <input
+                                                    ref={fileInputRef}
+                                                    type="file"
+                                                    multiple
+                                                    className="hidden"
+                                                    onChange={handleFileUpload}
+                                                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                                />
                                             </label>
-                                        </div> */}
+                                        </div>
 
-                                        {/* {patientDocument && (
+                                        {uploading && (
                                             <div className="flex items-center gap-3 p-4 bg-emerald-50 rounded-xl border border-emerald-200">
                                                 <div className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#0D614E', borderTopColor: 'transparent' }} />
                                                 <span className="text-sm text-[#0D614E]">Uploading document(s)...</span>
                                             </div>
-                                        )} */}
+                                        )}
 
                                         {patientDocument?.length > 0 ? (
                                             <div className="grid grid-cols-1 gap-3">
@@ -3297,6 +3600,13 @@ const AppointmentDetail = ({ videodetails }) => {
                                                             >
                                                                 <Eye size={16} />
                                                             </a>
+                                                            {
+                                                                appointment?.doctor_id == doc?.added_by?.id && (
+                                                                    <a onClick={() => handleDeleteDocument(doc.id)} className="cursor-pointer p-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition">
+                                                                        <XCircleIcon className="w-5 h-5 text-red-600 " />
+                                                                    </a>
+                                                                )
+                                                            }
                                                         </div>
                                                     </div>
                                                 ))}
@@ -3414,6 +3724,89 @@ const AppointmentDetail = ({ videodetails }) => {
                     </div>
                 </div>
             </div>
+
+            {showUploadModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900">Upload Medical Record</h3>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                    {selectedUploadFiles.length} file{selectedUploadFiles.length !== 1 ? 's' : ''} selected
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={resetUploadForm}
+                                disabled={uploading}
+                                className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="px-6 py-5 space-y-4">
+                            <div className="space-y-2 max-h-32 overflow-y-auto">
+                                {selectedUploadFiles.map((file, index) => (
+                                    <div key={`${file.name}-${index}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                        <FileText className="w-4 h-4 text-[#0D614E] shrink-0" />
+                                        <span className="text-sm text-gray-700 truncate">{file.name}</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                                    Medical Record Type
+                                </label>
+                                <select
+                                    value={uploadMeta.medical_record_type}
+                                    onChange={(e) => setUploadMeta((prev) => ({ ...prev, medical_record_type: e.target.value }))}
+                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#0D614E]/20 focus:border-[#0D614E]"
+                                >
+                                    {MEDICAL_RECORD_TYPES.map((item) => (
+                                        <option key={item.value} value={item.value}>{item.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                                    Description
+                                </label>
+                                <textarea
+                                    rows={3}
+                                    value={uploadMeta.description}
+                                    onChange={(e) => setUploadMeta((prev) => ({ ...prev, description: e.target.value }))}
+                                    placeholder="e.g. Post-consultation prescription"
+                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#0D614E]/20 focus:border-[#0D614E] resize-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={resetUploadForm}
+                                disabled={uploading}
+                                className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSubmitDocumentUpload}
+                                disabled={uploading}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-semibold transition-all hover:shadow-md disabled:opacity-60"
+                                style={{ background: '#0D614E' }}
+                            >
+                                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                {uploading ? 'Uploading...' : 'Upload'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Prescription Preview Modal */}
             {showPreview && (

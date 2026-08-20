@@ -33,6 +33,18 @@ import {
     UNICOMMERCE_NOTICES,
 } from "../../../utils/unicommerceHelpers";
 
+const roundToTwo = (value) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return 0;
+    return Math.round((num + Number.EPSILON) * 100) / 100;
+};
+
+const formatMoney = (value) =>
+    roundToTwo(value).toLocaleString("en-IN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+
 export default function EditProduct() {
     const navigate = useNavigate();
     const { id } = useParams();
@@ -173,7 +185,12 @@ export default function EditProduct() {
                         preview: variant.media.find(m => m.is_cover).media_url,
                         file: null
                     } : null),
-                    vendor_price: variant.vendor_price || calculateVendorPrice(variant),
+                    vendor_price:
+                        variant.vendor_price !== undefined &&
+                        variant.vendor_price !== null &&
+                        variant.vendor_price !== ""
+                            ? variant.vendor_price
+                            : calculateVendorPrice(variant),
                 })
                 );
 
@@ -218,15 +235,38 @@ export default function EditProduct() {
         }
     };
 
+    const getFeeBreakdown = (basePrice) => {
+        const price = Number(basePrice) || 0;
+        const platformFeeAmount = roundToTwo((price * platformFee) / 100);
+        const gstOnFee = roundToTwo((platformFeeAmount * gst) / 100);
+        return { platformFeeAmount, gstOnFee };
+    };
+
+    const calculatePricesFromInput = (enteredPrice, mode = priceType) => {
+        const { platformFeeAmount, gstOnFee } = getFeeBreakdown(enteredPrice);
+        if (mode === "TP") {
+            return {
+                vendor_price: roundToTwo(enteredPrice),
+                selling_price: roundToTwo(Number(enteredPrice) + platformFeeAmount + gstOnFee),
+                platformFeeAmount,
+                gstOnFee,
+            };
+        }
+        return {
+            vendor_price: roundToTwo(Number(enteredPrice) - platformFeeAmount - gstOnFee),
+            selling_price: roundToTwo(enteredPrice),
+            platformFeeAmount,
+            gstOnFee,
+        };
+    };
+
     const calculateVendorPrice = (variant) => {
         const sellingPrice = parseFloat(variant.selling_price);
+        if (!Number.isFinite(sellingPrice)) return 0;
         if (variant.calculation_mode === "trade_price") {
-            return sellingPrice;
-        } else {
-            const platformFeeAmount = (sellingPrice * platformFee) / 100;
-            const gstOnFee = (platformFeeAmount * gst) / 100;
-            return sellingPrice - platformFeeAmount - gstOnFee;
+            return roundToTwo(sellingPrice);
         }
+        return calculatePricesFromInput(sellingPrice, "SP").vendor_price;
     };
 
     const fetchdatabrandcat = async () => {
@@ -484,9 +524,12 @@ export default function EditProduct() {
             toast.error("Product type is required");
             return false;
         }
-        if (variantForm.mrp && variantForm.selling_price && Number(variantForm.mrp) < Number(variantForm.selling_price)) {
-            toast.error("MRP must be greater than or equal to selling price");
-            return false;
+        if (variantForm.mrp && variantForm.selling_price) {
+            const finalSellingPrice = calculatePricesFromInput(variantForm.selling_price, priceType).selling_price;
+            if (Number(variantForm.mrp) < finalSellingPrice) {
+                toast.error("MRP must be greater than or equal to selling price");
+                return false;
+            }
         }
         return true;
     };
@@ -501,13 +544,26 @@ export default function EditProduct() {
                 is_cover: item.is_cover || (variantForm.coverImage?.id === item.id)
             }));
 
+            const enteredPrice = Number(variantForm.selling_price);
+            const newMode = priceType === "TP" ? "trade_price" : "selling_price";
+            const computed = calculatePricesFromInput(enteredPrice, priceType);
+            const originalMode = editingVariant?.calculation_mode || newMode;
+            const originalEntered = originalMode === "trade_price"
+                ? Number(editingVariant?.vendor_price)
+                : Number(editingVariant?.selling_price);
+            const amountUnchanged = Boolean(
+                editingVariant &&
+                originalMode === newMode &&
+                roundToTwo(originalEntered) === roundToTwo(enteredPrice)
+            );
+
             const newVariant = {
                 id: editingVariant ? editingVariant.id : Date.now(),
                 vendor_sku_code: variantForm.vendor_sku_code || generateSKU(),
                 title: variantForm.title,
-                mrp: parseFloat(variantForm.mrp),
+                mrp: roundToTwo(variantForm.mrp),
                 discount: variantForm.discount || "",
-                cost_per_item: variantForm.cost_per_item ? parseFloat(variantForm.cost_per_item) : "",
+                cost_per_item: variantForm.cost_per_item ? roundToTwo(variantForm.cost_per_item) : "",
                 stock: parseInt(variantForm.stock),
                 low_stock_threshold: variantForm.low_stock_threshold || "",
                 is_free_shipping: variantForm.is_free_shipping || false,
@@ -518,7 +574,7 @@ export default function EditProduct() {
                 media: mediaurls,
                 galleryImages: variantForm.galleryImages,
                 hsn_code: variantForm.hsn_code,
-                calculation_mode: priceType == "TP" ? "trade_price" : "selling_price",
+                calculation_mode: newMode,
                 taxes: [
                     { name: "GST", rate: gst },
                     { name: "Platform Fee", rate: platformFee }
@@ -530,13 +586,8 @@ export default function EditProduct() {
                 prescription_required: variantForm.prescription_required,
                 coverImage: variantForm.coverImage,
                 is_active: true,
-                vendor_price: parseFloat(priceType == "TP" ? variantForm.selling_price : (Number(variantForm.selling_price) -
-                    (variantForm.selling_price * platformFee / 100) -
-                    ((variantForm.selling_price * platformFee / 100) * gst / 100)).toFixed(2)),
-                selling_price: parseFloat(priceType == "TP" ? (Number(variantForm.selling_price) +
-                    (variantForm.selling_price * platformFee / 100) +
-                    ((variantForm.selling_price * platformFee / 100) * gst / 100)).toFixed(2) :
-                    variantForm.selling_price)
+                vendor_price: amountUnchanged ? editingVariant.vendor_price : computed.vendor_price,
+                selling_price: amountUnchanged ? editingVariant.selling_price : computed.selling_price,
             };
 
             if (editingVariant) {
@@ -549,7 +600,6 @@ export default function EditProduct() {
                     ? getUpdatedFields(newVariant, originalVariant)
                     : newVariant;
 
-                console.log(originalVariant, onlyupdate);
                 const response = await vendorService?.updateVariants(
                     id,
                     editingVariant.id,
@@ -645,11 +695,18 @@ export default function EditProduct() {
             file: null,
         })) || [];
 
+        const isTradePrice = variant.calculation_mode === "trade_price";
+        const enteredPrice = isTradePrice
+            ? (variant.vendor_price ?? variant.selling_price)
+            : (variant.selling_price ?? variant.vendor_price);
+
         setVariantForm({
             vendor_sku_code: variant.vendor_sku_code,
             title: variant.title,
             mrp: variant.mrp,
-            selling_price: variant.vendor_price,
+            selling_price: enteredPrice !== undefined && enteredPrice !== null && enteredPrice !== ""
+                ? roundToTwo(enteredPrice)
+                : "",
             discount: variant.discount || "",
             cost_per_item: variant.cost_per_item || "",
             stock: variant.stock,
@@ -668,7 +725,12 @@ export default function EditProduct() {
             prescription_required: variant.prescription_required,
             coverImage: variant.coverImage || (restoredGallery.find(img => img.is_cover) || restoredGallery[0]),
             calculation_mode: variant.calculation_mode || (priceType == "TP" ? "trade_price" : "selling_price"),
-            vendor_price: variant.vendor_price || calculateVendorPrice(variant),
+            vendor_price:
+                variant.vendor_price !== undefined &&
+                variant.vendor_price !== null &&
+                variant.vendor_price !== ""
+                    ? variant.vendor_price
+                    : calculateVendorPrice(variant),
             taxes: variant.taxes || [
                 { name: "GST", rate: gst },
                 { name: "Platform Fee", rate: platformFee }
@@ -747,8 +809,6 @@ export default function EditProduct() {
     ];
 
     const getUpdatedFields = (current, original) => {
-        console.log(current, original);
-
         const result = {};
         Object.keys(current).forEach((key) => {
             if (EXCLUDED_KEYS.includes(key)) return;
@@ -771,6 +831,20 @@ export default function EditProduct() {
                 if (JSON.stringify(value) !== JSON.stringify(oldValue)) {
                     result[key] = value;
                 }
+                return;
+            }
+
+            const bothNumeric =
+                typeof value !== "boolean" &&
+                typeof oldValue !== "boolean" &&
+                value !== "" &&
+                oldValue !== "" &&
+                oldValue !== null &&
+                oldValue !== undefined &&
+                Number.isFinite(Number(value)) &&
+                Number.isFinite(Number(oldValue));
+
+            if (bothNumeric && roundToTwo(value) === roundToTwo(oldValue)) {
                 return;
             }
 
@@ -1128,7 +1202,7 @@ export default function EditProduct() {
                                     <IndianRupee size={20} />
                                     <div>
                                         <strong>Price Range</strong>
-                                        <p>₹{priceRange?.min} - ₹{priceRange?.max}</p>
+                                        <p>₹{formatMoney(priceRange?.min)} - ₹{formatMoney(priceRange?.max)}</p>
                                     </div>
                                 </div>
                                 <div className="summary-card">
@@ -1174,9 +1248,9 @@ export default function EditProduct() {
                                                     <p>Size: {variant.size}{variant.weightage}</p>
                                                 </div>
                                             </div>
-                                            <div className="col-mrp">₹{variant.mrp}</div>
-                                            <div className="col-price">₹{Number(variant.selling_price).toFixed(2)}</div>
-                                            <div className="col-price">₹{Number(variant.vendor_price).toFixed(2) || "N/A"}</div>
+                                            <div className="col-mrp">₹{formatMoney(variant.mrp)}</div>
+                                            <div className="col-price">₹{formatMoney(variant.selling_price)}</div>
+                                            <div className="col-price">₹{variant.vendor_price !== undefined && variant.vendor_price !== null && variant.vendor_price !== "" ? formatMoney(variant.vendor_price) : "N/A"}</div>
                                             <div className="col-stock">
                                                 <span className={`stock-badge ${getVariantQuantity(variant) <= (variant.low_stock_threshold || 5) ? 'low-stock' : ''}`}>
                                                     {getVariantQuantity(variant)} in stock
@@ -1379,7 +1453,7 @@ export default function EditProduct() {
 
                                 <div className="form-row">
                                     <div className="form-group">
-                                        <label>Vendor Price <span className="required">*</span></label>
+                                        <label>{priceType === "TP" ? "Vendor Price" : "Selling Price"} <span className="required">*</span></label>
                                         <input
                                             type="number"
                                             name="selling_price"
@@ -1516,20 +1590,20 @@ export default function EditProduct() {
                                     </div>
                                 </div>
 
-                                {console.log("variantForm?.selling_price", variantForm)}
-
                                 {variantForm?.selling_price > 0 && (
                                     <div className="price-calculator">
                                         <div className="calculator-header">
                                             <h4>Price Calculator</h4>
                                             <div className="calculator-mode">
                                                 <button
+                                                    type="button"
                                                     className={`mode-btn ${priceType === "TP" ? "active" : ""}`}
                                                     onClick={() => setPriceType("TP")}
                                                 >
                                                     Trade Price → Selling Price
                                                 </button>
                                                 <button
+                                                    type="button"
                                                     className={`mode-btn ${priceType === "SP" ? "active" : ""}`}
                                                     onClick={() => setPriceType("SP")}
                                                 >
@@ -1539,53 +1613,52 @@ export default function EditProduct() {
                                         </div>
 
                                         <div className="calculator-content">
-                                            {priceType === "TP" ? (
-                                                <>
-                                                    <div className="calc-row">
-                                                        <span>💰 Vendor Price (Trade Price):</span>
-                                                        <strong>₹{Number(variantForm.selling_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
-                                                    </div>
-                                                    <div className="calc-row">
-                                                        <span>🎯 Platform Fee ({platformFee}%):</span>
-                                                        <span className="text-amber-600">+ ₹{((variantForm.selling_price * platformFee) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                                                    </div>
-                                                    <div className="calc-row">
-                                                        <span>📊 GST on Fee ({gst}%):</span>
-                                                        <span className="text-amber-600">+ ₹{(((variantForm.selling_price * platformFee) / 100) * gst / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                                                    </div>
-                                                    <div className="calc-row total">
-                                                        <span>💰 Final Selling Price:</span>
-                                                        <strong className="text-emerald-600">
-                                                            ₹{(Number(variantForm.selling_price) +
-                                                                (variantForm.selling_price * platformFee / 100) +
-                                                                ((variantForm.selling_price * platformFee / 100) * gst / 100)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                                        </strong>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <div className="calc-row">
-                                                        <span>💰 Selling Price:</span>
-                                                        <strong>₹{Number(variantForm.selling_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
-                                                    </div>
-                                                    <div className="calc-row">
-                                                        <span>🎯 Platform Fee ({platformFee}%):</span>
-                                                        <span className="text-red-500">- ₹{((variantForm.selling_price * platformFee) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                                                    </div>
-                                                    <div className="calc-row">
-                                                        <span>📊 GST on Fee ({gst}%):</span>
-                                                        <span className="text-red-500">- ₹{(((variantForm.selling_price * platformFee) / 100) * gst / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                                                    </div>
-                                                    <div className="calc-row total">
-                                                        <span>💰 Vendor Price:</span>
-                                                        <strong className="text-blue-600">
-                                                            ₹{(Number(variantForm.selling_price) -
-                                                                (variantForm.selling_price * platformFee / 100) -
-                                                                ((variantForm.selling_price * platformFee / 100) * gst / 100)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                                        </strong>
-                                                    </div>
-                                                </>
-                                            )}
+                                            {(() => {
+                                                const breakdown = calculatePricesFromInput(variantForm.selling_price, priceType);
+                                                return priceType === "TP" ? (
+                                                    <>
+                                                        <div className="calc-row">
+                                                            <span>💰 Vendor Price (Trade Price):</span>
+                                                            <strong>₹{formatMoney(variantForm.selling_price)}</strong>
+                                                        </div>
+                                                        <div className="calc-row">
+                                                            <span>🎯 Platform Fee ({platformFee}%):</span>
+                                                            <span className="text-amber-600">+ ₹{formatMoney(breakdown.platformFeeAmount)}</span>
+                                                        </div>
+                                                        <div className="calc-row">
+                                                            <span>📊 GST on Fee ({gst}%):</span>
+                                                            <span className="text-amber-600">+ ₹{formatMoney(breakdown.gstOnFee)}</span>
+                                                        </div>
+                                                        <div className="calc-row total">
+                                                            <span>💰 Final Selling Price:</span>
+                                                            <strong className="text-emerald-600">
+                                                                ₹{formatMoney(breakdown.selling_price)}
+                                                            </strong>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <div className="calc-row">
+                                                            <span>💰 Selling Price:</span>
+                                                            <strong>₹{formatMoney(variantForm.selling_price)}</strong>
+                                                        </div>
+                                                        <div className="calc-row">
+                                                            <span>🎯 Platform Fee ({platformFee}%):</span>
+                                                            <span className="text-red-500">- ₹{formatMoney(breakdown.platformFeeAmount)}</span>
+                                                        </div>
+                                                        <div className="calc-row">
+                                                            <span>📊 GST on Fee ({gst}%):</span>
+                                                            <span className="text-red-500">- ₹{formatMoney(breakdown.gstOnFee)}</span>
+                                                        </div>
+                                                        <div className="calc-row total">
+                                                            <span>💰 Vendor Price:</span>
+                                                            <strong className="text-blue-600">
+                                                                ₹{formatMoney(breakdown.vendor_price)}
+                                                            </strong>
+                                                        </div>
+                                                    </>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                 )}

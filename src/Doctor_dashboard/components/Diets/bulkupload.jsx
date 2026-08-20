@@ -36,23 +36,23 @@ const MAX_FILE_SIZE_MB = 10;
 const SHEET_GUIDE = [
     {
         name: "General",
-        columns: "plan_id, name, prakriti, season, health_disease, is_paid, price, is_common",
-        tip: "One row per diet plan. Use unique plan_id values (e.g. DP001). Separate multiple diseases with |.",
+        columns: "plan_id, name, prakriti, season, health_disease, is_paid, price, is_common, guidance",
+        tip: "One row per diet plan. Use unique plan_id values (e.g. DP001). Separate multiple diseases and guidance points with |.",
     },
     {
         name: "Schedule",
-        columns: "plan_id, day, meal_time, food_name, quantity, notes, preparation_steps, meal_calories, meal_protein, meal_carbs, meal_fat",
-        tip: "Link meals to a plan_id from General. meal_time: morning, breakfast, midday, lunch, dinner.",
+        columns: "plan_id, day, meal_time, food_name, quantity, notes, recipe, preparation_steps, meal_calories, meal_protein, meal_carbs, meal_fat",
+        tip: "Link meals to a plan_id from General. meal_time: morning, breakfast, midday, lunch, dinner. Separate recipe URLs and preparation steps with |.",
     },
     {
         name: "Gallery",
         columns: "plan_id, image_scope, day, meal_time, image_url, caption, is_cover",
-        tip: "image_scope: DIET_PLAN or MEAL. For MEAL rows, include day and meal_time. Use public image URLs.",
+        tip: "image_scope: DIET_PLAN or MEAL. For MEAL rows, include day and meal_time. Use public image URLs. is_cover applies to DIET_PLAN images only.",
     },
     {
         name: "References",
         columns: "disease_name, season, prakriti, meal_time, image_scope",
-        tip: "Allowed values for diseases, seasons, prakriti, meal times, and image scopes. Do not upload custom values outside this list.",
+        tip: "Allowed values for diseases, seasons (including monsoon and all_seasons), prakriti, meal times, and image scopes. Do not upload custom values outside this list.",
     },
 ];
 
@@ -827,7 +827,7 @@ const BulkUploadDietPlans = () => {
                                     2
                                 </span>
                                 <span>
-                                    Fill plan rows in General, then add meals and images using the same{" "}
+                                    Fill plan rows in General (including guidance points), then add meals, recipe links, and images using the same{" "}
                                     <strong>plan_id</strong>.
                                 </span>
                             </li>
