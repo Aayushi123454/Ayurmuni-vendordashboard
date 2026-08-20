@@ -1273,7 +1273,7 @@ const ChipInput = ({ items, name, onAdd, onRemove, options, disabled, placeholde
                         key={idx}
                         className="inline-flex items-center space-x-1 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm"
                     >
-                        <span>{selectedOption.name}</span>
+                        <span>{selectedOption?.name}</span>
 
                         {
                             !disabled &&

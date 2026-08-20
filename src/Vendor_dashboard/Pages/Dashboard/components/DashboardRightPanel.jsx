@@ -3,9 +3,7 @@ import {
     AlertTriangle,
     ArrowRight,
     Bell,
-    // BookOpen,
     Clock,
-    // Image,
     Layers,
     Package,
     ShoppingBag,
@@ -15,27 +13,27 @@ import StatusBadge from "../../../components/shared/StatusBadge";
 
 function PanelCard({ title, action, actionLabel, children, className = "" }) {
     return (
-        <div className={`rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md ${className}`}>
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-50 bg-gray-50/50">
-                <h3 className="text-sm font-semibold text-gray-800">{title}</h3>
+        <div className={`rounded-xl border border-gray-100 bg-white shadow-sm overflow-hidden ${className}`}>
+            <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-gray-50">
+                <h3 className="text-xs font-semibold text-gray-800 uppercase tracking-wide">{title}</h3>
                 {action && (
                     <button
                         type="button"
                         onClick={action}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-[#0D614E] hover:text-[#094c3d] transition-colors duration-200 ds-focus rounded-md px-1 py-0.5"
+                        className="inline-flex items-center gap-0.5 text-[11px] font-medium text-[#0D614E] hover:text-[#094c3d] transition-colors ds-focus rounded px-1"
                     >
-                        {actionLabel || "View all"}
-                        <ArrowRight size={12} />
+                        {actionLabel || "View"}
+                        <ArrowRight size={11} />
                     </button>
                 )}
             </div>
-            <div className="p-4">{children}</div>
+            <div className="p-3">{children}</div>
         </div>
     );
 }
 
 function EmptyPanel({ message }) {
-    return <p className="text-sm text-gray-400 text-center py-6">{message}</p>;
+    return <p className="text-xs text-gray-400 text-center py-4">{message}</p>;
 }
 
 export default function DashboardRightPanel({
@@ -49,20 +47,18 @@ export default function DashboardRightPanel({
 }) {
     const quickLinks = [
         { label: "Add Product", icon: Package, path: "/vendor/new-product" },
-        { label: "Stock Management", icon: Layers, path: "/vendor/stock" },
-        // { label: "Banners", icon: Image, path: "/vendor/banners" },
-        // { label: "Catalog Reference", icon: BookOpen, path: "/vendor/catalog" },
+        { label: "Stock", icon: Layers, path: "/vendor/stock" },
     ];
 
     return (
-        <aside className="space-y-4 lg:space-y-5">
+        <aside className="space-y-3">
             <PanelCard title="Recent Orders" action={() => onNavigate("/vendor/orders")} actionLabel="Orders">
                 {recentOrders.length > 0 ? (
-                    <ul className="space-y-3">
-                        {recentOrders.slice(0, 5).map((order) => (
+                    <ul className="space-y-2">
+                        {recentOrders.slice(0, 4).map((order) => (
                             <li
                                 key={order.order_item_id || `${order.order_id}-${order.sku_code}`}
-                                className="flex gap-3 group cursor-pointer"
+                                className="flex gap-2.5 group cursor-pointer"
                                 onClick={() => onNavigate(`/vendor/orders/${order.order_id}`)}
                                 onKeyDown={(e) => {
                                     if (e.key === "Enter" || e.key === " ") {
@@ -73,19 +69,19 @@ export default function DashboardRightPanel({
                                 role="button"
                                 tabIndex={0}
                             >
-                                <div className="h-8 w-8 rounded-lg bg-[#0D614E]/10 flex items-center justify-center flex-shrink-0">
-                                    <ShoppingBag size={14} className="text-[#0D614E]" />
+                                <div className="h-7 w-7 rounded-md bg-[#0D614E]/10 flex items-center justify-center flex-shrink-0">
+                                    <ShoppingBag size={12} className="text-[#0D614E]" />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                    <div className="flex items-center justify-between gap-2">
-                                        <p className="text-sm font-medium text-gray-800 truncate group-hover:text-[#0D614E] transition-colors">
+                                    <div className="flex items-center justify-between gap-1.5">
+                                        <p className="text-xs font-medium text-gray-800 truncate group-hover:text-[#0D614E] transition-colors">
                                             {order.order_display_code || order.order_code || "Order"}
                                         </p>
-                                        <StatusBadge status={order.status} className="!px-2 !py-0.5 shrink-0" />
+                                        <StatusBadge status={order.status} className="!px-1.5 !py-0 !text-[10px] shrink-0" />
                                     </div>
-                                    <p className="text-xs text-gray-400 mt-0.5 truncate">
+                                    <p className="text-[11px] text-gray-400 truncate">
                                         {order.product_name || "Product"}
-                                        {order.quantity != null ? ` · Qty ${order.quantity}` : ""}
+                                        {order.quantity != null ? ` · ${order.quantity}` : ""}
                                     </p>
                                 </div>
                             </li>
@@ -96,17 +92,65 @@ export default function DashboardRightPanel({
                 )}
             </PanelCard>
 
+            <PanelCard title="Alerts" action={() => onNavigate("/vendor/stock")} actionLabel="Stock">
+                <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">Account</span>
+                        <StatusBadge status={approvalStatus} className="!text-[10px] !px-1.5 !py-0" />
+                    </div>
+
+                    {pendingVariants.length > 0 && (
+                        <div className="space-y-1.5">
+                            <p className="text-[11px] font-medium text-amber-700 flex items-center gap-1">
+                                <Clock size={11} /> {pendingVariants.length} pending approval
+                            </p>
+                            {pendingVariants.slice(0, 2).map((v) => (
+                                <p key={v.id} className="text-xs text-gray-600 truncate pl-3.5">{v.title}</p>
+                            ))}
+                        </div>
+                    )}
+
+                    {lowStockItems.length > 0 ? (
+                        <ul className="space-y-1.5">
+                            {lowStockItems.slice(0, 3).map((item) => (
+                                <li
+                                    key={item.id || item.sku}
+                                    className="flex items-center justify-between gap-2 rounded-lg bg-amber-50/80 border border-amber-100 px-2.5 py-1.5 cursor-pointer hover:bg-amber-50"
+                                    onClick={() => onNavigate("/vendor/stock")}
+                                    role="button"
+                                    tabIndex={0}
+                                >
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                        <AlertTriangle size={12} className="text-amber-600 flex-shrink-0" />
+                                        <span className="text-xs text-gray-800 truncate">{item.name}</span>
+                                    </div>
+                                    <span className="text-[11px] font-semibold text-amber-700">{item.qty}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        !pendingVariants.length && <EmptyPanel message="All clear — no alerts" />
+                    )}
+                </div>
+            </PanelCard>
+
             <PanelCard title="Notifications" action={() => onNavigate("/vendor/notifications")}>
                 {notifications.length > 0 ? (
-                    <ul className="space-y-3">
-                        {notifications.slice(0, 4).map((n) => (
-                            <li key={n.id} className="flex gap-3 group cursor-pointer" onClick={() => onNavigate("/vendor/notifications")} role="button" tabIndex={0}>
-                                <div className="h-8 w-8 rounded-lg bg-[#0D614E]/10 flex items-center justify-center flex-shrink-0">
-                                    <Bell size={14} className="text-[#0D614E]" />
+                    <ul className="space-y-2">
+                        {notifications.slice(0, 3).map((n) => (
+                            <li
+                                key={n.id}
+                                className="flex gap-2.5 group cursor-pointer"
+                                onClick={() => onNavigate("/vendor/notifications")}
+                                role="button"
+                                tabIndex={0}
+                            >
+                                <div className="h-7 w-7 rounded-md bg-[#0D614E]/10 flex items-center justify-center flex-shrink-0">
+                                    <Bell size={12} className="text-[#0D614E]" />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-medium text-gray-800 truncate group-hover:text-[#0D614E] transition-colors">{n.title || n.message?.slice(0, 40)}</p>
-                                    <p className="text-xs text-gray-400 mt-0.5">{n.timeAgo}</p>
+                                    <p className="text-xs font-medium text-gray-800 truncate group-hover:text-[#0D614E]">{n.title || n.message?.slice(0, 40)}</p>
+                                    <p className="text-[11px] text-gray-400">{n.timeAgo}</p>
                                 </div>
                             </li>
                         ))}
@@ -116,80 +160,25 @@ export default function DashboardRightPanel({
                 )}
             </PanelCard>
 
-            <PanelCard title="Approval Timeline">
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Account status</span>
-                        <StatusBadge status={approvalStatus} />
-                    </div>
-                    {pendingVariants.length > 0 ? (
-                        <ul className="space-y-2 border-l-2 border-[#0D614E]/20 pl-3">
-                            {pendingVariants.slice(0, 3).map((v) => (
-                                <li key={v.id} className="relative">
-                                    <span className="absolute -left-[17px] top-1.5 h-2 w-2 rounded-full bg-amber-400 ring-2 ring-white" />
-                                    <p className="text-sm font-medium text-gray-800 truncate">{v.title}</p>
-                                    <p className="text-xs text-gray-400">Pending review</p>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p className="text-sm text-gray-500 flex items-center gap-2">
-                            <Clock size={14} className="text-emerald-500" />
-                            No pending variant approvals
-                        </p>
-                    )}
-                </div>
-            </PanelCard>
-
-            <PanelCard title="Inventory Alerts">
-                {lowStockItems.length > 0 ? (
-                    <ul className="space-y-2">
-                        {lowStockItems.slice(0, 4).map((item) => (
-                            <li
-                                key={item.id || item.sku}
-                                className="flex items-center justify-between gap-2 rounded-xl bg-amber-50/80 border border-amber-100 px-3 py-2 cursor-pointer hover:bg-amber-50 transition-colors duration-200"
-                                onClick={() => onNavigate("/vendor/stock")}
-                                role="button"
-                                tabIndex={0}
-                            >
-                                <div className="flex items-center gap-2 min-w-0">
-                                    <AlertTriangle size={14} className="text-amber-600 flex-shrink-0" />
-                                    <span className="text-sm text-gray-800 truncate">{item.name}</span>
-                                </div>
-                                <span className="text-xs font-semibold text-amber-700">{item.qty} left</span>
-                            </li>
-                        ))}
-                    </ul>
-                ) : (
-                    <EmptyPanel message="All stock levels healthy" />
-                )}
-            </PanelCard>
-
-            <PanelCard title="Recent Reviews" action={() => onNavigate("/vendor/ratings")}>
+            <PanelCard title="Reviews" action={() => onNavigate("/vendor/ratings")}>
                 {recentReviews.length > 0 ? (
-                    <ul className="space-y-3">
-                        {recentReviews.slice(0, 4).map((review) => (
+                    <ul className="space-y-2">
+                        {recentReviews.slice(0, 3).map((review) => (
                             <li
                                 key={review.id}
-                                className="flex gap-3 group cursor-pointer"
+                                className="flex gap-2.5 group cursor-pointer"
                                 onClick={() => onNavigate("/vendor/ratings")}
                                 role="button"
                                 tabIndex={0}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter" || e.key === " ") {
-                                        e.preventDefault();
-                                        onNavigate("/vendor/ratings");
-                                    }
-                                }}
                             >
-                                <div className="h-8 w-8 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
-                                    <Star size={14} className="text-amber-500 fill-amber-500" />
+                                <div className="h-7 w-7 rounded-md bg-amber-50 flex items-center justify-center flex-shrink-0">
+                                    <Star size={12} className="text-amber-500 fill-amber-500" />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-medium text-gray-800 truncate group-hover:text-[#0D614E] transition-colors">
+                                    <p className="text-xs font-medium text-gray-800 truncate group-hover:text-[#0D614E]">
                                         {review.reviewer_name || "Customer"}
                                     </p>
-                                    <p className="text-xs text-gray-400 mt-0.5 truncate">
+                                    <p className="text-[11px] text-gray-400 truncate">
                                         {review.product_name || "Product"}
                                         {review.rating != null ? ` · ${review.rating}★` : ""}
                                     </p>
@@ -203,15 +192,15 @@ export default function DashboardRightPanel({
             </PanelCard>
 
             <PanelCard title="Quick Links">
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-1.5">
                     {quickLinks.map((link) => (
                         <button
                             key={link.path}
                             type="button"
                             onClick={() => onNavigate(link.path)}
-                            className="flex items-center gap-2 rounded-xl border border-gray-100 bg-gray-50/50 px-3 py-2.5 text-left text-xs font-medium text-gray-700 hover:bg-[#0D614E]/5 hover:border-[#0D614E]/20 hover:text-[#0D614E] transition-all duration-200 active:scale-[0.98] ds-focus"
+                            className="flex items-center gap-1.5 rounded-lg border border-gray-100 bg-gray-50/50 px-2.5 py-2 text-left text-[11px] font-medium text-gray-700 hover:bg-[#0D614E]/5 hover:border-[#0D614E]/20 hover:text-[#0D614E] transition-all active:scale-[0.98] ds-focus"
                         >
-                            <link.icon size={14} />
+                            <link.icon size={12} />
                             {link.label}
                         </button>
                     ))}

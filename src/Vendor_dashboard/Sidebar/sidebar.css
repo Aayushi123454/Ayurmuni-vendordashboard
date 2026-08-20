@@ -232,6 +232,8 @@
   border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
+  position: fixed;
+  left: 0;
 }
 
 .menu-item {
@@ -282,6 +284,7 @@
   .vendor-sidebar {
     --sidebar-width: 72px;
   }
+
   .vendor-sidebar__toggle {
     display: none;
   }

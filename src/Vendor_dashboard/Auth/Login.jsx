@@ -760,6 +760,7 @@ export default function AuthPage() {
             email: data?.profile?.business_email || data?.profile?.email || "",
             first_name: data?.profile?.business_name || data?.profile?.first_name || "",
             verify: data?.is_verified,
+            is_dietitian: data?.is_dietitian || false,
           })
         );
 

@@ -18,11 +18,12 @@ import { vendorService } from "../../../services/vendorService";
 import usePersistedState from "../../hooks/usePersistedState";
 import DashboardPageShell from "../../components/shared/DashboardPageShell";
 import { PageEmpty, PageError, PaginationBar, TableCard } from "../../components/shared/PageState";
-import { StockCardGridSkeleton, Skeleton } from "../../components/shared/Skeleton";
+import { MetricSkeleton, TableSkeleton } from "../../components/shared/Skeleton";
 import StatusBadge from "../../components/shared/StatusBadge";
 import SearchToolbar, { SelectFilter } from "../../components/shared/SearchToolbar";
 import Modal from "../../components/shared/Modal";
 import Button from "../../components/shared/Button";
+import DataTable, { TableRow, TableCell } from "../../components/shared/DataTable";
 import PremiumKPICard from "../Dashboard/components/PremiumKPICard";
 import Ayurvedaimage from "../../../Assests/Ayurvedaimage.png";
 import {
@@ -42,7 +43,6 @@ import {
     filterInventoryItems,
     formatDateTime,
     getStockHealthKey,
-    getProductCardAccent,
     STOCK_HEALTH_LABELS,
     parseInventoryListResponse,
     canManageStock,
@@ -54,6 +54,16 @@ import "../../components/shared/vendor-shared.css";
 import "./Stock.css";
 
 const QTY_PRESETS = [10, 25, 50, 100];
+
+const COLUMNS = [
+    { key: "product", label: "Product" },
+    { key: "status", label: "Status" },
+    { key: "qty", label: "Quantity" },
+    { key: "approval", label: "Approval" },
+    { key: "sync", label: "Sync" },
+    { key: "sku", label: "Vendor SKU" },
+    { key: "actions", label: "Actions" },
+];
 
 function SyncBadge({ item }) {
     const approved = isVariantApproved(item);
@@ -96,109 +106,68 @@ function QuantityUnavailableModal({ item, open, onClose, onViewProduct }) {
 
 function StockKpiSection({ summary, listTotalCount, summaryLoading, hasActiveQuery, onFilterSelect }) {
     if (summaryLoading) {
-        return (
-            <>
-                <div className="stock-overview-label">
-                    <span className="stock-overview-label__title">Inventory overview</span>
-                    <span className="stock-overview-label__note">Loading snapshot…</span>
-                </div>
-                <div className="stock-kpi-grid stock-kpi-grid--skeleton ds-stagger">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                        <div key={i} className="stock-kpi-cell">
-                            <div className="ds-card space-y-3" style={{ padding: 18, minHeight: 136 }}>
-                                <Skeleton className="h-9 w-9 rounded-lg" />
-                                <Skeleton className="h-3 w-24" />
-                                <Skeleton className="h-7 w-16" />
-                                <Skeleton className="h-3 w-20" />
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </>
-        );
+        return <MetricSkeleton count={5} />;
     }
 
-    const catalogNote =
-        summary.totalRecords >= 500
-            ? "Based on latest 500 records"
-            : "Catalog-wide snapshot";
-
     return (
-        <>
-            <div className="stock-overview-label">
-                <span className="stock-overview-label__title">Inventory overview</span>
-                <span className="stock-overview-label__note">{catalogNote}</span>
-            </div>
-            <div className="stock-kpi-grid ds-stagger">
-                <div className="stock-kpi-cell">
-                    <PremiumKPICard
-                        variant="hero"
-                        icon={Warehouse}
-                        label={hasActiveQuery ? "Matching records" : "Inventory records"}
-                        value={listTotalCount}
-                        subtitle={hasActiveQuery ? "Current search / filter" : "Total in your catalog"}
-                        className="stock-kpi-clickable"
-                        onAction={() => onFilterSelect("all")}
-                        actionLabel="View all"
-                    />
-                </div>
-                <div className="stock-kpi-cell">
-                    <PremiumKPICard
-                        variant="soft"
-                        icon={Boxes}
-                        label="Total units"
-                        value={summary.totalUnits}
-                        subtitle="On-hand quantity"
-                    />
-                </div>
-                <div className="stock-kpi-cell">
-                    <PremiumKPICard
-                        variant={summary.lowStock > 0 ? "alert" : "soft"}
-                        icon={TrendingDown}
-                        label="Low stock"
-                        value={summary.lowStock}
-                        subtitle={`≤ ${LOW_STOCK_THRESHOLD} units`}
-                        trend={summary.lowStock > 0 ? "Needs attention" : "Healthy levels"}
-                        trendDirection={summary.lowStock > 0 ? "down" : "up"}
-                        className="stock-kpi-clickable"
-                        onAction={summary.lowStock > 0 ? () => onFilterSelect("low-stock") : undefined}
-                        actionLabel="Review"
-                    />
-                </div>
-                <div className="stock-kpi-cell">
-                    <PremiumKPICard
-                        variant={summary.outOfStock > 0 ? "alert" : "muted"}
-                        icon={AlertTriangle}
-                        label="Out of stock"
-                        value={summary.outOfStock}
-                        subtitle="Zero units on hand"
-                        trend={summary.outOfStock > 0 ? "Restock needed" : "None flagged"}
-                        trendDirection={summary.outOfStock > 0 ? "down" : "up"}
-                        className="stock-kpi-clickable"
-                        onAction={summary.outOfStock > 0 ? () => onFilterSelect("out-of-stock") : undefined}
-                        actionLabel="Review"
-                    />
-                </div>
-                <div className="stock-kpi-cell">
-                    <PremiumKPICard
-                        variant="accent"
-                        icon={Package}
-                        label="Pending approval"
-                        value={summary.pendingApproval}
-                        subtitle="Updates locked until approved"
-                        className="stock-kpi-clickable"
-                        onAction={summary.pendingApproval > 0 ? () => onFilterSelect("pending") : undefined}
-                        actionLabel="Review"
-                    />
-                </div>
-            </div>
-        </>
+        <div className="stock-kpi-grid ds-stagger">
+            <PremiumKPICard
+                variant="hero"
+                icon={Warehouse}
+                label={hasActiveQuery ? "Matching records" : "Inventory records"}
+                value={listTotalCount}
+                subtitle={hasActiveQuery ? "Current search / filter" : "Total in your catalog"}
+                className="stock-kpi-clickable"
+                onAction={() => onFilterSelect("all")}
+                actionLabel="View all"
+            />
+            <PremiumKPICard
+                variant="soft"
+                icon={Boxes}
+                label="Total units"
+                value={summary.totalUnits}
+                subtitle="On-hand quantity"
+            />
+            <PremiumKPICard
+                variant={summary.lowStock > 0 ? "alert" : "soft"}
+                icon={TrendingDown}
+                label="Low stock"
+                value={summary.lowStock}
+                subtitle={`≤ ${LOW_STOCK_THRESHOLD} units`}
+                trend={summary.lowStock > 0 ? "Needs attention" : "Healthy levels"}
+                trendDirection={summary.lowStock > 0 ? "down" : "up"}
+                className="stock-kpi-clickable"
+                onAction={summary.lowStock > 0 ? () => onFilterSelect("low-stock") : undefined}
+                actionLabel="Review"
+            />
+            <PremiumKPICard
+                variant={summary.outOfStock > 0 ? "alert" : "muted"}
+                icon={AlertTriangle}
+                label="Out of stock"
+                value={summary.outOfStock}
+                subtitle="Zero units on hand"
+                trend={summary.outOfStock > 0 ? "Restock needed" : "None flagged"}
+                trendDirection={summary.outOfStock > 0 ? "down" : "up"}
+                className="stock-kpi-clickable"
+                onAction={summary.outOfStock > 0 ? () => onFilterSelect("out-of-stock") : undefined}
+                actionLabel="Review"
+            />
+            <PremiumKPICard
+                variant="accent"
+                icon={Package}
+                label="Pending approval"
+                value={summary.pendingApproval}
+                subtitle="Updates locked until approved"
+                className="stock-kpi-clickable"
+                onAction={summary.pendingApproval > 0 ? () => onFilterSelect("pending") : undefined}
+                actionLabel="Review"
+            />
+        </div>
     );
 }
 
-function StockProductCard({ item, onEdit, onDelete, onBlocked }) {
+function StockTableRow({ item, onEdit, onDelete, onBlocked }) {
     const health = getStockHealthKey(item.quantity);
-    const accent = getProductCardAccent(item);
     const { date, time } = formatDateTime(item.updated_at);
     const canEdit = canManageStock(item);
     const coverUrl =
@@ -208,81 +177,90 @@ function StockProductCard({ item, onEdit, onDelete, onBlocked }) {
         Ayurvedaimage;
 
     return (
-        <article className={`stock-product-card stock-product-card--${accent} ds-animate-in`}>
-            <div className="stock-product-card__product">
-                <div className="stock-product-icon stock-product-icon--image">
+        <TableRow>
+            <TableCell>
+                <div className="stock-product-cell">
                     <img
                         src={coverUrl}
-                        alt={item.variant_title || item.product_name || "Variant"}
+                        alt=""
+                        className="stock-product-thumb"
                         onError={(e) => {
                             e.currentTarget.src = Ayurvedaimage;
                         }}
                     />
+                    <div className="stock-product-meta">
+                        <div className="stock-product-name">{item.product_name}</div>
+                        <div className="stock-product-variant">
+                            {item.variant_title || "Default variant"}
+                        </div>
+                        <div className="stock-product-updated">
+                            Updated {date}
+                            {time ? ` · ${time}` : ""}
+                        </div>
+                    </div>
                 </div>
-                <div className="stock-product-card__identity min-w-0">
-                    <p className="stock-product-name truncate iv-product-name">{item.product_name}</p>
-                    <p className="stock-product-variant truncate iv-meta-value">{item.variant_title || "Default variant"}</p>
-                    <p className="stock-product-card__updated">
-                        Updated {date}{time ? ` · ${time}` : ""}
-                    </p>
-                </div>
-            </div>
-
-            <div className="stock-product-card__health">
+            </TableCell>
+            <TableCell>
                 <StatusBadge status={health} label={STOCK_HEALTH_LABELS[health]} />
-            </div>
-
-            <div className="stock-product-card__col stock-product-card__col--qty">
-                <p className="stock-product-card__metric-label">Quantity</p>
-                <p className="stock-product-card__metric-value">{item.quantity ?? 0}</p>
-            </div>
-
-            <div className="stock-product-card__col stock-product-card__col--approval">
-                <p className="stock-product-card__metric-label">Approval</p>
+            </TableCell>
+            <TableCell className="font-semibold tabular-nums">{item.quantity ?? 0}</TableCell>
+            <TableCell>
                 <StatusBadge status={item.approval_status || "pending"} />
-            </div>
-
-            <div className="stock-product-card__col stock-product-card__col--sync">
-                <p className="stock-product-card__metric-label">Sync</p>
+            </TableCell>
+            <TableCell>
                 <SyncBadge item={item} />
-            </div>
-
-            <div className="stock-product-card__col stock-product-card__col--sku">
-                <p className="stock-product-card__metric-label">Vendor SKU</p>
-                <code className="stock-product-card__sku-value">{item.vendor_sku_code || "—"}</code>
-            </div>
-
-            <div className="stock-product-card__actions">
-                {canEdit ? (
-                    <button
-                        type="button"
-                        className="stock-card-btn stock-card-btn--update ds-focus"
-                        onClick={() => onEdit(item)}
+            </TableCell>
+            <TableCell>
+                <code className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-700">
+                    {item.vendor_sku_code || "—"}
+                </code>
+            </TableCell>
+            <TableCell>
+                <div className="stock-row-actions" onClick={(e) => e.stopPropagation()}>
+                    {console.log(item)                    }
+                    {
+                        item?.status === "inactive" ? (
+                            <Button
+                                variant="ghost"
+                                className="!px-2.5 !py-1.5 !text-xs !text-gray-500 !border-gray-300 hover:!bg-gray-50"
+                                onClick={() => onBlocked(item)}
+                                aria-label="Product inactive"
+                            >
+                                <Lock size={14} />
+                                Inactive
+                            </Button>) : canEdit ? (
+                                <Button
+                                    variant="ghost"
+                                    className="!px-2.5 !py-1.5 !text-xs !text-[#0D614E] !border-[#0D614E]/20 hover:!bg-[#0D614E]/5"
+                                    onClick={() => onEdit(item)}
+                                    aria-label="Update quantity"
+                                >
+                                    <Pencil size={14} />
+                                    Update
+                                </Button>
+                            ) : (
+                            <Button
+                                variant="ghost"
+                                className="!px-2.5 !py-1.5 !text-xs !text-amber-700 !border-amber-200 hover:!bg-amber-50"
+                                onClick={() => onBlocked(item)}
+                                aria-label="Quantity update locked"
+                            >
+                                <Lock size={14} />
+                                Locked
+                            </Button>
+                        )}
+                    {/* <Button
+                        variant="ghost"
+                        className="!px-2.5 !py-1.5 !text-xs !text-red-600 !border-red-200 hover:!bg-red-50"
+                        onClick={() => onDelete(item)}
+                        aria-label="Delete inventory record"
                     >
-                        <Pencil size={13} />
-                        Update
-                    </button>
-                ) : (
-                    <button
-                        type="button"
-                        className="stock-card-btn stock-card-btn--locked ds-focus"
-                        onClick={() => onBlocked(item)}
-                        title="Quantity update unavailable"
-                    >
-                        <Lock size={13} />
-                        Locked
-                    </button>
-                )}
-                <button
-                    type="button"
-                    className="stock-card-btn stock-card-btn--delete ds-focus"
-                    onClick={() => onDelete(item)}
-                >
-                    <Trash2 size={13} />
-                    Delete
-                </button>
-            </div>
-        </article>
+                        <Trash2 size={14} />
+                        Delete
+                    </Button> */}
+                </div>
+            </TableCell>
+        </TableRow>
     );
 }
 
@@ -310,7 +288,6 @@ export default function StockManagement() {
     const [deleting, setDeleting] = useState(false);
     const [productsLoaded, setProductsLoaded] = useState(false);
 
-    // Cache refs to prevent redundant API calls
     const productsCache = useRef(null);
     const productsPromiseRef = useRef(null);
     const fetchTimeoutRef = useRef(null);
@@ -322,14 +299,11 @@ export default function StockManagement() {
         [products]
     );
 
-    // --- FIX 1: Single source of truth for fetching products with caching ---
     const fetchProducts = useCallback(async (forceRefresh = false) => {
-        // Return cached products if available and not forcing refresh
         if (!forceRefresh && productsCache.current) {
             return productsCache.current;
         }
 
-        // Prevent multiple concurrent fetch attempts
         if (productsPromiseRef.current && !forceRefresh) {
             return productsPromiseRef.current;
         }
@@ -342,7 +316,7 @@ export default function StockManagement() {
                 setProductsLoaded(true);
                 return normalized;
             } catch (error) {
-                console.error('Failed to fetch products:', error);
+                console.error("Failed to fetch products:", error);
                 throw error;
             } finally {
                 productsPromiseRef.current = null;
@@ -356,106 +330,104 @@ export default function StockManagement() {
         return enrichInventoryWithApproval(results, productList, vendorService, options);
     }, []);
 
-    // --- FIX 2: Combined data fetching to avoid multiple calls ---
-    const fetchAllData = useCallback(async (options = {}) => {
-        const { skipInventory = false, skipSummary = false, forceRefresh = false } = options;
-        
-        try {
-            // Fetch products first (or get from cache)
-            const productList = await fetchProducts(forceRefresh);
-            
-            // Fetch inventory and summary in parallel
-            const promises = [];
-            
-            if (!skipInventory) {
-                promises.push(
-                    (async () => {
-                        try {
-                            const inventoryRes = await vendorService.getInventory({
-                                page,
-                                page_size: pageSize,
-                                search: search || undefined,
-                                product_id: productFilter || undefined,
-                            });
-                            const { results, count } = parseInventoryListResponse(inventoryRes);
-                            const enrichedItems = await enrichRows(results, productList, { verifyLive: true });
-                            return { items: enrichedItems, count };
-                        } catch (err) {
-                            const status = err?.response?.status;
-                            const message = err?.response?.data?.message || err.message || "Failed to load stock";
-                            setError(
-                                status === 403
-                                    ? message || "Your vendor account must be approved before managing inventory."
-                                    : message
-                            );
-                            throw err;
-                        }
-                    })()
-                );
-            }
-            
-            if (!skipSummary) {
-                promises.push(
-                    (async () => {
-                        try {
-                            setSummaryLoading(true);
-                            const response = await vendorService.getInventory({ page_size: 500 });
-                            const { results } = parseInventoryListResponse(response);
-                            const enrichedSummary = await enrichRows(results, productList);
-                            return enrichedSummary;
-                        } catch (error) {
-                            console.error('Failed to fetch summary:', error);
-                            return [];
-                        } finally {
-                            setSummaryLoading(false);
-                        }
-                    })()
-                );
-            }
-            
-            // Wait for all promises to resolve
-            const results = await Promise.allSettled(promises);
-            
-            // Process results
-            let inventoryResult = null;
-            let summaryResult = null;
-            
-            results.forEach((result, index) => {
-                if (result.status === 'fulfilled') {
-                    if (!skipInventory && index === 0) {
-                        inventoryResult = result.value;
-                    } else if (!skipSummary && (skipInventory ? index === 0 : index === 1)) {
-                        summaryResult = result.value;
-                    }
-                }
-            });
-            
-            // Update state
-            if (inventoryResult) {
-                setItems(inventoryResult.items);
-                setTotalCount(inventoryResult.count);
-            }
-            
-            if (summaryResult) {
-                setSummaryItems(summaryResult);
-            }
-            
-            return { inventory: inventoryResult, summary: summaryResult };
-            
-        } catch (error) {
-            console.error('Failed to fetch all data:', error);
-            throw error;
-        }
-    }, [page, pageSize, search, productFilter, fetchProducts, enrichRows]);
+    const fetchAllData = useCallback(
+        async (options = {}) => {
+            const { skipInventory = false, skipSummary = false, forceRefresh = false } = options;
 
-    // --- FIX 3: Dedicated fetch functions that use the combined approach ---
+            try {
+                const productList = await fetchProducts(forceRefresh);
+                const promises = [];
+
+                if (!skipInventory) {
+                    promises.push(
+                        (async () => {
+                            try {
+                                const inventoryRes = await vendorService.getInventory({
+                                    page,
+                                    page_size: pageSize,
+                                    search: search || undefined,
+                                    product_id: productFilter || undefined,
+                                });
+                                const { results, count } = parseInventoryListResponse(inventoryRes);
+                                const enrichedItems = await enrichRows(results, productList, {
+                                    verifyLive: true,
+                                });
+                                return { items: enrichedItems, count };
+                            } catch (err) {
+                                const status = err?.response?.status;
+                                const message =
+                                    err?.response?.data?.message || err.message || "Failed to load stock";
+                                setError(
+                                    status === 403
+                                        ? message ||
+                                        "Your vendor account must be approved before managing inventory."
+                                        : message
+                                );
+                                throw err;
+                            }
+                        })()
+                    );
+                }
+
+                if (!skipSummary) {
+                    promises.push(
+                        (async () => {
+                            try {
+                                setSummaryLoading(true);
+                                const response = await vendorService.getInventory({ page_size: 500 });
+                                const { results } = parseInventoryListResponse(response);
+                                const enrichedSummary = await enrichRows(results, productList);
+                                return enrichedSummary;
+                            } catch (error) {
+                                console.error("Failed to fetch summary:", error);
+                                return [];
+                            } finally {
+                                setSummaryLoading(false);
+                            }
+                        })()
+                    );
+                }
+
+                const results = await Promise.allSettled(promises);
+
+                let inventoryResult = null;
+                let summaryResult = null;
+
+                results.forEach((result, index) => {
+                    if (result.status === "fulfilled") {
+                        if (!skipInventory && index === 0) {
+                            inventoryResult = result.value;
+                        } else if (!skipSummary && (skipInventory ? index === 0 : index === 1)) {
+                            summaryResult = result.value;
+                        }
+                    }
+                });
+
+                if (inventoryResult) {
+                    setItems(inventoryResult.items);
+                    setTotalCount(inventoryResult.count);
+                }
+
+                if (summaryResult) {
+                    setSummaryItems(summaryResult);
+                }
+
+                return { inventory: inventoryResult, summary: summaryResult };
+            } catch (error) {
+                console.error("Failed to fetch all data:", error);
+                throw error;
+            }
+        },
+        [page, pageSize, search, productFilter, fetchProducts, enrichRows]
+    );
+
     const fetchInventory = useCallback(async () => {
         setLoading(true);
         setError("");
         try {
             await fetchAllData({ skipSummary: true });
         } catch (error) {
-            console.error('Failed to fetch inventory:', error);
+            console.error("Failed to fetch inventory:", error);
         } finally {
             setLoading(false);
         }
@@ -470,74 +442,72 @@ export default function StockManagement() {
             const enrichedSummary = await enrichRows(results, productList);
             setSummaryItems(enrichedSummary);
         } catch (error) {
-            console.error('Failed to fetch summary:', error);
+            console.error("Failed to fetch summary:", error);
             setSummaryItems([]);
         } finally {
             setSummaryLoading(false);
         }
     }, [fetchProducts, enrichRows]);
 
-    // --- FIX 4: Combined reload function ---
-    const reloadAll = useCallback(async (forceRefresh = false) => {
-        setLoading(true);
-        setRefreshing(true);
-        setError("");
-        try {
-            await fetchAllData({ forceRefresh, skipSummary: false, skipInventory: false });
-        } catch (error) {
-            console.error('Failed to reload all data:', error);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    }, [fetchAllData]);
+    const reloadAll = useCallback(
+        async (forceRefresh = false) => {
+            setLoading(true);
+            setRefreshing(true);
+            setError("");
+            try {
+                await fetchAllData({ forceRefresh, skipSummary: false, skipInventory: false });
+            } catch (error) {
+                console.error("Failed to reload all data:", error);
+            } finally {
+                setLoading(false);
+                setRefreshing(false);
+            }
+        },
+        [fetchAllData]
+    );
 
-    // --- FIX 5: Optimized initial load ---
     useEffect(() => {
         let mounted = true;
-        
+
         const initialLoad = async () => {
             if (!mounted) return;
-            
+
             try {
-                const productList = await fetchProducts();
+                await fetchProducts();
                 if (mounted) {
                     await fetchSummary();
                 }
             } catch (error) {
-                console.error('Initial load failed:', error);
+                console.error("Initial load failed:", error);
                 if (mounted) {
-                    setError('Failed to load initial data');
+                    setError("Failed to load initial data");
                     setLoading(false);
                 }
             }
         };
-        
+
         initialLoad();
-        
+
         return () => {
             mounted = false;
-            // Clear any pending timeouts
             if (fetchTimeoutRef.current) {
                 clearTimeout(fetchTimeoutRef.current);
             }
         };
-    }, []); // Empty dependency array - run only once
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
-    // --- FIX 6: Debounced inventory fetch for search/filter changes ---
     useEffect(() => {
-        // Clear existing timeout
         if (fetchTimeoutRef.current) {
             clearTimeout(fetchTimeoutRef.current);
         }
 
-        // Only fetch if products are loaded
         if (productsLoaded) {
             fetchTimeoutRef.current = setTimeout(() => {
                 fetchInventory();
-            }, 300); // Debounce search/filter changes
+            }, 300);
         }
-        
+
         return () => {
             if (fetchTimeoutRef.current) {
                 clearTimeout(fetchTimeoutRef.current);
@@ -545,7 +515,6 @@ export default function StockManagement() {
         };
     }, [page, pageSize, search, productFilter, productsLoaded, fetchInventory]);
 
-    // --- FIX 7: Handle editing item blocked check ---
     useEffect(() => {
         if (editingItem && !canManageStock(editingItem)) {
             setEditingItem(null);
@@ -554,12 +523,15 @@ export default function StockManagement() {
     }, [editingItem]);
 
     const handleRefresh = async () => {
-        await reloadAll(true); // Force refresh
+        await reloadAll(true);
     };
 
     const summary = useMemo(() => computeInventorySummary(summaryItems), [summaryItems]);
     const filterCounts = useMemo(() => computeFilterCounts(items), [items]);
-    const filteredItems = useMemo(() => filterInventoryItems(items, stockFilter), [items, stockFilter]);
+    const filteredItems = useMemo(
+        () => filterInventoryItems(items, stockFilter),
+        [items, stockFilter]
+    );
 
     const applyStockFilter = (key) => {
         const mapped = KPI_FILTER_MAP[key] || key;
@@ -593,6 +565,14 @@ export default function StockManagement() {
         navigate(`/vendor/edit-product/${blockedItem.product_id}`);
     };
 
+    const clearFilters = () => {
+        setSearch("");
+        setSearchInput("");
+        setProductFilter("");
+        setStockFilter("all");
+        setPage(1);
+    };
+
     const adjustQuantity = (delta) => {
         setEditQuantity((prev) => String(Math.max(0, (Number(prev) || 0) + delta)));
     };
@@ -601,7 +581,6 @@ export default function StockManagement() {
         setEditQuantity(String(Math.max(0, value)));
     };
 
-    // --- FIX 8: Save quantity with optimistic update ---
     const saveQuantity = async () => {
         if (!editingItem) return;
 
@@ -640,8 +619,7 @@ export default function StockManagement() {
                 return;
             }
 
-            // Optimistic update
-            const optimisticItems = items.map(item => 
+            const optimisticItems = items.map((item) =>
                 item.id === editingItem.id ? { ...item, quantity } : item
             );
             setItems(optimisticItems);
@@ -652,13 +630,11 @@ export default function StockManagement() {
             });
             toast.success("Stock updated successfully");
             setEditingItem(null);
-            
-            // Refresh data in background
+
             await reloadAll(true);
         } catch (err) {
-            // Rollback optimistic update
             await reloadAll(true);
-            
+
             if (isApprovalRelatedStockError(err)) {
                 setEditingItem(null);
                 showApprovalBlocked(editingItem);
@@ -671,24 +647,20 @@ export default function StockManagement() {
         }
     };
 
-    // --- FIX 9: Delete with optimistic update ---
     const confirmDelete = async () => {
         if (!deletingItem) return;
         try {
             setDeleting(true);
-            
-            // Optimistic delete
-            const optimisticItems = items.filter(item => item.id !== deletingItem.id);
+
+            const optimisticItems = items.filter((item) => item.id !== deletingItem.id);
             setItems(optimisticItems);
-            
+
             await vendorService.deleteInventory(deletingItem.id);
             toast.success("Inventory record deleted");
             setDeletingItem(null);
-            
-            // Refresh data in background
+
             await reloadAll(true);
         } catch (err) {
-            // Rollback optimistic delete
             await reloadAll(true);
             toast.error(err?.response?.data?.message || "Failed to delete inventory");
         } finally {
@@ -697,249 +669,236 @@ export default function StockManagement() {
     };
 
     const editDelta = editingItem ? (Number(editQuantity) || 0) - (editingItem.quantity || 0) : 0;
-    const editQuantityUnchanged = editingItem && (Number(editQuantity) || 0) === (editingItem.quantity ?? 0);
+    const editQuantityUnchanged =
+        editingItem && (Number(editQuantity) || 0) === (editingItem.quantity ?? 0);
     const editBlocked = editingItem && !canManageStock(editingItem);
 
-    const activeFilterLabels = [
-        search && `Search: "${search}"`,
-        productFilter && products.find((p) => p.id === productFilter)?.name,
-        stockFilter !== "all" && STOCK_FILTERS.find((f) => f.key === stockFilter)?.label,
-    ].filter(Boolean);
-
     return (
-        <div className="stock-page">
-            <DashboardPageShell
-                contentClassName="stock-page-content vendor-page-content"
-                actions={
-                    <Button
-                        variant="secondary"
-                        onClick={handleRefresh}
-                        loading={refreshing}
-                        disabled={loading}
-                        className="stock-page-refresh !h-9 !py-0 !text-sm"
+        <DashboardPageShell
+            compact
+            hidePageHeader
+            contentClassName="vendor-page-content stock-page-content"
+            actions={
+                <Button
+                    variant="secondary"
+                    onClick={handleRefresh}
+                    loading={refreshing}
+                    disabled={loading}
+                    className="!text-sm"
+                >
+                    {!refreshing && <RefreshCw size={16} />}
+                    Refresh
+                </Button>
+            }
+        >
+            <StockKpiSection
+                summary={summary}
+                listTotalCount={totalCount}
+                summaryLoading={summaryLoading}
+                hasActiveQuery={hasActiveQuery}
+                onFilterSelect={applyStockFilter}
+            />
+
+            <SearchToolbar
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onSubmit={() => {
+                    setPage(1);
+                    setSearch(searchInput.trim());
+                }}
+                onClear={
+                    search || searchInput || productFilter || stockFilter !== "all"
+                        ? clearFilters
+                        : undefined
+                }
+                placeholder="Search system SKU, vendor SKU, variant, or product name…"
+            >
+                <SelectFilter
+                    value={productFilter}
+                    onChange={(e) => {
+                        setProductFilter(e.target.value);
+                        setPage(1);
+                    }}
+                    options={productOptions}
+                    placeholder="All products"
+                    aria-label="Filter by product"
+                    className="w-[11rem] min-w-[9rem] shrink-0"
+                />
+            </SearchToolbar>
+
+            <div className="stock-filter-tabs" role="tablist" aria-label="Stock health filters">
+                {STOCK_FILTERS.map((filter) => (
+                    <button
+                        key={filter.key}
+                        type="button"
+                        role="tab"
+                        aria-selected={stockFilter === filter.key}
+                        className={`stock-filter-tab ${stockFilter === filter.key ? "stock-filter-tab--active" : ""
+                            }`}
+                        onClick={() => setStockFilter(filter.key)}
                     >
-                        {!refreshing && <RefreshCw size={15} />}
-                        Refresh
-                    </Button>
+                        {filter.label}
+                        <span className="stock-filter-count">{filterCounts[filter.key] ?? 0}</span>
+                    </button>
+                ))}
+                <span className="stock-filter-hint">Filters apply to the current page</span>
+            </div>
+
+            {loading ? (
+                <TableSkeleton columns={COLUMNS.length} rows={Math.min(pageSize, 8)} />
+            ) : error ? (
+                <PageError message={error} onRetry={reloadAll} />
+            ) : filteredItems.length === 0 ? (
+                <PageEmpty
+                    icon={Package}
+                    title={items.length === 0 ? "No stock records found" : "No records match this filter"}
+                    description={
+                        items.length === 0
+                            ? search || productFilter
+                                ? "Try adjusting your search or product filter."
+                                : "Inventory records are created when you add products with variants. Manage quantities here after catalog setup."
+                            : "Try a different stock health filter or clear your selection."
+                    }
+                    action={
+                        items.length === 0 && !search && !productFilter ? (
+                            <Button onClick={() => navigate("/vendor/products")}>Go to Products</Button>
+                        ) : stockFilter !== "all" ? (
+                            <Button variant="secondary" onClick={() => setStockFilter("all")}>
+                                Show all on this page
+                            </Button>
+                        ) : hasActiveQuery ? (
+                            <Button variant="secondary" onClick={clearFilters}>
+                                Clear filters
+                            </Button>
+                        ) : null
+                    }
+                />
+            ) : (
+                <TableCard>
+                    <div className="px-4 pt-4 pb-2 text-sm text-gray-500">
+                        Showing <strong>{filteredItems.length}</strong> of{" "}
+                        <strong>{items.length}</strong> on this page ·{" "}
+                        <strong>{totalCount.toLocaleString()}</strong> total records
+                        {stockFilter !== "all" ? (
+                            <>
+                                {" "}
+                                · filter{" "}
+                                <strong>
+                                    {STOCK_FILTERS.find((f) => f.key === stockFilter)?.label}
+                                </strong>
+                            </>
+                        ) : null}
+                    </div>
+
+                    <DataTable columns={COLUMNS} stickyActions>
+                        {filteredItems.map((item) => (
+                            <StockTableRow
+                                key={item.id}
+                                item={item}
+                                onEdit={openEdit}
+                                onDelete={setDeletingItem}
+                                onBlocked={showApprovalBlocked}
+                            />
+                        ))}
+                    </DataTable>
+
+                    <PaginationBar
+                        page={page}
+                        pageSize={pageSize}
+                        totalCount={totalCount}
+                        onPageChange={setPage}
+                        onPageSizeChange={(size) => {
+                            setPageSize(size);
+                            setPage(1);
+                        }}
+                        storageKey="vendor:stock"
+                        itemLabel="records"
+                    />
+                </TableCard>
+            )}
+
+            <QuantityUnavailableModal
+                item={blockedItem}
+                open={Boolean(blockedItem)}
+                onClose={closeApprovalBlocked}
+                onViewProduct={viewBlockedProductStatus}
+            />
+
+            <Modal
+                open={Boolean(editingItem)}
+                onClose={() => !saving && setEditingItem(null)}
+                title="Update Stock Quantity"
+                subtitle={
+                    editingItem
+                        ? `${editingItem.product_name} · ${editingItem.variant_title || "Default variant"}`
+                        : ""
+                }
+                size="md"
+                footer={
+                    <>
+                        <Button
+                            variant="secondary"
+                            onClick={() => setEditingItem(null)}
+                            disabled={saving}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={saveQuantity}
+                            loading={saving}
+                            disabled={editQuantityUnchanged || saving || editBlocked}
+                            variant="primary"
+                        >
+                            {saving ? "Saving..." : "Save Quantity"}
+                        </Button>
+                    </>
                 }
             >
-                <div className="stock-page-sections">
-                <section className="stock-page-section stock-page-section--kpi">
-                <StockKpiSection
-                    summary={summary}
-                    listTotalCount={totalCount}
-                    summaryLoading={summaryLoading}
-                    hasActiveQuery={hasActiveQuery}
-                    onFilterSelect={applyStockFilter}
-                />
-                </section>
-
-                <section className="stock-page-section stock-page-section--toolbar">
-                <div className="stock-toolbar-panel">
-                    <div className="stock-toolbar-shell">
-                        <SearchToolbar
-                            className="stock-toolbar-search"
-                            value={searchInput}
-                            onChange={(e) => setSearchInput(e.target.value)}
-                            onSubmit={() => {
-                                setPage(1);
-                                setSearch(searchInput.trim());
-                            }}
-                            onClear={
-                                search || searchInput || productFilter
-                                    ? () => {
-                                        setSearch("");
-                                        setSearchInput("");
-                                        setProductFilter("");
-                                        setStockFilter("all");
-                                        setPage(1);
-                                    }
-                                    : undefined
-                            }
-                            placeholder="Search system SKU, vendor SKU, variant, or product name…"
-                        >
-                            <SelectFilter
-                                value={productFilter}
-                                onChange={(e) => {
-                                    setProductFilter(e.target.value);
-                                    setPage(1);
-                                }}
-                                options={productOptions}
-                                placeholder="All products"
-                                aria-label="Filter by product"
-                                className="stock-product-filter w-[11rem] min-w-[9rem] shrink-0"
-                            />
-                        </SearchToolbar>
-
-                        <div className="stock-filter-row">
-                            {STOCK_FILTERS.map((filter) => (
-                                <button
-                                    key={filter.key}
-                                    type="button"
-                                    className={`stock-filter-chip ${stockFilter === filter.key ? "stock-filter-chip--active" : ""}`}
-                                    onClick={() => setStockFilter(filter.key)}
-                                >
-                                    {filter.label}
-                                    <span className="stock-filter-count">{filterCounts[filter.key] ?? 0}</span>
-                                </button>
-                            ))}
-                            <span className="stock-filter-hint">Filters apply to the current page</span>
+                {editingItem && (
+                    <div className="space-y-5">
+                        <div className="stock-sku-stack">
+                            <div>
+                                <p className="vendor-form-label !mb-1">Vendor SKU</p>
+                                <code className="stock-sku-vendor">
+                                    {editingItem.vendor_sku_code || "—"}
+                                </code>
+                            </div>
+                            {editingItem.sku_code ? (
+                                <div>
+                                    <p className="vendor-form-label !mb-1">System SKU</p>
+                                    <code className="stock-sku-system">{editingItem.sku_code}</code>
+                                </div>
+                            ) : null}
                         </div>
-                    </div>
-                </div>
-                </section>
 
-                <section className={`stock-page-section stock-page-section--list stock-content-shell ${refreshing ? "stock-content-shell--refreshing" : ""}`}>
-                    {loading ? (
-                        <StockCardGridSkeleton count={Math.min(pageSize, 6)} />
-                    ) : error ? (
-                        <PageError message={error} onRetry={reloadAll} />
-                    ) : filteredItems.length === 0 ? (
-                        <PageEmpty
-                            title={items.length === 0 ? "No stock records found" : "No records match this filter"}
-                            description={
-                                items.length === 0
-                                    ? search || productFilter
-                                        ? "Try adjusting your search or product filter."
-                                        : "Inventory records are created when you add products with variants. Manage quantities here after catalog setup."
-                                    : "Try a different stock health filter or clear your selection."
-                            }
-                            action={
-                                items.length === 0 && !search && !productFilter ? (
-                                    <Button onClick={() => navigate("/vendor/products")}>Go to Products</Button>
-                                ) : stockFilter !== "all" ? (
-                                    <Button variant="secondary" onClick={() => setStockFilter("all")}>
-                                        Show all on this page
-                                    </Button>
-                                ) : null
-                            }
-                        />
-                    ) : (
-                        <TableCard className="stock-records-panel">
-                            <div className="stock-results-meta">
-                                <span>
-                                    Showing <strong>{filteredItems.length}</strong> of <strong>{items.length}</strong>{" "}
-                                    on this page · <strong>{totalCount.toLocaleString()}</strong> total records
-                                </span>
-                                {activeFilterLabels.length > 0 && (
-                                    <div className="stock-active-filters">
-                                        {activeFilterLabels.map((label) => (
-                                            <span key={label} className="stock-active-filter-tag">
-                                                {label}
-                                            </span>
-                                        ))}
-                                    </div>
-                                )}
+                        <div className="stock-update-preview">
+                            <div className="stock-update-stat">
+                                <p className="stock-update-stat-label">Current</p>
+                                <p className="stock-update-stat-value">{editingItem.quantity ?? 0}</p>
                             </div>
-
-                            <div className="stock-list-header" aria-hidden="true">
-                                <span className="stock-list-header__product">Product</span>
-                                <span className="stock-list-header__status">Status</span>
-                                <span>Quantity</span>
-                                <span>Approval</span>
-                                <span>Sync</span>
-                                <span>Vendor SKU</span>
-                                <span className="stock-list-header__actions">Actions</span>
+                            <div className="stock-update-stat">
+                                <p className="stock-update-stat-label">New</p>
+                                <p className="stock-update-stat-value">{Number(editQuantity) || 0}</p>
                             </div>
-
-                            <div className="stock-card-grid">
-                                {filteredItems.map((item) => (
-                                    <StockProductCard
-                                        key={item.id}
-                                        item={item}
-                                        onEdit={openEdit}
-                                        onDelete={setDeletingItem}
-                                        onBlocked={showApprovalBlocked}
-                                    />
-                                ))}
+                            <div className="stock-update-stat">
+                                <p className="stock-update-stat-label">Change</p>
+                                <p
+                                    className={`stock-update-stat-value ${editDelta > 0
+                                        ? "stock-update-stat-value--delta-positive"
+                                        : editDelta < 0
+                                            ? "stock-update-stat-value--delta-negative"
+                                            : ""
+                                        }`}
+                                >
+                                    {editDelta > 0 ? "+" : ""}
+                                    {editDelta}
+                                </p>
                             </div>
+                        </div>
 
-                            <PaginationBar
-                                page={page}
-                                pageSize={pageSize}
-                                totalCount={totalCount}
-                                onPageChange={setPage}
-                                onPageSizeChange={setPageSize}
-                                storageKey="vendor:stock"
-                                itemLabel="records"
-                            />
-                        </TableCard>
-                    )}
-                </section>
-                </div>
-
-                <QuantityUnavailableModal
-                    item={blockedItem}
-                    open={Boolean(blockedItem)}
-                    onClose={closeApprovalBlocked}
-                    onViewProduct={viewBlockedProductStatus}
-                />
-
-                <Modal
-                    open={Boolean(editingItem)}
-                    onClose={() => !saving && setEditingItem(null)}
-                    title="Update stock quantity"
-                    subtitle={
-                        editingItem
-                            ? `${editingItem.product_name} · ${editingItem.variant_title || "Default variant"}`
-                            : ""
-                    }
-                    size="md"
-                    footer={
-                        <>
-                            <Button variant="secondary" onClick={() => setEditingItem(null)} disabled={saving}>
-                                Cancel
-                            </Button>
-                            <Button
-                                onClick={saveQuantity}
-                                loading={saving}
-                                disabled={editQuantityUnchanged || saving || editBlocked}
-                            >
-                                Save quantity
-                            </Button>
-                        </>
-                    }
-                >
-                    {editingItem && (
-                        <>
-                            <div className="stock-sku-stack mb-4">
-                                <span className="text-xs text-gray-500">Vendor SKU</span>
-                                <code className="stock-sku-vendor">{editingItem.vendor_sku_code || "—"}</code>
-                                {editingItem.sku_code && (
-                                    <>
-                                        <span className="text-xs text-gray-500 mt-2">System SKU</span>
-                                        <code className="stock-sku-system">{editingItem.sku_code}</code>
-                                    </>
-                                )}
-                            </div>
-
-                            <div className="stock-update-preview">
-                                <div className="stock-update-stat">
-                                    <p className="stock-update-stat-label">Current</p>
-                                    <p className="stock-update-stat-value">{editingItem.quantity ?? 0}</p>
-                                </div>
-                                <div className="stock-update-stat">
-                                    <p className="stock-update-stat-label">New</p>
-                                    <p className="stock-update-stat-value">{Number(editQuantity) || 0}</p>
-                                </div>
-                                <div className="stock-update-stat">
-                                    <p className="stock-update-stat-label">Change</p>
-                                    <p
-                                        className={`stock-update-stat-value ${editDelta > 0
-                                            ? "stock-update-stat-value--delta-positive"
-                                            : editDelta < 0
-                                                ? "stock-update-stat-value--delta-negative"
-                                                : ""
-                                            }`}
-                                    >
-                                        {editDelta > 0 ? "+" : ""}
-                                        {editDelta}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <label htmlFor="stock-quantity" className="block text-sm font-medium text-gray-700 mb-2">
-                                Quantity on hand
+                        <div>
+                            <label htmlFor="stock-quantity" className="vendor-form-label">
+                                Quantity on Hand
                             </label>
                             <div className="stock-qty-stepper">
                                 <button
@@ -966,7 +925,8 @@ export default function StockManagement() {
                                             saveQuantity();
                                         }
                                     }}
-                                    className="stock-qty-stepper-input"
+                                    className="stock-qty-stepper-input [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    placeholder="0"
                                 />
                                 <button
                                     type="button"
@@ -978,7 +938,10 @@ export default function StockManagement() {
                                     +
                                 </button>
                             </div>
+                        </div>
 
+                        <div>
+                            <p className="stock-update-stat-label mb-2">Quick set</p>
                             <div className="stock-qty-presets">
                                 {QTY_PRESETS.map((preset) => (
                                     <button
@@ -992,48 +955,52 @@ export default function StockManagement() {
                                     </button>
                                 ))}
                             </div>
-
-                            <div className="stock-modal-notice stock-modal-notice--sync">
-                                <strong>Unicommerce sync:</strong> Saving updates inventory and syncs to Unicommerce.
-                                If sync fails, you will see an error and the quantity will not be saved.
-                            </div>
-                        </>
-                    )}
-                </Modal>
-
-                <Modal
-                    open={Boolean(deletingItem)}
-                    onClose={() => !deleting && setDeletingItem(null)}
-                    title="Delete inventory record"
-                    subtitle={deletingItem ? deletingItem.product_name : ""}
-                    size="sm"
-                    footer={
-                        <>
-                            <Button variant="secondary" onClick={() => setDeletingItem(null)} disabled={deleting}>
-                                Cancel
-                            </Button>
-                            <Button variant="danger" onClick={confirmDelete} loading={deleting}>
-                                Delete record
-                            </Button>
-                        </>
-                    }
-                >
-                    {deletingItem && (
-                        <div className="stock-delete-warning">
-                            <AlertTriangle size={20} className="flex-shrink-0 mt-0.5" aria-hidden />
-                            <div>
-                                <p className="font-semibold">This action cannot be undone.</p>
-                                <p className="mt-1">
-                                    Delete inventory for{" "}
-                                    <strong>{deletingItem.variant_title || "this variant"}</strong> (
-                                    {deletingItem.quantity ?? 0} units on hand)? The variant itself remains in your
-                                    catalog.
-                                </p>
-                            </div>
                         </div>
-                    )}
-                </Modal>
-            </DashboardPageShell>
-        </div>
+
+                        <div className="stock-modal-notice stock-modal-notice--sync">
+                            Saving updates inventory and syncs to Unicommerce. If sync fails, you will
+                            see an error and the quantity will not be saved.
+                        </div>
+                    </div>
+                )}
+            </Modal>
+
+            <Modal
+                open={Boolean(deletingItem)}
+                onClose={() => !deleting && setDeletingItem(null)}
+                title="Delete inventory record"
+                subtitle={deletingItem ? deletingItem.product_name : ""}
+                size="sm"
+                footer={
+                    <>
+                        <Button
+                            variant="secondary"
+                            onClick={() => setDeletingItem(null)}
+                            disabled={deleting}
+                        >
+                            Cancel
+                        </Button>
+                        <Button variant="danger" onClick={confirmDelete} loading={deleting}>
+                            Delete record
+                        </Button>
+                    </>
+                }
+            >
+                {deletingItem && (
+                    <div className="stock-delete-warning">
+                        <AlertTriangle size={20} className="flex-shrink-0 mt-0.5" aria-hidden />
+                        <div>
+                            <p className="font-semibold">This action cannot be undone.</p>
+                            <p className="mt-1">
+                                Delete inventory for{" "}
+                                <strong>{deletingItem.variant_title || "this variant"}</strong> (
+                                {deletingItem.quantity ?? 0} units on hand)? The variant itself remains
+                                in your catalog.
+                            </p>
+                        </div>
+                    </div>
+                )}
+            </Modal>
+        </DashboardPageShell>
     );
 }

@@ -5,9 +5,9 @@ import API from "../../../services/api";
 
 const TABS = [
   { id: "store", label: "Store" },
-  { id: "business", label: "Business" },
-  { id: "notifications", label: "Notifications" },
-  { id: "security", label: "Security" },
+  // { id: "business", label: "Business" },
+  // { id: "notifications", label: "Notifications" },
+  // { id: "security", label: "Security" },
 ];
 
 const Settings = () => {

@@ -33,6 +33,7 @@ const VENDOR_TITLES = {
 
 function resolveVendorTitle(pathname) {
     if (pathname.startsWith("/vendor/edit-product")) return "Edit Product";
+    if (/^\/vendor\/products\/[^/]+$/.test(pathname)) return "Product Detail";
     if (pathname.startsWith("/vendor/orders/")) return "Order Detail";
     if (pathname.startsWith("/vendor/customers/")) return "Customer Detail";
     return VENDOR_TITLES[pathname] || "Vendor Portal";

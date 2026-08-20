@@ -59,7 +59,7 @@ const STATUS_CONFIG = {
 };
 
 const CONSULTATION_TYPES = ['video', 'chat', 'in-person'];
-const STATUS_OPTIONS = ['confirmed',  'completed', 'cancelled', 'rescheduled', 'reschedule'];
+const STATUS_OPTIONS = ['confirmed', 'completed', 'cancelled', 'rescheduled', 'reschedule'];
 const ITEMS_PER_PAGE_OPTIONS = [5, 10, 15, 25, 50];
 
 // ==================== HELPER FUNCTIONS ====================
@@ -511,6 +511,7 @@ const AppointmentsPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isActionLoading, setIsActionLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [searchbydate, setsearchbydate] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
     const [typeFilter, setTypeFilter] = useState('all');
     const [showActionModal, setShowActionModal] = useState(false);
@@ -546,6 +547,7 @@ const AppointmentsPage = () => {
                 {
                     search: searchTerm,
                     status: statusFilter,
+                    appointment_date: searchbydate,
                 }
             );
             if (response?.data?.success && response?.data?.data?.results) {
@@ -597,7 +599,7 @@ const AppointmentsPage = () => {
         // } catch (error) {
         //     toast.error('Failed to load appointments');
         // }
-    }, [currentPage, itemsPerPage, searchTerm, statusFilter]);
+    }, [currentPage, itemsPerPage, searchbydate, statusFilter]);
 
     useEffect(() => {
         fetchAppointments();
@@ -772,17 +774,18 @@ const AppointmentsPage = () => {
                         <div className="flex items-center space-x-3">
                             <button
                                 onClick={fetchAppointments}
-                                className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                className="p-2 flex gap-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                                 title="Refresh"
                             >
                                 <RefreshCw size={18} className={`text-gray-500 ${isLoading ? 'animate-spin' : ''}`} />
+                                Refresh
                             </button>
-                            <button
+                            {/* <button
                                 onClick={exportToCSV}
                                 className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors flex items-center space-x-2"
                             >
                                 <Download size={18} /><span>Export</span>
-                            </button>
+                            </button> */}
                         </div>
                     </div>
                 </div>
@@ -841,10 +844,19 @@ const AppointmentsPage = () => {
                                     <option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>
                                 ))}
                             </select> */}
-                            <SortDropdown
+                            {/* <SortDropdown
                                 sortBy={sortBy}
                                 sortOrder={sortOrder}
                                 onSortChange={handleSortChange}
+                            /> */}
+                            <input
+                                type="date"
+                                value={searchbydate}
+                                onChange={(e) => {
+                                    setsearchbydate(e.target.value);
+                                    setCurrentPage(1);
+                                }}
+                                className="px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0D614E]"
                             />
                         </div>
                     </div>
