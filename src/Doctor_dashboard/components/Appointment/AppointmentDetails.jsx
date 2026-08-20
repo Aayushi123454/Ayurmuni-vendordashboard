@@ -64,6 +64,49 @@ const formatTime = (t) => {
     return t.substring(0, 5);
 };
 
+const formatSlotDateTime = (date, time) => {
+    if (!date) return 'N/A';
+    const iso = time ? `${date}T${String(time).slice(0, 8)}` : date;
+    const parsed = new Date(iso);
+    if (Number.isNaN(parsed.getTime())) return formatDate(date);
+    return parsed.toLocaleString('en-IN', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+};
+
+const formatDurationLabel = (duration) => {
+    if (duration === 0 || duration === '0') return '0 days';
+    if (duration == null || duration === '') return '—';
+    const value = String(duration).trim();
+    if (/day|week|month|hour|yr|year/i.test(value)) return value;
+    return `${value} days`;
+};
+
+const toAdviceList = (items) => {
+    if (!items) return [];
+    if (Array.isArray(items)) {
+        return items.map((item) => String(item).replace(/^•\s*/, '').trim()).filter(Boolean);
+    }
+    return String(items)
+        .split('\n')
+        .map((line) => line.replace(/^•\s*/, '').trim())
+        .filter(Boolean);
+};
+
+const isPrescriptionStillEditable = (record) => {
+    if (typeof record?.is_editable === 'boolean') return record.is_editable;
+    if (record?.edit_window_closes_at) {
+        const closesAt = new Date(record.edit_window_closes_at);
+        return !Number.isNaN(closesAt.getTime()) && closesAt.getTime() > Date.now();
+    }
+    return true;
+};
+
 const calculateAge = (dob) => {
     if (!dob) return 'N/A';
     const today = new Date(), b = new Date(dob);
@@ -229,7 +272,7 @@ const VitalsCard = ({ vitals }) => {
 };
 
 // Prescription Template Component for PDF
-const PrescriptionTemplate = React.forwardRef(({ appointment, formData, doctor, patient, date }, ref) => {
+const PrescriptionTemplate = React.forwardRef(({ appointment, formData, doctor, patient, date, dietPlans = [] }, ref) => {
     const calculateAge = (dob) => {
         if (!dob) return 'N/A';
         return new Date().getFullYear() - new Date(dob).getFullYear();
@@ -461,10 +504,10 @@ const PrescriptionTemplate = React.forwardRef(({ appointment, formData, doctor, 
                                                 key={idx}
                                                 className={`border-t border-gray-200 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-emerald-50 transition-colors`}
                                             >
-                                                <td className="px-6 py-5 font-semibold text-gray-900">{med.medicine_name}</td>
+                                                <td className="px-6 py-5 font-semibold text-gray-900">{med.product_name || med.medicine_name}</td>
                                                 <td className="px-6 py-5 text-gray-700">{med.dosage || '—'}</td>
                                                 <td className="px-6 py-5 text-gray-700">{med.frequency || '—'}</td>
-                                                <td className="px-6 py-5 text-gray-700">{med.duration || '—'}</td>
+                                                <td className="px-6 py-5 text-gray-700">{formatDurationLabel(med.duration)}</td>
                                                 <td className="px-6 py-5 text-sm text-gray-600 italic">{med.instruction || '—'}</td>
                                             </tr>
                                         ))
@@ -480,6 +523,70 @@ const PrescriptionTemplate = React.forwardRef(({ appointment, formData, doctor, 
                         </div>
                     </div>
                 </div>
+
+                {/* DIET PLANS */}
+                {(dietPlans || []).length > 0 && (
+                    <div className="mb-8">
+                        <div className="flex items-center gap-3 mb-5">
+                            <div className="w-10 h-10 bg-[#0D614E] rounded-lg flex items-center justify-center">
+                                <Leaf className="w-5 h-5 text-white" />
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-900">Diet Plans</h3>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3">
+                            {(dietPlans || []).map((diet) => (
+                                <div key={diet.id || diet.name} className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 flex items-start justify-between gap-4">
+                                    <div>
+                                        <p className="font-semibold text-gray-900">{diet.name || 'Unnamed plan'}</p>
+                                        <p className="text-sm text-gray-600 mt-1">Assigned with this prescription</p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 justify-end">
+                                        <span className="inline-block bg-emerald-100 text-emerald-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                                            {formatDurationLabel(diet.duration ?? diet.total_days)}
+                                        </span>
+                                        {diet.meals_per_day != null && diet.meals_per_day !== '' && (
+                                            <span className="inline-block bg-sky-100 text-sky-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                                                {diet.meals_per_day} meals/day
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* DO'S & DON'TS */}
+                {(toAdviceList(formData.dos).length > 0 || toAdviceList(formData.donts).length > 0) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+                        {toAdviceList(formData.dos).length > 0 && (
+                            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+                                <h3 className="font-semibold text-emerald-800 mb-3">Do's</h3>
+                                <ul className="space-y-2">
+                                    {toAdviceList(formData.dos).map((item, i) => (
+                                        <li key={i} className="flex gap-2 text-sm text-emerald-900">
+                                            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                                            <span>{item}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        {toAdviceList(formData.donts).length > 0 && (
+                            <div className="rounded-xl border border-red-200 bg-red-50 p-5">
+                                <h3 className="font-semibold text-red-800 mb-3">Don'ts</h3>
+                                <ul className="space-y-2">
+                                    {toAdviceList(formData.donts).map((item, i) => (
+                                        <li key={i} className="flex gap-2 text-sm text-red-900">
+                                            <XCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                                            <span>{item}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* CLINICAL NOTES */}
                 {formData.clinical_notes && (
@@ -744,6 +851,7 @@ const AppointmentDetail = ({ videodetails }) => {
     });
 
     const [selecteddietplan, setSelecteddietplan] = useState(null);
+    const [originalPrescribedDiet, setOriginalPrescribedDiet] = useState(null);
     const [dietSearchQuery, setDietSearchQuery] = useState("");
     const dietDropdownRef = useRef(null);
 
@@ -841,7 +949,13 @@ const AppointmentDetail = ({ videodetails }) => {
     const fetchPatientHistory = async (id) => {
         try {
             const response = await doctorService.getAppointmentprec(id, "");
-            setPatientHistory(response.data.data?.results || [])
+            const payload = response?.data?.data || response?.data || {};
+            const results = Array.isArray(payload?.results)
+                ? payload.results
+                : Array.isArray(payload)
+                    ? payload
+                    : [];
+            setPatientHistory(results);
         } catch (error) {
             toast.error(error?.response?.data?.message || 'Failed to load patient history');
         }
@@ -1070,6 +1184,7 @@ const AppointmentDetail = ({ videodetails }) => {
                 ? String(followUp.date).slice(0, 10)
                 : "";
             const mappedItems = mapPrescriptionItems(record?.prescription_items || record?.prescriptions || []);
+            const firstDiet = record?.diets?.[0];
             setFormData({
                 symptom_description: record?.symptom_description || "",
                 history_of_past_illness: record?.history_of_past_illness || "",
@@ -1087,6 +1202,14 @@ const AppointmentDetail = ({ videodetails }) => {
                 dos: convertArrayToBulletText(record?.dos),
                 donts: convertArrayToBulletText(record?.donts),
             });
+            const mappedDiet = firstDiet
+                ? {
+                    ...firstDiet,
+                    total_days: firstDiet.duration ?? firstDiet.total_days,
+                }
+                : null;
+            setSelecteddietplan(mappedDiet);
+            setOriginalPrescribedDiet(mappedDiet);
             setEditingPrescriptionId(record?.id || null);
             setEditingAppointmentId(record?.appointment_id || record?.appointment || appointment?.id || null);
             setEditingPrescriptionStatus(record?.status || "sent");
@@ -1107,6 +1230,9 @@ const AppointmentDetail = ({ videodetails }) => {
         setEditingPrescriptionStatus("sent");
         setOriginalPrescriptionItems([]);
         setFormData(getEmptyPrescriptionForm());
+        setSelecteddietplan(null);
+        setOriginalPrescribedDiet(null);
+        setDietSearchQuery("");
         setShowAddMed(false);
         setEditingPrescription(null);
         setActiveTab("history");
@@ -1192,6 +1318,15 @@ const AppointmentDetail = ({ videodetails }) => {
             .map(line => line.replace(/^•\s*/, "").trim())
             .filter(Boolean);
     };
+
+    const getDietPlanId = (diet) => diet?.diet_plan_id || diet?.diet_plan || diet?.id || null;
+
+    const getDietAdditionalNotes = (diet) => {
+        if (Array.isArray(diet?.additional_notes)) {
+            return diet.additional_notes.filter(Boolean);
+        }
+        return [];
+    };
     // Save prescription to history
     const handleSavePrescription = async () => {
         if (!validateProductInfo()) return;
@@ -1230,16 +1365,15 @@ const AppointmentDetail = ({ videodetails }) => {
                 donts: convertBulletTextToArray(formData?.donts)
             };
 
+        const dietAppointmentId = isEditing
+            ? (editingAppointmentId || appointment?.id)
+            : appointment?.id;
         const dietplanData = {
-            "patient_id": appointment?.patient?.id,
-            "diet_plan_id": selecteddietplan?.id,
-            "appointment_id": appointment?.id,
-            // "additional_notes": [
-            //     "Avoid cold drinks",
-            //     "Drink warm water in the morning"
-            // ],
-            "plan_json": {}
-        }
+            patient_id: appointment?.patient?.id,
+            diet_plan_id: getDietPlanId(selecteddietplan),
+            appointment_id: dietAppointmentId,
+            plan_json: {},
+        };
 
         try {
             const res = isEditing
@@ -1263,9 +1397,9 @@ const AppointmentDetail = ({ videodetails }) => {
                     const removedItems = originalPrescriptionItems.filter(
                         (med) => isExistingPrescriptionItem(med.id) && !currentIds.has(med.id)
                     );
-                    for (const med of removedItems) {
-                        await doctorService.deletePrescriptionItem(med.id);
-                    }
+                    // for (const med of removedItems) {
+                    //     await doctorService.deletePrescriptionItem(med.id);
+                    // }
 
                     const originalById = Object.fromEntries(
                         originalPrescriptionItems
@@ -1295,19 +1429,40 @@ const AppointmentDetail = ({ videodetails }) => {
                     }
                 }
 
-                // Save diet plan if selected
-                if (selecteddietplan?.id) {
-                    const getdietplan = await doctorService.getdietbyid(
-                        selecteddietplan.id
-                    );
+                // Save or replace diet plan if selected
+                const newDietPlanId = getDietPlanId(selecteddietplan);
+                const currentDietPlanId = getDietPlanId(originalPrescribedDiet);
 
-                    const schedule = getdietplan?.data?.data?.schedule;
+                if (newDietPlanId) {
+                    const dietChanged = Boolean(currentDietPlanId) &&
+                        String(currentDietPlanId) !== String(newDietPlanId);
 
-                    if (schedule) {
-                        await doctorService.postdietplan({
-                            ...dietplanData,
-                            plan_json: schedule,
-                        });
+                    if (dietChanged || !currentDietPlanId) {
+                        const getdietplan = await doctorService.getdietbyid(newDietPlanId);
+                        const rawDiet = getdietplan?.data?.data || getdietplan?.data || {};
+                        const dietPayload = Array.isArray(rawDiet) ? (rawDiet[0] || {}) : rawDiet;
+                        const schedule = dietPayload.schedule || dietPayload.plan_json;
+
+                        if (schedule) {
+                            if (dietChanged) {
+                                await doctorService.replacedietplan({
+                                    patient_id: appointment?.patient?.id,
+                                    current_diet_plan_id: currentDietPlanId,
+                                    new_diet_plan_id: newDietPlanId,
+                                    appointment_id: dietAppointmentId,
+                                    additional_notes: getDietAdditionalNotes(selecteddietplan).length
+                                        ? getDietAdditionalNotes(selecteddietplan)
+                                        : getDietAdditionalNotes(originalPrescribedDiet),
+                                    plan_json: schedule,
+                                });
+                            } else {
+                                await doctorService.postdietplan({
+                                    ...dietplanData,
+                                    diet_plan_id: newDietPlanId,
+                                    plan_json: schedule,
+                                });
+                            }
+                        }
                     }
                 }
 
@@ -1319,6 +1474,9 @@ const AppointmentDetail = ({ videodetails }) => {
                 setEditingPrescriptionStatus("sent");
                 setOriginalPrescriptionItems([]);
                 setFormData(getEmptyPrescriptionForm());
+                setSelecteddietplan(null);
+                setOriginalPrescribedDiet(null);
+                setDietSearchQuery("");
 
                 fetchAppointmentDetails();
                 setActiveTab("history");
@@ -2453,7 +2611,7 @@ const AppointmentDetail = ({ videodetails }) => {
                                                                                 item.diet_plan_gallery?.find((g) => g.is_cover)?.image_url ||
                                                                                 item.diet_plan_gallery?.[0]?.image_url ||
                                                                                 null;
-                                                                            const isSelected = selecteddietplan?.id === item.id;
+                                                                            const isSelected = String(getDietPlanId(selecteddietplan) || "") === String(item.id);
                                                                             const diseases = item.health_diseases || [];
 
                                                                             return (
@@ -3120,7 +3278,7 @@ const AppointmentDetail = ({ videodetails }) => {
                                                     <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-200">
                                                         <p className="text-xs text-emerald-700 font-semibold uppercase tracking-widest">Last Visit</p>
                                                         <p className="text-sm font-bold text-emerald-900 mt-1">
-                                                            {patientHistory.length > 0 ? formatDateTime(patientHistory[0].appointment_date, patientHistory[0].start_time).split(' at ')[0] : '—'}
+                                                            {patientHistory.length > 0 ? formatDate(patientHistory[0].appointment_date) : '—'}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -3154,8 +3312,13 @@ const AppointmentDetail = ({ videodetails }) => {
                                                                         <div className="flex items-center gap-3 mb-2">
                                                                             <Calendar className="w-4 h-4 text-emerald-600" />
                                                                             <p className="font-semibold text-gray-900">
-                                                                                {formatDateTime(record.appointment_date + ":" + record.start_time)}
+                                                                                {formatSlotDateTime(record.appointment_date, record.start_time)}
                                                                             </p>
+                                                                            {record.start_time && record.end_time && (
+                                                                                <span className="text-xs text-gray-500">
+                                                                                    {formatTime(record.start_time)} – {formatTime(record.end_time)}
+                                                                                </span>
+                                                                            )}
                                                                         </div>
 
                                                                         {/* Quick Summary - Chief Complaint Preview */}
@@ -3175,6 +3338,13 @@ const AppointmentDetail = ({ videodetails }) => {
                                                                                 {record.prescription_items?.length || 0}
                                                                             </span>
 
+                                                                            {(record.diets?.length || 0) > 0 && (
+                                                                                <span className="px-4 py-2 rounded-full text-sm font-semibold bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center gap-2">
+                                                                                    <Leaf className="w-3.5 h-3.5" />
+                                                                                    {record.diets.length}
+                                                                                </span>
+                                                                            )}
+
                                                                             {/* Status Badge */}
                                                                             <span className={`px-4 py-2 rounded-full text-sm font-semibold border ${getStatusColor(record.status)}`}>
                                                                                 {record.status?.charAt(0).toUpperCase() + record.status?.slice(1) || 'Pending'}
@@ -3182,17 +3352,19 @@ const AppointmentDetail = ({ videodetails }) => {
                                                                         </div>
 
                                                                         {/* Edit Icon */}
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={(e) => handleEditPrescriptionForm(record, e)}
-                                                                            className={`cursor-pointer p-2 rounded-xl transition ${editingPrescriptionId === record.id
-                                                                                ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                                                                                : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-                                                                                }`}
-                                                                            title="Edit prescription"
-                                                                        >
-                                                                            <PencilIcon className={`w-5 h-5 ${editingPrescriptionId === record.id ? "text-white" : "text-emerald-600"}`} />
-                                                                        </button>
+                                                                        {isPrescriptionStillEditable(record) && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(e) => handleEditPrescriptionForm(record, e)}
+                                                                                className={`cursor-pointer p-2 rounded-xl transition ${editingPrescriptionId === record.id
+                                                                                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                                                                                    : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                                                                                    }`}
+                                                                                title="Edit prescription"
+                                                                            >
+                                                                                <PencilIcon className={`w-5 h-5 ${editingPrescriptionId === record.id ? "text-white" : "text-emerald-600"}`} />
+                                                                            </button>
+                                                                        )}
 
                                                                         {/* Expand Icon */}
                                                                         <div className={`text-gray-400 transition-transform ${expandedIdx === idx ? 'rotate-180' : ''}`}>
@@ -3207,7 +3379,7 @@ const AppointmentDetail = ({ videodetails }) => {
 
                                                                         {/* Chief Complaint Section */}
                                                                         {record.symptom_description && (
-                                                                            <div className="bg-white rounded-xl p-4 border border-amber-200 bg-amber-50">
+                                                                            <div className="rounded-xl p-4 border border-amber-200 bg-amber-50">
                                                                                 <div className="flex items-start gap-3">
                                                                                     <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                                                                                     <div className="flex-1">
@@ -3218,27 +3390,47 @@ const AppointmentDetail = ({ videodetails }) => {
                                                                             </div>
                                                                         )}
 
+                                                                        {/* Medical History Details */}
+                                                                        {(record.history_of_past_illness || record.allergies || record.family_history || record.surgical_history) && (
+                                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                            {record.history_of_past_illness && (
+                                                                                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+                                                                                    <p className="flex gap-2 text-xs font-bold text-orange-900 uppercase tracking-widest mb-2"><Notebook size={16} /> Past Illness</p>
+                                                                                    <p className="text-sm text-orange-900">{record.history_of_past_illness}</p>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {record.allergies && (
+                                                                                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                                                                                    <p className="flex gap-2 text-xs font-bold text-red-900 uppercase tracking-widest mb-2"><FaAllergies /> Allergies</p>
+                                                                                    <p className="text-sm text-red-900">{record.allergies}</p>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {record.family_history && (
+                                                                                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                                                                                    <p className="flex gap-2 text-xs font-bold text-purple-900 uppercase tracking-widest mb-2"><MdFamilyRestroom size={14} /> Family History</p>
+                                                                                    <p className="text-sm text-purple-900">{record.family_history}</p>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {record.surgical_history && (
+                                                                                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                                                                                    <p className="text-xs font-bold text-red-900 uppercase tracking-widest mb-2">Surgical History</p>
+                                                                                    <p className="text-sm text-red-900">{record.surgical_history}</p>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                        )}
+
                                                                         {/* Diagnosis Section */}
                                                                         {record.diagnosis_advice && (
-                                                                            <div className="bg-white rounded-xl p-4 border border-emerald-200 bg-emerald-50">
+                                                                            <div className="rounded-xl p-4 border border-emerald-200 bg-emerald-50">
                                                                                 <div className="flex items-start gap-3">
                                                                                     <TrendingUp className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
                                                                                     <div className="flex-1">
                                                                                         <p className="text-xs font-bold text-emerald-900 uppercase tracking-widest">Diagnosis</p>
                                                                                         <p className="text-sm text-emerald-900 mt-2 leading-relaxed">{record.diagnosis_advice}</p>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                        )}
-
-                                                                        {/* Clinical Observations */}
-                                                                        {record.clinical_notes && (
-                                                                            <div className="bg-white rounded-xl p-4 border border-blue-200 bg-blue-50">
-                                                                                <div className="flex items-start gap-3">
-                                                                                    <Thermometer className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                                                                                    <div className="flex-1">
-                                                                                        <p className="text-xs font-bold text-blue-900 uppercase tracking-widest">Clinical Observations</p>
-                                                                                        <p className="text-sm text-blue-900 mt-2 leading-relaxed">{record.clinical_notes}</p>
                                                                                     </div>
                                                                                 </div>
                                                                             </div>
@@ -3254,29 +3446,26 @@ const AppointmentDetail = ({ videodetails }) => {
 
                                                                                 <div className="overflow-hidden rounded-xl border border-gray-200">
                                                                                     <table className="w-full text-sm">
-                                                                                        <thead className="bg-[#0D614E] to-teal-600 text-white">
+                                                                                        <thead className="bg-[#0D614E] text-white">
                                                                                             <tr>
                                                                                                 <th className="px-4 py-3 text-left font-semibold">Medicine</th>
                                                                                                 <th className="px-4 py-3 text-left font-semibold">Dosage</th>
                                                                                                 <th className="px-4 py-3 text-left font-semibold">Frequency</th>
                                                                                                 <th className="px-4 py-3 text-left font-semibold">Duration</th>
+                                                                                                <th className="px-4 py-3 text-left font-semibold">Instructions</th>
                                                                                             </tr>
                                                                                         </thead>
                                                                                         <tbody>
                                                                                             {record.prescription_items.map((med, i) => (
                                                                                                 <tr
-                                                                                                    key={i}
+                                                                                                    key={med.id || i}
                                                                                                     className={`border-t border-gray-200 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-[#0D614E]/10 transition-colors`}
                                                                                                 >
-                                                                                                    <td className="px-4 py-4">
-                                                                                                        <p className="font-semibold text-gray-900">{med.product_name || med.medicine_name}</p>
-                                                                                                        {med.instruction && (
-                                                                                                            <p className="text-xs text-gray-600 mt-1">📝 {med.instruction}</p>
-                                                                                                        )}
-                                                                                                    </td>
+                                                                                                    <td className="px-4 py-4 font-semibold text-gray-900">{med.product_name || med.medicine_name || '—'}</td>
                                                                                                     <td className="px-4 py-4 text-gray-700">{med.dosage || '—'}</td>
                                                                                                     <td className="px-4 py-4 text-gray-700">{med.frequency || '—'}</td>
-                                                                                                    <td className="px-4 py-4 text-gray-700">{med.duration ? `${med.duration} days` : '—'}</td>
+                                                                                                    <td className="px-4 py-4 text-gray-700">{formatDurationLabel(med.duration)}</td>
+                                                                                                    <td className="px-4 py-4 text-sm text-gray-600 italic">{med.instruction || '—'}</td>
                                                                                                 </tr>
                                                                                             ))}
                                                                                         </tbody>
@@ -3285,118 +3474,99 @@ const AppointmentDetail = ({ videodetails }) => {
                                                                             </div>
                                                                         )}
 
-                                                                        {
-                                                                            record.diets && record.diets.length > 0 && (
-                                                                                <div>
-                                                                                    <div className="flex items-center gap-2 mb-4">
-                                                                                        <Pill className="w-5 h-5 text-emerald-600" />
-                                                                                        <h4 className="font-bold text-gray-900">Diet Plans</h4>
-                                                                                    </div>
+                                                                        {record.diets && record.diets.length > 0 && (
+                                                                            <div>
+                                                                                <div className="flex items-center gap-2 mb-4">
+                                                                                    <Leaf className="w-5 h-5 text-emerald-600" />
+                                                                                    <h4 className="font-bold text-gray-900">Diet Plans</h4>
+                                                                                </div>
 
-                                                                                    <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-                                                                                        {record.diets.map((diet, idx) => (
-                                                                                            <div key={idx} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                                                                                                <div className="flex items-start justify-between gap-4">
+                                                                                <div className="grid grid-cols-1 gap-4">
+                                                                                    {record.diets.map((diet) => (
+                                                                                        <div key={diet.id || diet.name} className="bg-white border border-emerald-200 rounded-xl p-4 shadow-sm">
+                                                                                            <div className="flex items-start justify-between gap-4">
+                                                                                                <div className="flex items-start gap-3">
+                                                                                                    <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                                                                                                        <Leaf className="w-5 h-5 text-emerald-600" />
+                                                                                                    </div>
                                                                                                     <div>
                                                                                                         <h5 className="font-semibold text-gray-900">{diet.name}</h5>
-                                                                                                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">A tailored diet plan focused on recovery and well-being.</p>
-                                                                                                    </div>
-                                                                                                    <div className="text-right">
-                                                                                                        <span className="inline-block bg-emerald-100 text-emerald-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded">{diet.duration} days</span>
-                                                                                                        <span className="inline-block bg-sky-100 text-sky-800 text-xs font-medium px-2.5 py-0.5 rounded">{diet.meals_per_day} meals/day</span>
+                                                                                                        <p className="text-sm text-gray-500 mt-1">Assigned with this prescription</p>
                                                                                                     </div>
                                                                                                 </div>
+                                                                                                <div className="text-right flex flex-wrap gap-2 justify-end">
+                                                                                                    <span className="inline-block bg-emerald-100 text-emerald-800 text-xs font-medium px-2.5 py-0.5 rounded">{formatDurationLabel(diet.duration)}</span>
+                                                                                                    {diet.meals_per_day != null && diet.meals_per_day !== '' && (
+                                                                                                        <span className="inline-block bg-sky-100 text-sky-800 text-xs font-medium px-2.5 py-0.5 rounded">{diet.meals_per_day} meals/day</span>
+                                                                                                    )}
+                                                                                                </div>
                                                                                             </div>
-                                                                                        ))}
-                                                                                    </div>
+                                                                                        </div>
+                                                                                    ))}
                                                                                 </div>
-                                                                            )
-                                                                        }
-
-                                                                        {/* Medical History Details */}
-                                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                                            {record.allergies && (
-                                                                                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                                                                                    <p className="flex gap-2 text-xs font-bold text-red-900 uppercase tracking-widest mb-2"><FaAllergies /> Allergies</p>
-                                                                                    <p className="text-sm text-red-900">{record.allergies}</p>
-                                                                                </div>
-                                                                            )}
-
-                                                                            {record.family_history && (
-                                                                                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-                                                                                    <p className="flex gap-2 text-xs font-bold text-purple-900 uppercase tracking-widest mb-2"><MdFamilyRestroom size={14} /> Family History</p>
-                                                                                    <p className="text-sm text-purple-900">{record.family_history}</p>
-                                                                                </div>
-                                                                            )}
-
-                                                                            {record.history_of_past_illness && (
-                                                                                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-                                                                                    <p className="flex gap-2 text-xs font-bold text-orange-900 uppercase tracking-widest mb-2"><Notebook size={16} /> Past Illness</p>
-                                                                                    <p className="text-sm text-orange-900 line-clamp-3">{record.history_of_past_illness}</p>
-                                                                                </div>
-                                                                            )}
-
-                                                                            {record.surgical_history && (
-                                                                                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                                                                                    <p className="text-xs font-bold text-red-900 uppercase tracking-widest mb-2">🏥 Surgical History</p>
-                                                                                    <p className="text-sm text-red-900">{record.surgical_history}</p>
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-
-                                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-                                                                            {/* DO's */}
-                                                                            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
-                                                                                <div className="flex items-center gap-3 mb-4">
-                                                                                    <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                                                                                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                                                                                    </div>
-
-                                                                                    <div>
-                                                                                        <h3 className="font-semibold text-emerald-700">
-                                                                                            Do's
-                                                                                        </h3>
-                                                                                        <p className="text-xs text-emerald-600">
-                                                                                            Advise the patient what they should follow.
-                                                                                        </p>
-                                                                                    </div>
-                                                                                </div>
-
-                                                                                <textarea
-                                                                                    rows={6}
-                                                                                    value={record.dos?.map(item => `• ${item}`).join("\n")}
-                                                                                    placeholder={`• Drink 2-3 liters of water daily`}
-                                                                                    className="w-full rounded-xl border border-emerald-200 bg-white p-4 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
-                                                                                />
                                                                             </div>
+                                                                        )}
 
-                                                                            {/* DON'Ts */}
-                                                                            <div className="bg-red-50 border border-red-200 rounded-2xl p-5">
-                                                                                <div className="flex items-center gap-3 mb-4">
-                                                                                    <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
-                                                                                        <XCircle className="w-5 h-5 text-red-600" />
-                                                                                    </div>
-
-                                                                                    <div>
-                                                                                        <h3 className="font-semibold text-red-700">
-                                                                                            Don'ts
-                                                                                        </h3>
-                                                                                        <p className="text-xs text-red-600">
-                                                                                            Mention activities or foods to avoid.
-                                                                                        </p>
+                                                                        {/* Clinical Observations */}
+                                                                        {record.clinical_notes && (
+                                                                            <div className="rounded-xl p-4 border border-blue-200 bg-blue-50">
+                                                                                <div className="flex items-start gap-3">
+                                                                                    <Thermometer className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                                                                                    <div className="flex-1">
+                                                                                        <p className="text-xs font-bold text-blue-900 uppercase tracking-widest">Clinical Notes & Observations</p>
+                                                                                        <p className="text-sm text-blue-900 mt-2 leading-relaxed">{record.clinical_notes}</p>
                                                                                     </div>
                                                                                 </div>
-
-                                                                                <textarea
-                                                                                    rows={6}
-                                                                                    value={record?.donts?.map(item => `• ${item}`).join("\n")}
-                                                                                    placeholder={`• Avoid oily and spicy food`}
-                                                                                    className="w-full rounded-xl border border-red-200 bg-white p-4 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-                                                                                />
                                                                             </div>
+                                                                        )}
 
-                                                                        </div>
+                                                                        {(toAdviceList(record.dos).length > 0 || toAdviceList(record.donts).length > 0) && (
+                                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                                                                {toAdviceList(record.dos).length > 0 && (
+                                                                                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+                                                                                        <div className="flex items-center gap-3 mb-4">
+                                                                                            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                                                                                                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                                                                                            </div>
+                                                                                            <div>
+                                                                                                <h3 className="font-semibold text-emerald-700">Do's</h3>
+                                                                                                <p className="text-xs text-emerald-600">Advise the patient what they should follow.</p>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <ul className="space-y-2">
+                                                                                            {toAdviceList(record.dos).map((item, i) => (
+                                                                                                <li key={i} className="flex gap-2 text-sm text-emerald-900">
+                                                                                                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                                                                                                    <span>{item}</span>
+                                                                                                </li>
+                                                                                            ))}
+                                                                                        </ul>
+                                                                                    </div>
+                                                                                )}
+
+                                                                                {toAdviceList(record.donts).length > 0 && (
+                                                                                    <div className="bg-red-50 border border-red-200 rounded-2xl p-5">
+                                                                                        <div className="flex items-center gap-3 mb-4">
+                                                                                            <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+                                                                                                <XCircle className="w-5 h-5 text-red-600" />
+                                                                                            </div>
+                                                                                            <div>
+                                                                                                <h3 className="font-semibold text-red-700">Don'ts</h3>
+                                                                                                <p className="text-xs text-red-600">Mention activities or foods to avoid.</p>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <ul className="space-y-2">
+                                                                                            {toAdviceList(record.donts).map((item, i) => (
+                                                                                                <li key={i} className="flex gap-2 text-sm text-red-900">
+                                                                                                    <XCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                                                                                                    <span>{item}</span>
+                                                                                                </li>
+                                                                                            ))}
+                                                                                        </ul>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
 
                                                                         {/* Follow-up Information */}
                                                                         {record.follow_up?.schedule && record.follow_up?.date && (
@@ -3906,6 +4076,7 @@ const AppointmentDetail = ({ videodetails }) => {
                                     doctor={doctor}
                                     patient={patient}
                                     date={new Date()}
+                                    dietPlans={selecteddietplan ? [selecteddietplan] : []}
                                 />
                             </div>
                         </div>

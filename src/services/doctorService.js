@@ -831,6 +831,20 @@ export const doctorService = {
         );
     },
 
+    replacedietplan: (dietPlanData) => {
+        if (!dietPlanData) {
+            return Promise.reject({
+                message: "Diet plan data is required",
+                status: 400,
+                data: null
+            });
+        }
+        return handleApiCall(
+            () => API.put(`/doctors/patient-plans/replace/`, dietPlanData),
+            "Failed to replace diet plan"
+        );
+    },
+
     getDosDonts: (prakriti) => {
         const query = new URLSearchParams();
         if (prakriti) query.append("prakriti", prakriti);
