@@ -239,6 +239,7 @@ const DietPlanManager = () => {
         prakriti: '',
         season: '',
         health_diseases: [],
+        is_personalized_plan: false,
         is_paid: false,
         price: '',
         is_common: false,
@@ -285,6 +286,7 @@ const DietPlanManager = () => {
                 health_diseases: Array.isArray(dietPlan.health_diseases) ? dietPlan.health_diseases : [],
                 is_paid: !!dietPlan.is_paid,
                 price: dietPlan.price ?? '',
+                is_personalized_plan: !!dietPlan.is_personalized_plan,
                 is_common: !!dietPlan.is_common,
                 diet_plan_gallery: dietPlan.diet_plan_gallery || [],
                 schedule,
@@ -771,6 +773,7 @@ const DietPlanManager = () => {
             prakriti: formData.prakriti,
             season: formData.season,
             health_diseases: formData.health_diseases,
+            is_personalized_plan: formData.is_personalized_plan,
             is_paid: formData.is_paid,
             price: formData.is_paid ? nutrientNumber(formData.price) : 0.00,
             is_common: formData.is_common,
@@ -832,6 +835,7 @@ const DietPlanManager = () => {
             prakriti: '',
             season: '',
             health_diseases: [],
+            is_personalized_plan: true,
             is_paid: false,
             price: '',
             is_common: false,
@@ -1527,6 +1531,13 @@ const DietPlanManager = () => {
                                 checked={formData.is_common}
                                 onChange={handleInputChange}
                                 label="Common Plan"
+                            />
+                            <Toggle
+                                id="is_personalized_plan"
+                                name="is_personalized_plan"
+                                checked={formData.is_personalized_plan}
+                                onChange={handleInputChange}
+                                label="Personalized Plan"
                             />
                         </div>
 
