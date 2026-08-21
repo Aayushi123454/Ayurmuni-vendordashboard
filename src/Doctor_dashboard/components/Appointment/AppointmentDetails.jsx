@@ -3198,17 +3198,11 @@ const AppointmentDetail = ({ videodetails }) => {
                                                     disabled={
                                                         updating ||
                                                         !formData?.symptom_description?.trim()
-<<<<<<< HEAD
-                                                    }
-                                                    className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:shadow-lg ${updating ||
-                                                        !formData?.symptom_description?.trim()
-=======
                                                         // || formData.prescriptions.length === 0
                                                     }
                                                     className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:shadow-lg ${updating ||
                                                         !formData?.symptom_description?.trim()
                                                         // || formData.prescriptions.length === 0
->>>>>>> e5723fbadd21bb243b9114263f618ca9e8d12ed2
                                                         ? "bg-gray-400 cursor-not-allowed"
                                                         : "bg-gradient-to-r from-[#0D614E] to-[#0a4a3d]"
                                                         }`}

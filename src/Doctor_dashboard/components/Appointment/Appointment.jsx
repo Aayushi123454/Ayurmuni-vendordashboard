@@ -59,11 +59,7 @@ const STATUS_CONFIG = {
 };
 
 const CONSULTATION_TYPES = ['video', 'chat', 'in-person'];
-<<<<<<< HEAD
-const STATUS_OPTIONS = ['confirmed', 'pending', 'completed', 'cancelled', 'rescheduled', 'reschedule'];
-=======
 const STATUS_OPTIONS = ['confirmed', 'completed', 'cancelled', 'rescheduled', 'reschedule'];
->>>>>>> e5723fbadd21bb243b9114263f618ca9e8d12ed2
 const ITEMS_PER_PAGE_OPTIONS = [5, 10, 15, 25, 50];
 
 // ==================== HELPER FUNCTIONS ====================
@@ -557,9 +553,6 @@ const AppointmentsPage = () => {
     const fetchAppointments = useCallback(async () => {
         setIsLoading(true);
         try {
-<<<<<<< HEAD
-            const response = await doctorService?.getAppointment("appointment");
-=======
             const response = await doctorService?.getAppointment(
                 "appointment",
                 currentPage,
@@ -570,7 +563,6 @@ const AppointmentsPage = () => {
                     appointment_date: searchbydate,
                 }
             );
->>>>>>> e5723fbadd21bb243b9114263f618ca9e8d12ed2
             if (response?.data?.success && response?.data?.data?.results) {
                 const appointmentsData = response.data.data.results.map(apt => ({
                     id: apt.id,
@@ -613,11 +605,7 @@ const AppointmentsPage = () => {
         // } catch (error) {
         //     toast.error('Failed to load appointments');
         // }
-<<<<<<< HEAD
-    }, []);
-=======
     }, [currentPage, itemsPerPage, searchbydate, statusFilter]);
->>>>>>> e5723fbadd21bb243b9114263f618ca9e8d12ed2
 
     useEffect(() => {
         fetchAppointments();
