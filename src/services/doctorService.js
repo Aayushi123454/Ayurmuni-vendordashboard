@@ -652,6 +652,39 @@ export const doctorService = {
         );
     },
 
+    uploadAppointmentDocument: (appointmentId, payload) => {
+        if (!appointmentId) {
+            return Promise.reject({
+                message: "Appointment ID is required",
+                status: 400,
+                data: null
+            });
+        }
+        return handleApiCall(
+            () => API.post(
+                `/doctors/appointments/documents/?appointment_id=${appointmentId}`,
+                payload
+            ),
+            "Failed to upload appointment document"
+        );
+    },
+
+    deleteAppointmentDocument: (documentId) => {
+        if (!documentId) {
+            return Promise.reject({
+                message: "Document ID is required",
+                status: 400,
+                data: null
+            });
+        }
+        return handleApiCall(
+            () => API.delete(
+                `/doctors/appointments/documents/?document_id=${documentId}`
+            ),
+            "Failed to Delete appointment document"
+        );
+    },
+
     getUpcomingAppointment: () => {
         return handleApiCall(
             () => API.get(`/doctors/appointments/upcoming/`),
@@ -731,6 +764,59 @@ export const doctorService = {
         );
     },
 
+    editPrescription: (patient_id, prescription_id, prescriptionData) => {
+        if (!patient_id || !prescription_id) {
+            return Promise.reject({
+                message: "Patient ID and prescription ID are required",
+                status: 400,
+                data: null
+            });
+        }
+        if (!prescriptionData) {
+            return Promise.reject({
+                message: "Prescription data is required",
+                status: 400,
+                data: null
+            });
+        }
+        return handleApiCall(
+            () => API.put(`/doctors/prescription/?patient_id=${patient_id}&prescription_id=${prescription_id}`, prescriptionData),
+            "Failed to edit prescription"
+        );
+    },
+
+    updatePrescriptionItem: (item_id, itemData) => {
+        if (!item_id || !itemData) {
+            return Promise.reject({
+                message: "Item ID and medicine data are required",
+                status: 400,
+                data: null
+            });
+        }
+        return handleApiCall(
+            () => API.patch(`/doctors/prescription/?item_id=${item_id}`, itemData),
+            "Failed to update prescription item"
+        );
+    },
+
+    getprescribedietplan: (patient_id, patient_diet_plan_id, day) => {
+        if (!patient_id) {
+            return Promise.reject({
+                message: "Patient ID is required",
+                status: 400,
+                data: null
+            });
+        }
+        const query = new URLSearchParams();
+        query.append("patient_id", patient_id);
+        if (patient_diet_plan_id) query.append("id", patient_diet_plan_id);
+        if (day !== undefined && day !== null && day !== "") query.append("day", day);
+        return handleApiCall(
+            () => API.get(`/doctors/patient-plans/progress/?${query.toString()}`),
+            "Failed to fetch prescribed diet plan"
+        );
+    },
+
     postdietplan: (dietPlanData) => {
         if (!dietPlanData) {
             return Promise.reject({
@@ -742,6 +828,20 @@ export const doctorService = {
         return handleApiCall(
             () => API.post(`/doctors/patient-plans/suggest/`, dietPlanData),
             "Failed to save diet plan"
+        );
+    },
+
+    replacedietplan: (dietPlanData) => {
+        if (!dietPlanData) {
+            return Promise.reject({
+                message: "Diet plan data is required",
+                status: 400,
+                data: null
+            });
+        }
+        return handleApiCall(
+            () => API.put(`/doctors/patient-plans/replace/`, dietPlanData),
+            "Failed to replace diet plan"
         );
     },
 

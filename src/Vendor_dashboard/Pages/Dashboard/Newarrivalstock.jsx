@@ -8,7 +8,7 @@ export default function NewlyArrivedStock({ products = [], loading = false, erro
     <div className="stock-wrap">
       <h2 className="header2">Recent Stock Updates</h2>
       <br />
-      <table className="sales-table">
+      <table className="sales-table2">
         <thead>
           <tr>
             <th>Products</th>

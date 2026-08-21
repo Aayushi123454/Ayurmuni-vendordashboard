@@ -332,15 +332,15 @@ const DoDontsList = () => {
                 </div>
             </div>
 
-            <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-3.5 mb-4 flex flex-wrap items-center gap-2.5">
-                <div className="relative flex-1 min-w-[240px]">
+            <div className="bg-white border border-gray-100 rounded-xl shadow-sm p-3.5 mb-4 flex items-center gap-2.5">
+                <div className="relative flex-1 min-w-[340px]">
                     <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                         type="text"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="Search prakriti, condition, do or don't…"
-                        className="w-full pl-8"
+                        className="w-full min-w-[340px] pl-8"
                     />
                 </div>
                 <select value={prakritiFilter} onChange={(e) => setPrakritiFilter(e.target.value)}>

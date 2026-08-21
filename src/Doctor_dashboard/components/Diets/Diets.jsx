@@ -117,8 +117,8 @@ const DietPlanList = ({ onEdit, onCreateNew }) => {
             });
         } catch (err) {
             console.error('Error fetching diet plans:', err);
-            setError(err?.response?.data?.message || 'Failed to load diet plans');
-            toast.error('Failed to load diet plans');
+            setError(err?.data?.error?.message || 'Failed to load diet plans');
+            toast.error(err?.data?.error?.message);
         } finally {
             setLoading(false);
         }
@@ -139,7 +139,7 @@ const DietPlanList = ({ onEdit, onCreateNew }) => {
             fetchPlans();
         } catch (error) {
             console.error('Error toggling diet plan status:', error);
-            toast.error(error?.response?.data?.message || 'Failed to toggle status');
+            toast.error(error?.data?.error?.message || 'Failed to toggle status');
         }
     };
 
@@ -153,7 +153,7 @@ const DietPlanList = ({ onEdit, onCreateNew }) => {
             toast.success('Diet plan removed');
         } catch (err) {
             console.error('Error deleting diet plan:', err);
-            toast.error(err?.response?.data?.message || 'Failed to remove diet plan');
+            toast.error(err?.data?.error?.message || 'Failed to remove diet plan');
         } finally {
             setDeletingId(null);
         }
@@ -174,7 +174,7 @@ const DietPlanList = ({ onEdit, onCreateNew }) => {
         return true;
     });
 
-    const seasons = ['summer', 'winter', 'spring', 'autumn', 'rainy'];
+    const seasons = ['summer', 'winter', 'spring', 'autumn', 'monsoon', 'all_seasons'];
 
     return (
         <div className="max-w-8xl mx-auto p-4 min-h-screen">
@@ -234,7 +234,7 @@ const DietPlanList = ({ onEdit, onCreateNew }) => {
                     <option value="all">All seasons</option>
                     {seasons.map((s) => (
                         <option key={s} value={s} className="capitalize">
-                            {s.charAt(0).toUpperCase() + s.slice(1)}
+                            {s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
                         </option>
                     ))}
                 </select>
@@ -347,7 +347,7 @@ const DietPlanList = ({ onEdit, onCreateNew }) => {
                                                 </div>
                                                 <div className="flex items-center gap-1.5 text-gray-400 text-xs mt-0.5 capitalize">
                                                     <Sun size={11} />
-                                                    {plan.season}
+                                                    {String(plan.season || '').replace(/_/g, ' ')}
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3">

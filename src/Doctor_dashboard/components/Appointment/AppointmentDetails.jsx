@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { doctorService } from '../../../services/doctorService';
+import { vendorService } from '../../../services/vendorService';
 import logo from "../../../Assests/Aurmunilogo.png";
 import { Rnd } from "react-rnd";
 
@@ -25,7 +26,9 @@ import {
     RefreshCw,
     DeleteIcon,
     Leaf,
-    Loader2
+    Loader2,
+    XCircleIcon,
+    PencilIcon
 } from 'lucide-react';
 import { BsLungs, BsPrescription } from 'react-icons/bs';
 import toast from 'react-hot-toast';
@@ -33,6 +36,7 @@ import { FaAllergies } from 'react-icons/fa';
 import { MdFamilyRestroom } from 'react-icons/md';
 import DoctorQAPanelPremium from './questionsforpatient';
 import DoctorVideoCall from '../videocall/DoctorVideoCall';
+import DietProgress from './dietprogress';
 import { BiFoodMenu } from 'react-icons/bi';
 // import html2canvas from 'html2canvas';
 // import jsPDF from 'jspdf';
@@ -58,6 +62,49 @@ const formatDateTime = (d) => {
 const formatTime = (t) => {
     if (!t) return 'N/A';
     return t.substring(0, 5);
+};
+
+const formatSlotDateTime = (date, time) => {
+    if (!date) return 'N/A';
+    const iso = time ? `${date}T${String(time).slice(0, 8)}` : date;
+    const parsed = new Date(iso);
+    if (Number.isNaN(parsed.getTime())) return formatDate(date);
+    return parsed.toLocaleString('en-IN', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+};
+
+const formatDurationLabel = (duration) => {
+    if (duration === 0 || duration === '0') return '0 days';
+    if (duration == null || duration === '') return '—';
+    const value = String(duration).trim();
+    if (/day|week|month|hour|yr|year/i.test(value)) return value;
+    return `${value} days`;
+};
+
+const toAdviceList = (items) => {
+    if (!items) return [];
+    if (Array.isArray(items)) {
+        return items.map((item) => String(item).replace(/^•\s*/, '').trim()).filter(Boolean);
+    }
+    return String(items)
+        .split('\n')
+        .map((line) => line.replace(/^•\s*/, '').trim())
+        .filter(Boolean);
+};
+
+const isPrescriptionStillEditable = (record) => {
+    if (typeof record?.is_editable === 'boolean') return record.is_editable;
+    if (record?.edit_window_closes_at) {
+        const closesAt = new Date(record.edit_window_closes_at);
+        return !Number.isNaN(closesAt.getTime()) && closesAt.getTime() > Date.now();
+    }
+    return true;
 };
 
 const calculateAge = (dob) => {
@@ -225,7 +272,7 @@ const VitalsCard = ({ vitals }) => {
 };
 
 // Prescription Template Component for PDF
-const PrescriptionTemplate = React.forwardRef(({ appointment, formData, doctor, patient, date }, ref) => {
+const PrescriptionTemplate = React.forwardRef(({ appointment, formData, doctor, patient, date, dietPlans = [] }, ref) => {
     const calculateAge = (dob) => {
         if (!dob) return 'N/A';
         return new Date().getFullYear() - new Date(dob).getFullYear();
@@ -457,10 +504,10 @@ const PrescriptionTemplate = React.forwardRef(({ appointment, formData, doctor, 
                                                 key={idx}
                                                 className={`border-t border-gray-200 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-emerald-50 transition-colors`}
                                             >
-                                                <td className="px-6 py-5 font-semibold text-gray-900">{med.medicine_name}</td>
+                                                <td className="px-6 py-5 font-semibold text-gray-900">{med.product_name || med.medicine_name}</td>
                                                 <td className="px-6 py-5 text-gray-700">{med.dosage || '—'}</td>
                                                 <td className="px-6 py-5 text-gray-700">{med.frequency || '—'}</td>
-                                                <td className="px-6 py-5 text-gray-700">{med.duration || '—'}</td>
+                                                <td className="px-6 py-5 text-gray-700">{formatDurationLabel(med.duration)}</td>
                                                 <td className="px-6 py-5 text-sm text-gray-600 italic">{med.instruction || '—'}</td>
                                             </tr>
                                         ))
@@ -476,6 +523,70 @@ const PrescriptionTemplate = React.forwardRef(({ appointment, formData, doctor, 
                         </div>
                     </div>
                 </div>
+
+                {/* DIET PLANS */}
+                {(dietPlans || []).length > 0 && (
+                    <div className="mb-8">
+                        <div className="flex items-center gap-3 mb-5">
+                            <div className="w-10 h-10 bg-[#0D614E] rounded-lg flex items-center justify-center">
+                                <Leaf className="w-5 h-5 text-white" />
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-900">Diet Plans</h3>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3">
+                            {(dietPlans || []).map((diet) => (
+                                <div key={diet.id || diet.name} className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 flex items-start justify-between gap-4">
+                                    <div>
+                                        <p className="font-semibold text-gray-900">{diet.name || 'Unnamed plan'}</p>
+                                        <p className="text-sm text-gray-600 mt-1">Assigned with this prescription</p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 justify-end">
+                                        <span className="inline-block bg-emerald-100 text-emerald-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                                            {formatDurationLabel(diet.duration ?? diet.total_days)}
+                                        </span>
+                                        {diet.meals_per_day != null && diet.meals_per_day !== '' && (
+                                            <span className="inline-block bg-sky-100 text-sky-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                                                {diet.meals_per_day} meals/day
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* DO'S & DON'TS */}
+                {(toAdviceList(formData.dos).length > 0 || toAdviceList(formData.donts).length > 0) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+                        {toAdviceList(formData.dos).length > 0 && (
+                            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+                                <h3 className="font-semibold text-emerald-800 mb-3">Do's</h3>
+                                <ul className="space-y-2">
+                                    {toAdviceList(formData.dos).map((item, i) => (
+                                        <li key={i} className="flex gap-2 text-sm text-emerald-900">
+                                            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                                            <span>{item}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        {toAdviceList(formData.donts).length > 0 && (
+                            <div className="rounded-xl border border-red-200 bg-red-50 p-5">
+                                <h3 className="font-semibold text-red-800 mb-3">Don'ts</h3>
+                                <ul className="space-y-2">
+                                    {toAdviceList(formData.donts).map((item, i) => (
+                                        <li key={i} className="flex gap-2 text-sm text-red-900">
+                                            <XCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                                            <span>{item}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* CLINICAL NOTES */}
                 {formData.clinical_notes && (
@@ -713,6 +824,10 @@ const AppointmentDetail = ({ videodetails }) => {
     const [showAddMed, setShowAddMed] = useState(false);
     const [expandedIdx, setExpandedIdx] = useState(null);
     const [editingPrescription, setEditingPrescription] = useState(null);
+    const [editingPrescriptionId, setEditingPrescriptionId] = useState(null);
+    const [editingAppointmentId, setEditingAppointmentId] = useState(null);
+    const [editingPrescriptionStatus, setEditingPrescriptionStatus] = useState("sent");
+    const [originalPrescriptionItems, setOriginalPrescriptionItems] = useState([]);
     const [savingPrescription, setSavingPrescription] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
     const [showCall, setshowCall] = useState(false)
@@ -736,6 +851,7 @@ const AppointmentDetail = ({ videodetails }) => {
     });
 
     const [selecteddietplan, setSelecteddietplan] = useState(null);
+    const [originalPrescribedDiet, setOriginalPrescribedDiet] = useState(null);
     const [dietSearchQuery, setDietSearchQuery] = useState("");
     const dietDropdownRef = useRef(null);
 
@@ -764,6 +880,22 @@ const AppointmentDetail = ({ videodetails }) => {
     const [patientHistory, setPatientHistory] = useState([]);
     const [patientDocument, setPatientDocument] = useState([]);
     const [loader, setloader] = useState(false)
+    const [showUploadModal, setShowUploadModal] = useState(false);
+    const [selectedUploadFiles, setSelectedUploadFiles] = useState([]);
+    const [uploadMeta, setUploadMeta] = useState({
+        medical_record_type: 'prescription',
+        description: ''
+    });
+    const fileInputRef = useRef(null);
+
+    const MEDICAL_RECORD_TYPES = [
+        { value: 'prescription', label: 'Prescription' },
+        { value: 'lab_report', label: 'Lab Report' },
+        // { value: 'scan', label: 'Scan' },
+        // { value: 'xray', label: 'X-Ray' },
+        // { value: 'discharge_summary', label: 'Discharge Summary' },
+        { value: 'other', label: 'Other' },
+    ];
 
     useEffect(() => {
         fetchAppointmentDetails();
@@ -817,7 +949,13 @@ const AppointmentDetail = ({ videodetails }) => {
     const fetchPatientHistory = async (id) => {
         try {
             const response = await doctorService.getAppointmentprec(id, "");
-            setPatientHistory(response.data.data?.results || [])
+            const payload = response?.data?.data || response?.data || {};
+            const results = Array.isArray(payload?.results)
+                ? payload.results
+                : Array.isArray(payload)
+                    ? payload
+                    : [];
+            setPatientHistory(results);
         } catch (error) {
             toast.error(error?.response?.data?.message || 'Failed to load patient history');
         }
@@ -826,12 +964,33 @@ const AppointmentDetail = ({ videodetails }) => {
     const fetchPatientDocuments = async (id) => {
         try {
             const response = await doctorService.getAppointmentDoc(type, id);
-            if (response?.data?.data) {
-                setPatientDocument(response?.data?.data)
-            }
+            const payload = response?.data?.data;
+            const list = Array.isArray(payload)
+                ? payload
+                : Array.isArray(payload?.results)
+                    ? payload.results
+                    : [];
+            setPatientDocument(list);
         } catch (error) {
-            toast.error(error?.response?.data?.message || 'Failed to load Document history');
+            toast.error(error?.message || error?.response?.data?.message || 'Failed to load Document history');
         }
+    };
+
+    const getDocumentFileType = (file) => {
+        const ext = (file?.name?.split('.').pop() || '').toLowerCase();
+        if (file?.type?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+            return 'image';
+        }
+        if (ext === 'pdf' || file?.type === 'application/pdf') return 'pdf';
+        if (['doc', 'docx'].includes(ext)) return ext;
+        return ext || 'file';
+    };
+
+    const resetUploadForm = () => {
+        setShowUploadModal(false);
+        setSelectedUploadFiles([]);
+        setUploadMeta({ medical_record_type: 'prescription', description: '' });
+        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     const handleInputChange = (field, value) => {
@@ -956,20 +1115,184 @@ const AppointmentDetail = ({ videodetails }) => {
         }));
     };
 
+    const handleDeleteDocument = async (id) => {
+        try {
+            const res = await doctorService.deleteAppointmentDocument(id);
+            if (res.data.success) {
+                toast.success('Document deleted successfully');
+            }
+        } catch (error) {
+            toast.error(error?.message || error?.response?.data?.message || 'Failed to delete document');
+        }
+    };
+
+    const getEmptyPrescriptionForm = () => ({
+        symptom_description: "",
+        history_of_past_illness: "",
+        surgical_history: "",
+        allergies: "",
+        family_history: "",
+        clinical_notes: "",
+        diagnosis: "",
+        prescriptions: [],
+        follow_up: {
+            schedule: false,
+            date: "",
+            reason: "",
+        },
+        dos: "",
+        donts: "",
+    });
+
+    const convertArrayToBulletText = (items) => {
+        if (!items) return "";
+        if (typeof items === "string") return items;
+        if (!Array.isArray(items)) return "";
+        return items.map((item) => `• ${item}`).join("\n");
+    };
+
+    const isExistingPrescriptionItem = (id) =>
+        typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+    const getMedicineItemPayload = (med) => ({
+        medicine: med?.medicine?.id || med?.medicine || med?.medicine_id || "",
+        dosage: med?.dosage || "",
+        frequency: med?.frequency || "",
+        duration: med?.duration || "",
+        instruction: med?.instruction || "",
+    });
+
+    const mapPrescriptionItems = (items = []) =>
+        items.map((med) => ({
+            ...med,
+            id: med.id || Date.now() + Math.random(),
+            medicine_name: med.product_name || med.medicine_name || med.medicine?.product_name || "",
+            medicine: med.medicine?.id || med.medicine || med.medicine_id || "",
+            dosage: med.dosage || "",
+            frequency: med.frequency || "",
+            duration: med.duration || "",
+            instruction: med.instruction || "",
+            medicinedata: med.medicinedata || med.medicine || med,
+        }));
+
+    const handleEditPrescriptionForm = (record, e) => {
+        e?.stopPropagation?.();
+        e?.preventDefault?.();
+        try {
+            const followUp = record?.follow_up || {};
+            const followUpDate = followUp.date
+                ? String(followUp.date).slice(0, 10)
+                : "";
+            const mappedItems = mapPrescriptionItems(record?.prescription_items || record?.prescriptions || []);
+            const firstDiet = record?.diets?.[0];
+            setFormData({
+                symptom_description: record?.symptom_description || "",
+                history_of_past_illness: record?.history_of_past_illness || "",
+                surgical_history: record?.surgical_history || "",
+                allergies: record?.allergies || "",
+                family_history: record?.family_history || "",
+                clinical_notes: record?.clinical_notes || "",
+                diagnosis: record?.diagnosis_advice || record?.diagnosis || "",
+                prescriptions: mappedItems,
+                follow_up: {
+                    schedule: Boolean(followUp.schedule),
+                    date: followUpDate,
+                    reason: followUp.reason || "",
+                },
+                dos: convertArrayToBulletText(record?.dos),
+                donts: convertArrayToBulletText(record?.donts),
+            });
+            const mappedDiet = firstDiet
+                ? {
+                    ...firstDiet,
+                    total_days: firstDiet.duration ?? firstDiet.total_days,
+                }
+                : null;
+            setSelecteddietplan(mappedDiet);
+            setOriginalPrescribedDiet(mappedDiet);
+            setEditingPrescriptionId(record?.id || null);
+            setEditingAppointmentId(record?.appointment_id || record?.appointment || appointment?.id || null);
+            setEditingPrescriptionStatus(record?.status || "sent");
+            setOriginalPrescriptionItems(mappedItems);
+            setShowAddMed(false);
+            setEditingPrescription(null);
+            setActiveTab("prescription");
+            toast.success("Prescription loaded for editing");
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to load prescription for editing");
+        }
+    };
+
+    const handleCancelEditPrescription = () => {
+        setEditingPrescriptionId(null);
+        setEditingAppointmentId(null);
+        setEditingPrescriptionStatus("sent");
+        setOriginalPrescriptionItems([]);
+        setFormData(getEmptyPrescriptionForm());
+        setSelecteddietplan(null);
+        setOriginalPrescribedDiet(null);
+        setDietSearchQuery("");
+        setShowAddMed(false);
+        setEditingPrescription(null);
+        setActiveTab("history");
+    };
+
     const handleFileUpload = (e) => {
-        const files = Array.from(e.target.files);
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        setSelectedUploadFiles(files);
+        setShowUploadModal(true);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const handleSubmitDocumentUpload = async () => {
+        if (!selectedUploadFiles.length) {
+            toast.error('Please select at least one document');
+            return;
+        }
+        if (!uploadMeta.medical_record_type) {
+            toast.error('Please select a medical record type');
+            return;
+        }
+
+        const currentAppointmentId = appointment?.id || (type !== 'patient' ? appointmentId : null);
+        if (!currentAppointmentId) {
+            toast.error('Appointment ID is required to upload documents');
+            return;
+        }
+
         setUploading(true);
-        setTimeout(() => {
-            setDocuments(prev => [...prev, ...files.map(f => ({
-                id: Date.now() + Math.random(),
-                name: f.name,
-                type: f.type,
-                size: f.size,
-                upload_date: new Date().toISOString(),
-                url: URL.createObjectURL(f)
-            }))]);
+        try {
+            let uploadedCount = 0;
+            for (const file of selectedUploadFiles) {
+                const uploadRes = await vendorService.uploadfiles(file, 'appointment_documents');
+                const fileUrl = uploadRes?.data?.data?.url || uploadRes?.data?.url;
+                if (!fileUrl) {
+                    toast.error(`Failed to upload ${file.name}`);
+                    continue;
+                }
+
+                await doctorService.uploadAppointmentDocument(currentAppointmentId, {
+                    file_url: fileUrl,
+                    file_type: getDocumentFileType(file),
+                    medical_record_type: uploadMeta.medical_record_type,
+                    description: uploadMeta.description?.trim() || file.name,
+                });
+                uploadedCount += 1;
+            }
+
+            if (uploadedCount > 0) {
+                toast.success(`${uploadedCount} document(s) uploaded successfully`);
+                resetUploadForm();
+                const docsId = type === 'patient' ? appointment?.patient?.id : appointment?.id;
+                await fetchPatientDocuments(docsId);
+            }
+        } catch (error) {
+            toast.error(error?.message || error?.response?.data?.message || 'Failed to upload document');
+        } finally {
             setUploading(false);
-        }, 1000);
+        }
     };
 
 
@@ -988,10 +1311,21 @@ const AppointmentDetail = ({ videodetails }) => {
     };
 
     const convertBulletTextToArray = (text) => {
-        return text
+        if (Array.isArray(text)) return text.filter(Boolean);
+        if (!text) return [];
+        return String(text)
             .split("\n")
             .map(line => line.replace(/^•\s*/, "").trim())
             .filter(Boolean);
+    };
+
+    const getDietPlanId = (diet) => diet?.diet_plan_id || diet?.diet_plan || diet?.id || null;
+
+    const getDietAdditionalNotes = (diet) => {
+        if (Array.isArray(diet?.additional_notes)) {
+            return diet.additional_notes.filter(Boolean);
+        }
+        return [];
     };
     // Save prescription to history
     const handleSavePrescription = async () => {
@@ -999,76 +1333,150 @@ const AppointmentDetail = ({ videodetails }) => {
         setSavingPrescription(true);
         setUpdating(true)
 
-        const prescriptionData = {
-            id: Date.now().toString(),
-            appointment_id: appointment?.id,
-            surgical_history: formData.surgical_history,
-            allergies: formData.allergies,
-            family_history: formData.family_history,
-            symptom_description: formData.symptom_description,
-            history_of_past_illness: formData.history_of_past_illness,
-            clinical_notes: formData.clinical_notes,
-            diagnosis_advice: formData.diagnosis,
-            prescription_items: formData.prescriptions,
-            follow_up: formData.follow_up,
-            dos: convertBulletTextToArray(formData?.dos),
-            donts: convertBulletTextToArray(formData?.donts)
+        const isEditing = Boolean(editingPrescriptionId);
+        const prescriptionData = isEditing
+            ? {
+                symptom_description: formData.symptom_description,
+                history_of_past_illness: formData.history_of_past_illness,
+                surgical_history: formData.surgical_history,
+                allergies: formData.allergies,
+                family_history: formData.family_history,
+                clinical_notes: formData.clinical_notes,
+                diagnosis_advice: formData.diagnosis,
+                dos: convertBulletTextToArray(formData?.dos),
+                donts: convertBulletTextToArray(formData?.donts),
+                follow_up: formData.follow_up,
+                status: editingPrescriptionStatus || "sent",
+                prescription_items: formData.prescriptions,
+            }
+            : {
+                id: Date.now().toString(),
+                appointment_id: appointment?.id,
+                surgical_history: formData.surgical_history,
+                allergies: formData.allergies,
+                family_history: formData.family_history,
+                symptom_description: formData.symptom_description,
+                history_of_past_illness: formData.history_of_past_illness,
+                clinical_notes: formData.clinical_notes,
+                diagnosis_advice: formData.diagnosis,
+                prescription_items: formData.prescriptions,
+                follow_up: formData.follow_up,
+                dos: convertBulletTextToArray(formData?.dos),
+                donts: convertBulletTextToArray(formData?.donts)
+            };
+
+        const dietAppointmentId = isEditing
+            ? (editingAppointmentId || appointment?.id)
+            : appointment?.id;
+        const dietplanData = {
+            patient_id: appointment?.patient?.id,
+            diet_plan_id: getDietPlanId(selecteddietplan),
+            appointment_id: dietAppointmentId,
+            plan_json: {},
         };
 
-        const dietplanData = {
-            "patient_id": appointment?.patient?.id,
-            "diet_plan_id": selecteddietplan?.id,
-            // "additional_notes": [
-            //     "Avoid cold drinks",
-            //     "Drink warm water in the morning"
-            // ],
-            "plan_json": {}
-        }
-
         try {
-            const res = await doctorService.postprescription(
-                appointment?.patient?.id,
-                prescriptionData
-            );
+            const res = isEditing
+                ? await doctorService.editPrescription(
+                    appointment?.patient?.id,
+                    editingPrescriptionId,
+                    prescriptionData
+                )
+                : await doctorService.postprescription(
+                    appointment?.patient?.id,
+                    prescriptionData
+                );
 
             if (res.data.success) {
-                // Save diet plan if selected
-                if (selecteddietplan?.id) {
-                    const getdietplan = await doctorService.getdietbyid(
-                        selecteddietplan.id
+                if (isEditing) {
+                    const currentItems = formData.prescriptions || [];
+                    const currentIds = new Set(
+                        currentItems.map((med) => med.id).filter(isExistingPrescriptionItem)
                     );
 
-                    const schedule = getdietplan?.data?.data?.schedule;
+                    const removedItems = originalPrescriptionItems.filter(
+                        (med) => isExistingPrescriptionItem(med.id) && !currentIds.has(med.id)
+                    );
+                    // for (const med of removedItems) {
+                    //     await doctorService.deletePrescriptionItem(med.id);
+                    // }
 
-                    if (schedule) {
-                        await doctorService.postdietplan({
-                            ...dietplanData,
-                            plan_json: schedule,
-                        });
+                    const originalById = Object.fromEntries(
+                        originalPrescriptionItems
+                            .filter((med) => isExistingPrescriptionItem(med.id))
+                            .map((med) => [med.id, med])
+                    );
+
+                    for (const med of currentItems) {
+                        const payload = getMedicineItemPayload(med);
+                        if (!payload.medicine) continue;
+
+                        if (isExistingPrescriptionItem(med.id)) {
+                            const original = originalById[med.id];
+                            const hasChanged = !original ||
+                                String(original.medicine) !== String(payload.medicine) ||
+                                String(original.dosage || "") !== String(payload.dosage) ||
+                                String(original.frequency || "") !== String(payload.frequency) ||
+                                String(original.duration || "") !== String(payload.duration) ||
+                                String(original.instruction || "") !== String(payload.instruction);
+                            if (hasChanged) {
+                                await doctorService.updatePrescriptionItem(med.id, payload);
+                            }
+                        }
+                        // else {
+                        //     await doctorService.addPrescriptionItem(editingPrescriptionId, payload);
+                        // }
                     }
                 }
 
-                toast.success("Prescription saved successfully!");
+                // Save or replace diet plan if selected
+                const newDietPlanId = getDietPlanId(selecteddietplan);
+                const currentDietPlanId = getDietPlanId(originalPrescribedDiet);
+
+                if (newDietPlanId) {
+                    const dietChanged = Boolean(currentDietPlanId) &&
+                        String(currentDietPlanId) !== String(newDietPlanId);
+
+                    if (dietChanged || !currentDietPlanId) {
+                        const getdietplan = await doctorService.getdietbyid(newDietPlanId);
+                        const rawDiet = getdietplan?.data?.data || getdietplan?.data || {};
+                        const dietPayload = Array.isArray(rawDiet) ? (rawDiet[0] || {}) : rawDiet;
+                        const schedule = dietPayload.schedule || dietPayload.plan_json;
+
+                        if (schedule) {
+                            if (dietChanged) {
+                                await doctorService.replacedietplan({
+                                    patient_id: appointment?.patient?.id,
+                                    current_diet_plan_id: currentDietPlanId,
+                                    new_diet_plan_id: newDietPlanId,
+                                    appointment_id: dietAppointmentId,
+                                    additional_notes: getDietAdditionalNotes(selecteddietplan).length
+                                        ? getDietAdditionalNotes(selecteddietplan)
+                                        : getDietAdditionalNotes(originalPrescribedDiet),
+                                    plan_json: schedule,
+                                });
+                            } else {
+                                await doctorService.postdietplan({
+                                    ...dietplanData,
+                                    diet_plan_id: newDietPlanId,
+                                    plan_json: schedule,
+                                });
+                            }
+                        }
+                    }
+                }
+
+                toast.success(isEditing ? "Prescription updated successfully!" : "Prescription saved successfully!");
 
                 setShowPreview(false);
-
-                setFormData({
-                    symptom_description: "",
-                    history_of_past_illness: "",
-                    surgical_history: "",
-                    allergies: "",
-                    family_history: "",
-                    clinical_notes: "",
-                    diagnosis: "",
-                    prescriptions: [],
-                    follow_up: {
-                        schedule: false,
-                        date: "",
-                        reason: "",
-                    },
-                    dos: "",
-                    donts: "",
-                });
+                setEditingPrescriptionId(null);
+                setEditingAppointmentId(null);
+                setEditingPrescriptionStatus("sent");
+                setOriginalPrescriptionItems([]);
+                setFormData(getEmptyPrescriptionForm());
+                setSelecteddietplan(null);
+                setOriginalPrescribedDiet(null);
+                setDietSearchQuery("");
 
                 fetchAppointmentDetails();
                 setActiveTab("history");
@@ -1076,18 +1484,18 @@ const AppointmentDetail = ({ videodetails }) => {
             } else {
                 toast.error(
                     res?.data?.errors?.appointment_id?.[0] ||
-                    "Failed to save prescription"
+                    (isEditing ? "Failed to update prescription" : "Failed to save prescription")
                 );
             }
         } catch (err) {
-            console.error("Failed to save prescription:", err);
+            console.error(isEditing ? "Failed to update prescription:" : "Failed to save prescription:", err);
 
             setUpdating(false);
 
             toast.error(
                 err?.response?.data?.message ||
                 err?.message ||
-                "Failed to save prescription"
+                (isEditing ? "Failed to update prescription" : "Failed to save prescription")
             );
         } finally {
             setSavingPrescription(false);
@@ -1246,6 +1654,7 @@ const AppointmentDetail = ({ videodetails }) => {
     const tabs = [
         { id: 'prescription', label: 'Prescription', icon: Pill },
         { id: 'questions', label: 'Questions', icon: Notebook },
+        { id: 'diet-progress', label: 'Diet Progress', icon: Leaf },
         { id: 'history', label: 'History', icon: History },
         { id: 'documents', label: 'Documents', icon: FileHeart },
         // { id: 'billing', label: 'Billing', icon: IndianRupee },
@@ -1409,10 +1818,25 @@ const AppointmentDetail = ({ videodetails }) => {
 
                                 {/* Prescription Tab */}
                                 {activeTab === 'prescription' && (
-                                    appointment?.status == "confirmed"
+                                    appointment?.status == "confirmed" || editingPrescriptionId
                                         // || appointment?.status == "completed"
                                         ?
                                         <div className="space-y-6">
+                                            {editingPrescriptionId && (
+                                                <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-emerald-200 bg-emerald-50">
+                                                    <div className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
+                                                        <PencilIcon className="w-4 h-4" />
+                                                        Editing existing prescription
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleCancelEditPrescription}
+                                                        className="text-xs font-semibold text-emerald-700 hover:text-emerald-900"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            )}
                                             {/* Chief Complaint */}
                                             <div className="space-y-2">
                                                 <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
@@ -2187,7 +2611,7 @@ const AppointmentDetail = ({ videodetails }) => {
                                                                                 item.diet_plan_gallery?.find((g) => g.is_cover)?.image_url ||
                                                                                 item.diet_plan_gallery?.[0]?.image_url ||
                                                                                 null;
-                                                                            const isSelected = selecteddietplan?.id === item.id;
+                                                                            const isSelected = String(getDietPlanId(selecteddietplan) || "") === String(item.id);
                                                                             const diseases = item.health_diseases || [];
 
                                                                             return (
@@ -2746,6 +3170,17 @@ const AppointmentDetail = ({ videodetails }) => {
 
                                             {/* Save Prescription Button */}
                                             <div className="flex justify-end gap-3 pt-4">
+                                                {editingPrescriptionId && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleCancelEditPrescription}
+                                                        disabled={updating}
+                                                        className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold hover:bg-gray-200 transition-all disabled:opacity-50"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                        Cancel Edit
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={handleSavePrescription}
                                                     disabled={
@@ -2761,7 +3196,9 @@ const AppointmentDetail = ({ videodetails }) => {
                                                         }`}
                                                 >
                                                     <Save className="w-4 h-4" />
-                                                    {updating ? "Saving..." : "Save Prescription"}
+                                                    {updating
+                                                        ? (editingPrescriptionId ? "Updating..." : "Saving...")
+                                                        : (editingPrescriptionId ? "Update Prescription" : "Save Prescription")}
                                                 </button>
                                             </div>
                                         </div>
@@ -2823,6 +3260,10 @@ const AppointmentDetail = ({ videodetails }) => {
                                     <DoctorQAPanelPremium patientid={appointment?.patient?.id} />
                                 )}
 
+                                {activeTab === 'diet-progress' && (
+                                    <DietProgress patientId={appointment?.patient?.id} />
+                                )}
+
                                 {/* History Tab */}
                                 {activeTab === 'history' && (
                                     <>
@@ -2837,7 +3278,7 @@ const AppointmentDetail = ({ videodetails }) => {
                                                     <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-200">
                                                         <p className="text-xs text-emerald-700 font-semibold uppercase tracking-widest">Last Visit</p>
                                                         <p className="text-sm font-bold text-emerald-900 mt-1">
-                                                            {patientHistory.length > 0 ? formatDateTime(patientHistory[0].appointment_date, patientHistory[0].start_time).split(' at ')[0] : '—'}
+                                                            {patientHistory.length > 0 ? formatDate(patientHistory[0].appointment_date) : '—'}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -2862,17 +3303,22 @@ const AppointmentDetail = ({ videodetails }) => {
                                                             <div className="ml-16 bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-all">
 
                                                                 {/* Card Header - Click to Expand */}
-                                                                <button
+                                                                <div
                                                                     onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)}
-                                                                    className="w-full flex items-center justify-between px-6 py-5 hover:bg-gray-50 transition-colors group"
+                                                                    className="w-full flex items-center justify-between px-6 py-5 hover:bg-gray-50 transition-colors group cursor-pointer"
                                                                 >
                                                                     <div className="flex-1 text-left">
                                                                         {/* Date & Time */}
                                                                         <div className="flex items-center gap-3 mb-2">
                                                                             <Calendar className="w-4 h-4 text-emerald-600" />
                                                                             <p className="font-semibold text-gray-900">
-                                                                                {formatDateTime(record.appointment_date + ":" + record.start_time)}
+                                                                                {formatSlotDateTime(record.appointment_date, record.start_time)}
                                                                             </p>
+                                                                            {record.start_time && record.end_time && (
+                                                                                <span className="text-xs text-gray-500">
+                                                                                    {formatTime(record.start_time)} – {formatTime(record.end_time)}
+                                                                                </span>
+                                                                            )}
                                                                         </div>
 
                                                                         {/* Quick Summary - Chief Complaint Preview */}
@@ -2892,18 +3338,40 @@ const AppointmentDetail = ({ videodetails }) => {
                                                                                 {record.prescription_items?.length || 0}
                                                                             </span>
 
+                                                                            {(record.diets?.length || 0) > 0 && (
+                                                                                <span className="px-4 py-2 rounded-full text-sm font-semibold bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center gap-2">
+                                                                                    <Leaf className="w-3.5 h-3.5" />
+                                                                                    {record.diets.length}
+                                                                                </span>
+                                                                            )}
+
                                                                             {/* Status Badge */}
                                                                             <span className={`px-4 py-2 rounded-full text-sm font-semibold border ${getStatusColor(record.status)}`}>
                                                                                 {record.status?.charAt(0).toUpperCase() + record.status?.slice(1) || 'Pending'}
                                                                             </span>
                                                                         </div>
 
+                                                                        {/* Edit Icon */}
+                                                                        {isPrescriptionStillEditable(record) && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(e) => handleEditPrescriptionForm(record, e)}
+                                                                                className={`cursor-pointer p-2 rounded-xl transition ${editingPrescriptionId === record.id
+                                                                                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                                                                                    : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                                                                                    }`}
+                                                                                title="Edit prescription"
+                                                                            >
+                                                                                <PencilIcon className={`w-5 h-5 ${editingPrescriptionId === record.id ? "text-white" : "text-emerald-600"}`} />
+                                                                            </button>
+                                                                        )}
+
                                                                         {/* Expand Icon */}
                                                                         <div className={`text-gray-400 transition-transform ${expandedIdx === idx ? 'rotate-180' : ''}`}>
                                                                             {expandedIdx === idx ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                                                                         </div>
                                                                     </div>
-                                                                </button>
+                                                                </div>
 
                                                                 {/* Expandable Content */}
                                                                 {expandedIdx === idx && (
@@ -2911,7 +3379,7 @@ const AppointmentDetail = ({ videodetails }) => {
 
                                                                         {/* Chief Complaint Section */}
                                                                         {record.symptom_description && (
-                                                                            <div className="bg-white rounded-xl p-4 border border-amber-200 bg-amber-50">
+                                                                            <div className="rounded-xl p-4 border border-amber-200 bg-amber-50">
                                                                                 <div className="flex items-start gap-3">
                                                                                     <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                                                                                     <div className="flex-1">
@@ -2922,27 +3390,47 @@ const AppointmentDetail = ({ videodetails }) => {
                                                                             </div>
                                                                         )}
 
+                                                                        {/* Medical History Details */}
+                                                                        {(record.history_of_past_illness || record.allergies || record.family_history || record.surgical_history) && (
+                                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                            {record.history_of_past_illness && (
+                                                                                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+                                                                                    <p className="flex gap-2 text-xs font-bold text-orange-900 uppercase tracking-widest mb-2"><Notebook size={16} /> Past Illness</p>
+                                                                                    <p className="text-sm text-orange-900">{record.history_of_past_illness}</p>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {record.allergies && (
+                                                                                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                                                                                    <p className="flex gap-2 text-xs font-bold text-red-900 uppercase tracking-widest mb-2"><FaAllergies /> Allergies</p>
+                                                                                    <p className="text-sm text-red-900">{record.allergies}</p>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {record.family_history && (
+                                                                                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                                                                                    <p className="flex gap-2 text-xs font-bold text-purple-900 uppercase tracking-widest mb-2"><MdFamilyRestroom size={14} /> Family History</p>
+                                                                                    <p className="text-sm text-purple-900">{record.family_history}</p>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {record.surgical_history && (
+                                                                                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                                                                                    <p className="text-xs font-bold text-red-900 uppercase tracking-widest mb-2">Surgical History</p>
+                                                                                    <p className="text-sm text-red-900">{record.surgical_history}</p>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                        )}
+
                                                                         {/* Diagnosis Section */}
                                                                         {record.diagnosis_advice && (
-                                                                            <div className="bg-white rounded-xl p-4 border border-emerald-200 bg-emerald-50">
+                                                                            <div className="rounded-xl p-4 border border-emerald-200 bg-emerald-50">
                                                                                 <div className="flex items-start gap-3">
                                                                                     <TrendingUp className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
                                                                                     <div className="flex-1">
                                                                                         <p className="text-xs font-bold text-emerald-900 uppercase tracking-widest">Diagnosis</p>
                                                                                         <p className="text-sm text-emerald-900 mt-2 leading-relaxed">{record.diagnosis_advice}</p>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                        )}
-
-                                                                        {/* Clinical Observations */}
-                                                                        {record.clinical_notes && (
-                                                                            <div className="bg-white rounded-xl p-4 border border-blue-200 bg-blue-50">
-                                                                                <div className="flex items-start gap-3">
-                                                                                    <Thermometer className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                                                                                    <div className="flex-1">
-                                                                                        <p className="text-xs font-bold text-blue-900 uppercase tracking-widest">Clinical Observations</p>
-                                                                                        <p className="text-sm text-blue-900 mt-2 leading-relaxed">{record.clinical_notes}</p>
                                                                                     </div>
                                                                                 </div>
                                                                             </div>
@@ -2958,29 +3446,26 @@ const AppointmentDetail = ({ videodetails }) => {
 
                                                                                 <div className="overflow-hidden rounded-xl border border-gray-200">
                                                                                     <table className="w-full text-sm">
-                                                                                        <thead className="bg-[#0D614E] to-teal-600 text-white">
+                                                                                        <thead className="bg-[#0D614E] text-white">
                                                                                             <tr>
                                                                                                 <th className="px-4 py-3 text-left font-semibold">Medicine</th>
                                                                                                 <th className="px-4 py-3 text-left font-semibold">Dosage</th>
                                                                                                 <th className="px-4 py-3 text-left font-semibold">Frequency</th>
                                                                                                 <th className="px-4 py-3 text-left font-semibold">Duration</th>
+                                                                                                <th className="px-4 py-3 text-left font-semibold">Instructions</th>
                                                                                             </tr>
                                                                                         </thead>
                                                                                         <tbody>
                                                                                             {record.prescription_items.map((med, i) => (
                                                                                                 <tr
-                                                                                                    key={i}
+                                                                                                    key={med.id || i}
                                                                                                     className={`border-t border-gray-200 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-[#0D614E]/10 transition-colors`}
                                                                                                 >
-                                                                                                    <td className="px-4 py-4">
-                                                                                                        <p className="font-semibold text-gray-900">{med.product_name || med.medicine_name}</p>
-                                                                                                        {med.instruction && (
-                                                                                                            <p className="text-xs text-gray-600 mt-1">📝 {med.instruction}</p>
-                                                                                                        )}
-                                                                                                    </td>
+                                                                                                    <td className="px-4 py-4 font-semibold text-gray-900">{med.product_name || med.medicine_name || '—'}</td>
                                                                                                     <td className="px-4 py-4 text-gray-700">{med.dosage || '—'}</td>
                                                                                                     <td className="px-4 py-4 text-gray-700">{med.frequency || '—'}</td>
-                                                                                                    <td className="px-4 py-4 text-gray-700">{med.duration ? `${med.duration} days` : '—'}</td>
+                                                                                                    <td className="px-4 py-4 text-gray-700">{formatDurationLabel(med.duration)}</td>
+                                                                                                    <td className="px-4 py-4 text-sm text-gray-600 italic">{med.instruction || '—'}</td>
                                                                                                 </tr>
                                                                                             ))}
                                                                                         </tbody>
@@ -2989,118 +3474,99 @@ const AppointmentDetail = ({ videodetails }) => {
                                                                             </div>
                                                                         )}
 
-                                                                        {
-                                                                            record.diets && record.diets.length > 0 && (
-                                                                                <div>
-                                                                                    <div className="flex items-center gap-2 mb-4">
-                                                                                        <Pill className="w-5 h-5 text-emerald-600" />
-                                                                                        <h4 className="font-bold text-gray-900">Diet Plans</h4>
-                                                                                    </div>
+                                                                        {record.diets && record.diets.length > 0 && (
+                                                                            <div>
+                                                                                <div className="flex items-center gap-2 mb-4">
+                                                                                    <Leaf className="w-5 h-5 text-emerald-600" />
+                                                                                    <h4 className="font-bold text-gray-900">Diet Plans</h4>
+                                                                                </div>
 
-                                                                                    <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-                                                                                        {record.diets.map((diet, idx) => (
-                                                                                            <div key={idx} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                                                                                                <div className="flex items-start justify-between gap-4">
+                                                                                <div className="grid grid-cols-1 gap-4">
+                                                                                    {record.diets.map((diet) => (
+                                                                                        <div key={diet.id || diet.name} className="bg-white border border-emerald-200 rounded-xl p-4 shadow-sm">
+                                                                                            <div className="flex items-start justify-between gap-4">
+                                                                                                <div className="flex items-start gap-3">
+                                                                                                    <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                                                                                                        <Leaf className="w-5 h-5 text-emerald-600" />
+                                                                                                    </div>
                                                                                                     <div>
                                                                                                         <h5 className="font-semibold text-gray-900">{diet.name}</h5>
-                                                                                                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">A tailored diet plan focused on recovery and well-being.</p>
-                                                                                                    </div>
-                                                                                                    <div className="text-right">
-                                                                                                        <span className="inline-block bg-emerald-100 text-emerald-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded">{diet.duration} days</span>
-                                                                                                        <span className="inline-block bg-sky-100 text-sky-800 text-xs font-medium px-2.5 py-0.5 rounded">{diet.meals_per_day} meals/day</span>
+                                                                                                        <p className="text-sm text-gray-500 mt-1">Assigned with this prescription</p>
                                                                                                     </div>
                                                                                                 </div>
+                                                                                                <div className="text-right flex flex-wrap gap-2 justify-end">
+                                                                                                    <span className="inline-block bg-emerald-100 text-emerald-800 text-xs font-medium px-2.5 py-0.5 rounded">{formatDurationLabel(diet.duration)}</span>
+                                                                                                    {diet.meals_per_day != null && diet.meals_per_day !== '' && (
+                                                                                                        <span className="inline-block bg-sky-100 text-sky-800 text-xs font-medium px-2.5 py-0.5 rounded">{diet.meals_per_day} meals/day</span>
+                                                                                                    )}
+                                                                                                </div>
                                                                                             </div>
-                                                                                        ))}
-                                                                                    </div>
+                                                                                        </div>
+                                                                                    ))}
                                                                                 </div>
-                                                                            )
-                                                                        }
-
-                                                                        {/* Medical History Details */}
-                                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                                            {record.allergies && (
-                                                                                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                                                                                    <p className="flex gap-2 text-xs font-bold text-red-900 uppercase tracking-widest mb-2"><FaAllergies /> Allergies</p>
-                                                                                    <p className="text-sm text-red-900">{record.allergies}</p>
-                                                                                </div>
-                                                                            )}
-
-                                                                            {record.family_history && (
-                                                                                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-                                                                                    <p className="flex gap-2 text-xs font-bold text-purple-900 uppercase tracking-widest mb-2"><MdFamilyRestroom size={14} /> Family History</p>
-                                                                                    <p className="text-sm text-purple-900">{record.family_history}</p>
-                                                                                </div>
-                                                                            )}
-
-                                                                            {record.history_of_past_illness && (
-                                                                                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-                                                                                    <p className="flex gap-2 text-xs font-bold text-orange-900 uppercase tracking-widest mb-2"><Notebook size={16} /> Past Illness</p>
-                                                                                    <p className="text-sm text-orange-900 line-clamp-3">{record.history_of_past_illness}</p>
-                                                                                </div>
-                                                                            )}
-
-                                                                            {record.surgical_history && (
-                                                                                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                                                                                    <p className="text-xs font-bold text-red-900 uppercase tracking-widest mb-2">🏥 Surgical History</p>
-                                                                                    <p className="text-sm text-red-900">{record.surgical_history}</p>
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-
-                                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-                                                                            {/* DO's */}
-                                                                            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
-                                                                                <div className="flex items-center gap-3 mb-4">
-                                                                                    <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                                                                                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                                                                                    </div>
-
-                                                                                    <div>
-                                                                                        <h3 className="font-semibold text-emerald-700">
-                                                                                            Do's
-                                                                                        </h3>
-                                                                                        <p className="text-xs text-emerald-600">
-                                                                                            Advise the patient what they should follow.
-                                                                                        </p>
-                                                                                    </div>
-                                                                                </div>
-
-                                                                                <textarea
-                                                                                    rows={6}
-                                                                                    value={record.dos?.map(item => `• ${item}`).join("\n")}
-                                                                                    placeholder={`• Drink 2-3 liters of water daily`}
-                                                                                    className="w-full rounded-xl border border-emerald-200 bg-white p-4 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
-                                                                                />
                                                                             </div>
+                                                                        )}
 
-                                                                            {/* DON'Ts */}
-                                                                            <div className="bg-red-50 border border-red-200 rounded-2xl p-5">
-                                                                                <div className="flex items-center gap-3 mb-4">
-                                                                                    <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
-                                                                                        <XCircle className="w-5 h-5 text-red-600" />
-                                                                                    </div>
-
-                                                                                    <div>
-                                                                                        <h3 className="font-semibold text-red-700">
-                                                                                            Don'ts
-                                                                                        </h3>
-                                                                                        <p className="text-xs text-red-600">
-                                                                                            Mention activities or foods to avoid.
-                                                                                        </p>
+                                                                        {/* Clinical Observations */}
+                                                                        {record.clinical_notes && (
+                                                                            <div className="rounded-xl p-4 border border-blue-200 bg-blue-50">
+                                                                                <div className="flex items-start gap-3">
+                                                                                    <Thermometer className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                                                                                    <div className="flex-1">
+                                                                                        <p className="text-xs font-bold text-blue-900 uppercase tracking-widest">Clinical Notes & Observations</p>
+                                                                                        <p className="text-sm text-blue-900 mt-2 leading-relaxed">{record.clinical_notes}</p>
                                                                                     </div>
                                                                                 </div>
-
-                                                                                <textarea
-                                                                                    rows={6}
-                                                                                    value={record?.donts?.map(item => `• ${item}`).join("\n")}
-                                                                                    placeholder={`• Avoid oily and spicy food`}
-                                                                                    className="w-full rounded-xl border border-red-200 bg-white p-4 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-                                                                                />
                                                                             </div>
+                                                                        )}
 
-                                                                        </div>
+                                                                        {(toAdviceList(record.dos).length > 0 || toAdviceList(record.donts).length > 0) && (
+                                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                                                                {toAdviceList(record.dos).length > 0 && (
+                                                                                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+                                                                                        <div className="flex items-center gap-3 mb-4">
+                                                                                            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                                                                                                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                                                                                            </div>
+                                                                                            <div>
+                                                                                                <h3 className="font-semibold text-emerald-700">Do's</h3>
+                                                                                                <p className="text-xs text-emerald-600">Advise the patient what they should follow.</p>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <ul className="space-y-2">
+                                                                                            {toAdviceList(record.dos).map((item, i) => (
+                                                                                                <li key={i} className="flex gap-2 text-sm text-emerald-900">
+                                                                                                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                                                                                                    <span>{item}</span>
+                                                                                                </li>
+                                                                                            ))}
+                                                                                        </ul>
+                                                                                    </div>
+                                                                                )}
+
+                                                                                {toAdviceList(record.donts).length > 0 && (
+                                                                                    <div className="bg-red-50 border border-red-200 rounded-2xl p-5">
+                                                                                        <div className="flex items-center gap-3 mb-4">
+                                                                                            <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+                                                                                                <XCircle className="w-5 h-5 text-red-600" />
+                                                                                            </div>
+                                                                                            <div>
+                                                                                                <h3 className="font-semibold text-red-700">Don'ts</h3>
+                                                                                                <p className="text-xs text-red-600">Mention activities or foods to avoid.</p>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <ul className="space-y-2">
+                                                                                            {toAdviceList(record.donts).map((item, i) => (
+                                                                                                <li key={i} className="flex gap-2 text-sm text-red-900">
+                                                                                                    <XCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                                                                                                    <span>{item}</span>
+                                                                                                </li>
+                                                                                            ))}
+                                                                                        </ul>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
 
                                                                         {/* Follow-up Information */}
                                                                         {record.follow_up?.schedule && record.follow_up?.date && (
@@ -3233,7 +3699,7 @@ const AppointmentDetail = ({ videodetails }) => {
                                 {/* Documents Tab */}
                                 {activeTab === 'documents' && (
                                     <div className="space-y-5">
-                                        {/* <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between">
                                             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
                                                 <FileHeart className="w-3.5 h-3.5 text-emerald-600" />
                                                 Medical Records
@@ -3243,16 +3709,23 @@ const AppointmentDetail = ({ videodetails }) => {
                                                     style={{ background: '#0D614E' }}>
                                                     <Upload className="w-4 h-4" /> Upload Document
                                                 </span>
-                                                <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                                                <input
+                                                    ref={fileInputRef}
+                                                    type="file"
+                                                    multiple
+                                                    className="hidden"
+                                                    onChange={handleFileUpload}
+                                                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                                />
                                             </label>
-                                        </div> */}
+                                        </div>
 
-                                        {/* {patientDocument && (
+                                        {uploading && (
                                             <div className="flex items-center gap-3 p-4 bg-emerald-50 rounded-xl border border-emerald-200">
                                                 <div className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#0D614E', borderTopColor: 'transparent' }} />
                                                 <span className="text-sm text-[#0D614E]">Uploading document(s)...</span>
                                             </div>
-                                        )} */}
+                                        )}
 
                                         {patientDocument?.length > 0 ? (
                                             <div className="grid grid-cols-1 gap-3">
@@ -3297,6 +3770,13 @@ const AppointmentDetail = ({ videodetails }) => {
                                                             >
                                                                 <Eye size={16} />
                                                             </a>
+                                                            {
+                                                                appointment?.doctor_id == doc?.added_by?.id && (
+                                                                    <a onClick={() => handleDeleteDocument(doc.id)} className="cursor-pointer p-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition">
+                                                                        <XCircleIcon className="w-5 h-5 text-red-600 " />
+                                                                    </a>
+                                                                )
+                                                            }
                                                         </div>
                                                     </div>
                                                 ))}
@@ -3415,6 +3895,89 @@ const AppointmentDetail = ({ videodetails }) => {
                 </div>
             </div>
 
+            {showUploadModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900">Upload Medical Record</h3>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                    {selectedUploadFiles.length} file{selectedUploadFiles.length !== 1 ? 's' : ''} selected
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={resetUploadForm}
+                                disabled={uploading}
+                                className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="px-6 py-5 space-y-4">
+                            <div className="space-y-2 max-h-32 overflow-y-auto">
+                                {selectedUploadFiles.map((file, index) => (
+                                    <div key={`${file.name}-${index}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                        <FileText className="w-4 h-4 text-[#0D614E] shrink-0" />
+                                        <span className="text-sm text-gray-700 truncate">{file.name}</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                                    Medical Record Type
+                                </label>
+                                <select
+                                    value={uploadMeta.medical_record_type}
+                                    onChange={(e) => setUploadMeta((prev) => ({ ...prev, medical_record_type: e.target.value }))}
+                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#0D614E]/20 focus:border-[#0D614E]"
+                                >
+                                    {MEDICAL_RECORD_TYPES.map((item) => (
+                                        <option key={item.value} value={item.value}>{item.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                                    Description
+                                </label>
+                                <textarea
+                                    rows={3}
+                                    value={uploadMeta.description}
+                                    onChange={(e) => setUploadMeta((prev) => ({ ...prev, description: e.target.value }))}
+                                    placeholder="e.g. Post-consultation prescription"
+                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#0D614E]/20 focus:border-[#0D614E] resize-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={resetUploadForm}
+                                disabled={uploading}
+                                className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSubmitDocumentUpload}
+                                disabled={uploading}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-semibold transition-all hover:shadow-md disabled:opacity-60"
+                                style={{ background: '#0D614E' }}
+                            >
+                                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                {uploading ? 'Uploading...' : 'Upload'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Prescription Preview Modal */}
             {showPreview && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center  p-4 animate-in fade-in duration-200">
@@ -3513,6 +4076,7 @@ const AppointmentDetail = ({ videodetails }) => {
                                     doctor={doctor}
                                     patient={patient}
                                     date={new Date()}
+                                    dietPlans={selecteddietplan ? [selecteddietplan] : []}
                                 />
                             </div>
                         </div>

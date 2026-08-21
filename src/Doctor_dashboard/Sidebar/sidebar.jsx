@@ -36,7 +36,7 @@ const DoctorSidebar = () => {
       icon: <Bowlrice />,
       path: "/doctor/diets",
     },
-    {
+    isdietitian &&  {
       name: "Do's & Don'ts",
       icon: <ListChecks size={18} />,
       path: "/doctor/do-donts",
