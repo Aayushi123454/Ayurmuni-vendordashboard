@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { doctorService } from '../../../services/doctorService';
+import { vendorService } from '../../../services/vendorService';
 import logo from "../../../Assests/Aurmunilogo.png";
 import { Rnd } from "react-rnd";
 
@@ -20,7 +21,14 @@ import {
     Package,
     Thermometer,
     Notebook,
-    CheckCircle2
+    CheckCircle2,
+    UserX,
+    RefreshCw,
+    DeleteIcon,
+    Leaf,
+    Loader2,
+    XCircleIcon,
+    PencilIcon
 } from 'lucide-react';
 import { BsLungs, BsPrescription } from 'react-icons/bs';
 import toast from 'react-hot-toast';
@@ -28,6 +36,8 @@ import { FaAllergies } from 'react-icons/fa';
 import { MdFamilyRestroom } from 'react-icons/md';
 import DoctorQAPanelPremium from './questionsforpatient';
 import DoctorVideoCall from '../videocall/DoctorVideoCall';
+import DietProgress from './dietprogress';
+import { BiFoodMenu } from 'react-icons/bi';
 // import html2canvas from 'html2canvas';
 // import jsPDF from 'jspdf';
 
@@ -54,6 +64,49 @@ const formatTime = (t) => {
     return t.substring(0, 5);
 };
 
+const formatSlotDateTime = (date, time) => {
+    if (!date) return 'N/A';
+    const iso = time ? `${date}T${String(time).slice(0, 8)}` : date;
+    const parsed = new Date(iso);
+    if (Number.isNaN(parsed.getTime())) return formatDate(date);
+    return parsed.toLocaleString('en-IN', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+};
+
+const formatDurationLabel = (duration) => {
+    if (duration === 0 || duration === '0') return '0 days';
+    if (duration == null || duration === '') return '—';
+    const value = String(duration).trim();
+    if (/day|week|month|hour|yr|year/i.test(value)) return value;
+    return `${value} days`;
+};
+
+const toAdviceList = (items) => {
+    if (!items) return [];
+    if (Array.isArray(items)) {
+        return items.map((item) => String(item).replace(/^•\s*/, '').trim()).filter(Boolean);
+    }
+    return String(items)
+        .split('\n')
+        .map((line) => line.replace(/^•\s*/, '').trim())
+        .filter(Boolean);
+};
+
+const isPrescriptionStillEditable = (record) => {
+    if (typeof record?.is_editable === 'boolean') return record.is_editable;
+    if (record?.edit_window_closes_at) {
+        const closesAt = new Date(record.edit_window_closes_at);
+        return !Number.isNaN(closesAt.getTime()) && closesAt.getTime() > Date.now();
+    }
+    return true;
+};
+
 const calculateAge = (dob) => {
     if (!dob) return 'N/A';
     const today = new Date(), b = new Date(dob);
@@ -67,12 +120,81 @@ const getInitials = (firstName, lastName) => {
 };
 
 const STATUS_CONFIG = {
-    pending: { color: '#d97706', bg: '#fef3c7', border: '#fbbf24', label: 'Pending', icon: Clock },
-    confirmed: { color: '#0D614E', bg: '#e8f5f2', border: '#059669', label: 'Confirmed', icon: BadgeCheck },
-    'in-progress': { color: '#2563eb', bg: '#dbeafe', border: '#93c5fd', label: 'In Progress', icon: Activity },
-    completed: { color: '#059669', bg: '#d1fae5', border: '#059669', label: 'Completed', icon: CheckCircle },
-    cancelled: { color: '#dc2626', bg: '#fee2e2', border: '#fca5a5', label: 'Cancelled', icon: XCircle },
-    'no-show': { color: '#6b7280', bg: '#f3f4f6', border: '#d1d5db', label: 'No Show', icon: XCircle },
+    pending: {
+        color: '#D97706',
+        bg: '#FEF3C7',
+        border: '#FBBF24',
+        label: 'Pending',
+        icon: Clock
+    },
+    missed: {
+        color: 'Gray',
+        border: 'Gray',
+        label: 'Missed',
+        icon: Clock
+    },
+
+    confirmed: {
+        color: '#2563EB',
+        bg: '#DBEAFE',
+        border: '#93C5FD',
+        label: 'Confirmed',
+        icon: CheckCircle
+    },
+
+    'in-progress': {
+        color: '#7C3AED',
+        bg: '#EDE9FE',
+        border: '#C4B5FD',
+        label: 'In Progress',
+        icon: Activity
+    },
+
+    completed: {
+        color: '#0D614E',
+        bg: '#E8F5F2',
+        border: '#34D399',
+        label: 'Completed',
+        icon: BadgeCheck
+    },
+
+    rescheduled: {
+        color: '#EA580C',
+        bg: '#FFEDD5',
+        border: '#FDBA74',
+        label: 'Rescheduled',
+        icon: RefreshCw
+    },
+
+    reschedule: {
+        color: '#EA580C',
+        bg: '#FFEDD5',
+        border: '#FDBA74',
+        label: "Waiting for Patient Response",
+        icon: RefreshCw
+    },
+
+    cancelled: {
+        color: '#DC2626',
+        bg: '#FEE2E2',
+        border: '#FCA5A5',
+        label: 'Cancelled',
+        icon: XCircle
+    },
+    cancellation_requested: {
+        color: '#DC2626',
+        bg: '#FEE2E2',
+        border: '#FCA5A5',
+        label: 'Cancellation Requested',
+        icon: XCircle
+    },
+    'no-show': {
+        color: '#6B7280',
+        bg: '#F3F4F6',
+        border: '#D1D5DB',
+        label: 'No Show',
+        icon: UserX
+    }
 };
 
 const CONSULTATION_TYPES = {
@@ -150,7 +272,7 @@ const VitalsCard = ({ vitals }) => {
 };
 
 // Prescription Template Component for PDF
-const PrescriptionTemplate = React.forwardRef(({ appointment, formData, doctor, patient, date }, ref) => {
+const PrescriptionTemplate = React.forwardRef(({ appointment, formData, doctor, patient, date, dietPlans = [] }, ref) => {
     const calculateAge = (dob) => {
         if (!dob) return 'N/A';
         return new Date().getFullYear() - new Date(dob).getFullYear();
@@ -382,10 +504,10 @@ const PrescriptionTemplate = React.forwardRef(({ appointment, formData, doctor, 
                                                 key={idx}
                                                 className={`border-t border-gray-200 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-emerald-50 transition-colors`}
                                             >
-                                                <td className="px-6 py-5 font-semibold text-gray-900">{med.medicine_name}</td>
+                                                <td className="px-6 py-5 font-semibold text-gray-900">{med.product_name || med.medicine_name}</td>
                                                 <td className="px-6 py-5 text-gray-700">{med.dosage || '—'}</td>
                                                 <td className="px-6 py-5 text-gray-700">{med.frequency || '—'}</td>
-                                                <td className="px-6 py-5 text-gray-700">{med.duration || '—'}</td>
+                                                <td className="px-6 py-5 text-gray-700">{formatDurationLabel(med.duration)}</td>
                                                 <td className="px-6 py-5 text-sm text-gray-600 italic">{med.instruction || '—'}</td>
                                             </tr>
                                         ))
@@ -401,6 +523,70 @@ const PrescriptionTemplate = React.forwardRef(({ appointment, formData, doctor, 
                         </div>
                     </div>
                 </div>
+
+                {/* DIET PLANS */}
+                {(dietPlans || []).length > 0 && (
+                    <div className="mb-8">
+                        <div className="flex items-center gap-3 mb-5">
+                            <div className="w-10 h-10 bg-[#0D614E] rounded-lg flex items-center justify-center">
+                                <Leaf className="w-5 h-5 text-white" />
+                            </div>
+                            <h3 className="text-xl font-bold text-gray-900">Diet Plans</h3>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3">
+                            {(dietPlans || []).map((diet) => (
+                                <div key={diet.id || diet.name} className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 flex items-start justify-between gap-4">
+                                    <div>
+                                        <p className="font-semibold text-gray-900">{diet.name || 'Unnamed plan'}</p>
+                                        <p className="text-sm text-gray-600 mt-1">Assigned with this prescription</p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 justify-end">
+                                        <span className="inline-block bg-emerald-100 text-emerald-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                                            {formatDurationLabel(diet.duration ?? diet.total_days)}
+                                        </span>
+                                        {diet.meals_per_day != null && diet.meals_per_day !== '' && (
+                                            <span className="inline-block bg-sky-100 text-sky-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                                                {diet.meals_per_day} meals/day
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* DO'S & DON'TS */}
+                {(toAdviceList(formData.dos).length > 0 || toAdviceList(formData.donts).length > 0) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+                        {toAdviceList(formData.dos).length > 0 && (
+                            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+                                <h3 className="font-semibold text-emerald-800 mb-3">Do's</h3>
+                                <ul className="space-y-2">
+                                    {toAdviceList(formData.dos).map((item, i) => (
+                                        <li key={i} className="flex gap-2 text-sm text-emerald-900">
+                                            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                                            <span>{item}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        {toAdviceList(formData.donts).length > 0 && (
+                            <div className="rounded-xl border border-red-200 bg-red-50 p-5">
+                                <h3 className="font-semibold text-red-800 mb-3">Don'ts</h3>
+                                <ul className="space-y-2">
+                                    {toAdviceList(formData.donts).map((item, i) => (
+                                        <li key={i} className="flex gap-2 text-sm text-red-900">
+                                            <XCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                                            <span>{item}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* CLINICAL NOTES */}
                 {formData.clinical_notes && (
@@ -465,6 +651,7 @@ const PrescriptionTemplate = React.forwardRef(({ appointment, formData, doctor, 
                 )}
 
             </div>
+
 
             {/* ─────────────────────────────────────────────────────────────────────────────── */}
             {/* PROFESSIONAL FOOTER WITH SIGNATURE AREA */}
@@ -622,17 +809,25 @@ const InvoiceTemplate = React.forwardRef(({ appointment, patient, doctor }, ref)
 InvoiceTemplate.displayName = 'InvoiceTemplate';
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
-const AppointmentDetail = () => {
+const AppointmentDetail = ({ videodetails }) => {
     const { type, appointmentId } = useParams();
     const navigate = useNavigate();
 
     const [loading, setLoading] = useState(true);
+    const [dietloading, setdietloading] = useState(false);
     const [appointment, setAppointment] = useState(null);
+    const [doDonts, setdoDonts] = useState(null);
+    const [filterdoDonts, setFilterdoDonts] = useState(null);
+    const [filterdietplans, setFilterdietplans] = useState(null);
     const [activeTab, setActiveTab] = useState(type == "patient" ? "history" : 'prescription');
     const [updating, setUpdating] = useState(false);
     const [showAddMed, setShowAddMed] = useState(false);
     const [expandedIdx, setExpandedIdx] = useState(null);
     const [editingPrescription, setEditingPrescription] = useState(null);
+    const [editingPrescriptionId, setEditingPrescriptionId] = useState(null);
+    const [editingAppointmentId, setEditingAppointmentId] = useState(null);
+    const [editingPrescriptionStatus, setEditingPrescriptionStatus] = useState("sent");
+    const [originalPrescriptionItems, setOriginalPrescriptionItems] = useState([]);
     const [savingPrescription, setSavingPrescription] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
     const [showCall, setshowCall] = useState(false)
@@ -650,8 +845,15 @@ const AppointmentDetail = () => {
         clinical_notes: '',
         diagnosis: '',
         prescriptions: [],
-        follow_up: { schedule: false, date: '', reason: '' }
+        follow_up: { schedule: false, date: '', reason: '' },
+        dos: "",
+        donts: ""
     });
+
+    const [selecteddietplan, setSelecteddietplan] = useState(null);
+    const [originalPrescribedDiet, setOriginalPrescribedDiet] = useState(null);
+    const [dietSearchQuery, setDietSearchQuery] = useState("");
+    const dietDropdownRef = useRef(null);
 
     const [newMed, setNewMed] = useState({
         medicine_name: '',
@@ -663,16 +865,51 @@ const AppointmentDetail = () => {
         instruction: ''
     });
 
+
     const [documents, setDocuments] = useState([]);
     const [search, setSearch] = useState("");
-    const [medicines, setMedicines] = useState([]);
     const [showDropdown, setShowDropdown] = useState(false);
+
+    const [doDontSearchQuery, setDoDontSearchQuery] = useState("");
+    const [selectedDoDontId, setSelectedDoDontId] = useState(null);
+    const [showDropdowndo, setShowDropdowndo] = useState(false);
+    const [showDropdowndiet, setShowDropdowndiet] = useState(false);
+
+    const [medicines, setMedicines] = useState([]);
     const [uploading, setUploading] = useState(false);
     const [patientHistory, setPatientHistory] = useState([]);
+    const [patientDocument, setPatientDocument] = useState([]);
+    const [loader, setloader] = useState(false)
+    const [showUploadModal, setShowUploadModal] = useState(false);
+    const [selectedUploadFiles, setSelectedUploadFiles] = useState([]);
+    const [uploadMeta, setUploadMeta] = useState({
+        medical_record_type: 'prescription',
+        description: ''
+    });
+    const fileInputRef = useRef(null);
+
+    const MEDICAL_RECORD_TYPES = [
+        { value: 'prescription', label: 'Prescription' },
+        { value: 'lab_report', label: 'Lab Report' },
+        // { value: 'scan', label: 'Scan' },
+        // { value: 'xray', label: 'X-Ray' },
+        // { value: 'discharge_summary', label: 'Discharge Summary' },
+        { value: 'other', label: 'Other' },
+    ];
 
     useEffect(() => {
         fetchAppointmentDetails();
     }, [appointmentId]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dietDropdownRef.current && !dietDropdownRef.current.contains(event.target)) {
+                setShowDropdowndiet(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
 
 
@@ -681,7 +918,12 @@ const AppointmentDetail = () => {
             setLoading(true);
             const response = await doctorService.getAppointmentDetails?.(type, appointmentId);
             const apiData = response?.data?.data || response?.data || response
+            let prakriti = appointment?.patient?.prakriti || appointment?.prakriti || "";
+            const dodonts = await doctorService.getDosDonts?.(prakriti);
+
             setAppointment(apiData);
+            setdoDonts(dodonts?.data.data || dodonts?.data || dodonts);
+            setFilterdoDonts(dodonts?.data.data || dodonts?.data || dodonts);
             // setDocuments(apiData?.documents || []);
             // setFormData({
             //     symptom_description: apiData?.symptom_description || '',
@@ -695,9 +937,10 @@ const AppointmentDetail = () => {
             //     follow_up: { schedule: false, date: '', reason: '' }
             // });
             fetchPatientHistory(apiData?.patient?.id);
+            fetchPatientDocuments(type == "patient" ? apiData?.patient?.id : apiData?.id)
         } catch (err) {
             console.error('Error fetching appointment:', err);
-            toast.error(err)
+            toast.error(err?.response?.data?.message || 'Failed to load appointment');
         } finally {
             setLoading(false);
         }
@@ -706,12 +949,48 @@ const AppointmentDetail = () => {
     const fetchPatientHistory = async (id) => {
         try {
             const response = await doctorService.getAppointmentprec(id, "");
-            setPatientHistory(response.data.data?.results || [])
+            const payload = response?.data?.data || response?.data || {};
+            const results = Array.isArray(payload?.results)
+                ? payload.results
+                : Array.isArray(payload)
+                    ? payload
+                    : [];
+            setPatientHistory(results);
         } catch (error) {
-            console.log(error);
-
-            toast.error(error)
+            toast.error(error?.response?.data?.message || 'Failed to load patient history');
         }
+    };
+
+    const fetchPatientDocuments = async (id) => {
+        try {
+            const response = await doctorService.getAppointmentDoc(type, id);
+            const payload = response?.data?.data;
+            const list = Array.isArray(payload)
+                ? payload
+                : Array.isArray(payload?.results)
+                    ? payload.results
+                    : [];
+            setPatientDocument(list);
+        } catch (error) {
+            toast.error(error?.message || error?.response?.data?.message || 'Failed to load Document history');
+        }
+    };
+
+    const getDocumentFileType = (file) => {
+        const ext = (file?.name?.split('.').pop() || '').toLowerCase();
+        if (file?.type?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+            return 'image';
+        }
+        if (ext === 'pdf' || file?.type === 'application/pdf') return 'pdf';
+        if (['doc', 'docx'].includes(ext)) return ext;
+        return ext || 'file';
+    };
+
+    const resetUploadForm = () => {
+        setShowUploadModal(false);
+        setSelectedUploadFiles([]);
+        setUploadMeta({ medical_record_type: 'prescription', description: '' });
+        if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     const handleInputChange = (field, value) => {
@@ -738,10 +1017,11 @@ const AppointmentDetail = () => {
     }, [search]);
     const fetchMedicines = async (keyword) => {
         try {
+            setloader(true)
             const res = await doctorService.getProductList(keyword);
-
             setMedicines(res?.data?.data.results || []);
             setShowDropdown(true);
+            setloader(false)
         } catch (error) {
             console.log(error);
         }
@@ -756,6 +1036,41 @@ const AppointmentDetail = () => {
         setSearch(medicine.product_name);
         setShowDropdown(false);
     };
+
+    const searchDoDonts = (keyword) => {
+        if (keyword.trim().length >= 2) {
+            const filtered = doDonts?.filter(item => item.prakriti.toLowerCase().includes(keyword.toLowerCase()) || item.dos.some(dos => dos.toLowerCase().includes(keyword.toLowerCase())) || item.donts.some(dont => dont.toLowerCase().includes(keyword.toLowerCase())) || item.health_diseases.some(disease => disease?.name.toLowerCase().includes(keyword.toLowerCase())));
+            setFilterdoDonts(filtered);
+        } else if (keyword.trim().length == 2 || keyword == "") {
+            setFilterdoDonts(doDonts);
+        }
+    };
+
+    const dietSearchTimeout = useRef(null);
+
+    const searchdietplans = (keyword) => {
+        clearTimeout(dietSearchTimeout.current);
+        dietSearchTimeout.current = setTimeout(async () => {
+            try {
+                if (keyword.trim().length < 2) {
+                    setFilterdietplans([]);
+                    return;
+                }
+                setdietloading(true);
+                const res = await doctorService.getDietPlans(keyword);
+                const dietplans = res?.data?.data || [];
+
+                setFilterdietplans(dietplans);
+            } catch (error) {
+                console.error(error);
+            } finally {
+                setdietloading(false);
+            }
+        }, 500);
+    };
+
+
+
     const getStatusColor = (status) => {
         switch (status?.toLowerCase()) {
             case 'sent': return 'bg-blue-50 border-blue-200 text-blue-700';
@@ -765,14 +1080,24 @@ const AppointmentDetail = () => {
         }
     };
     const handleAddMed = () => {
-        if (!newMed.medicine_name.trim()) return;
+        if (
+            !String(newMed.medicine_name || '').trim() ||
+            !String(newMed.medicine || '').trim() ||
+            !String(newMed.dosage || '').trim() ||
+            !String(newMed.frequency || '').trim() ||
+            !String(newMed.duration || '').trim()
+        ) {
+            toast.error("Please select a medicine and fill dosage, frequency, and duration");
+            return;
+        }
         setFormData(prev => ({
             ...prev,
             prescriptions: [...prev.prescriptions, { ...newMed, id: Date.now(), prescribed_at: new Date().toISOString() }]
         }));
         setNewMed({ medicine_name: '', dosage: '', frequency: '', duration: '', instruction: '', medicine: '', medicinedata: {} });
         setShowAddMed(false);
-        setSearch("")
+        setShowDropdown(false);
+        setSearch("");
     };
 
     const handleUpdatePrescription = (id, updatedMed) => {
@@ -790,25 +1115,187 @@ const AppointmentDetail = () => {
         }));
     };
 
-    const handleFileUpload = (e) => {
-        const files = Array.from(e.target.files);
-        setUploading(true);
-        setTimeout(() => {
-            setDocuments(prev => [...prev, ...files.map(f => ({
-                id: Date.now() + Math.random(),
-                name: f.name,
-                type: f.type,
-                size: f.size,
-                upload_date: new Date().toISOString(),
-                url: URL.createObjectURL(f)
-            }))]);
-            setUploading(false);
-        }, 1000);
+    const handleDeleteDocument = async (id) => {
+        try {
+            const res = await doctorService.deleteAppointmentDocument(id);
+            if (res.data.success) {
+                toast.success('Document deleted successfully');
+            }
+        } catch (error) {
+            toast.error(error?.message || error?.response?.data?.message || 'Failed to delete document');
+        }
     };
 
-    const handleRemoveDocument = (id) => {
-        setDocuments(prev => prev.filter(x => x.id !== id));
+    const getEmptyPrescriptionForm = () => ({
+        symptom_description: "",
+        history_of_past_illness: "",
+        surgical_history: "",
+        allergies: "",
+        family_history: "",
+        clinical_notes: "",
+        diagnosis: "",
+        prescriptions: [],
+        follow_up: {
+            schedule: false,
+            date: "",
+            reason: "",
+        },
+        dos: "",
+        donts: "",
+    });
+
+    const convertArrayToBulletText = (items) => {
+        if (!items) return "";
+        if (typeof items === "string") return items;
+        if (!Array.isArray(items)) return "";
+        return items.map((item) => `• ${item}`).join("\n");
     };
+
+    const isExistingPrescriptionItem = (id) =>
+        typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+    const getMedicineItemPayload = (med) => ({
+        medicine: med?.medicine?.id || med?.medicine || med?.medicine_id || "",
+        dosage: med?.dosage || "",
+        frequency: med?.frequency || "",
+        duration: med?.duration || "",
+        instruction: med?.instruction || "",
+    });
+
+    const mapPrescriptionItems = (items = []) =>
+        items.map((med) => ({
+            ...med,
+            id: med.id || Date.now() + Math.random(),
+            medicine_name: med.product_name || med.medicine_name || med.medicine?.product_name || "",
+            medicine: med.medicine?.id || med.medicine || med.medicine_id || "",
+            dosage: med.dosage || "",
+            frequency: med.frequency || "",
+            duration: med.duration || "",
+            instruction: med.instruction || "",
+            medicinedata: med.medicinedata || med.medicine || med,
+        }));
+
+    const handleEditPrescriptionForm = (record, e) => {
+        e?.stopPropagation?.();
+        e?.preventDefault?.();
+        try {
+            const followUp = record?.follow_up || {};
+            const followUpDate = followUp.date
+                ? String(followUp.date).slice(0, 10)
+                : "";
+            const mappedItems = mapPrescriptionItems(record?.prescription_items || record?.prescriptions || []);
+            const firstDiet = record?.diets?.[0];
+            setFormData({
+                symptom_description: record?.symptom_description || "",
+                history_of_past_illness: record?.history_of_past_illness || "",
+                surgical_history: record?.surgical_history || "",
+                allergies: record?.allergies || "",
+                family_history: record?.family_history || "",
+                clinical_notes: record?.clinical_notes || "",
+                diagnosis: record?.diagnosis_advice || record?.diagnosis || "",
+                prescriptions: mappedItems,
+                follow_up: {
+                    schedule: Boolean(followUp.schedule),
+                    date: followUpDate,
+                    reason: followUp.reason || "",
+                },
+                dos: convertArrayToBulletText(record?.dos),
+                donts: convertArrayToBulletText(record?.donts),
+            });
+            const mappedDiet = firstDiet
+                ? {
+                    ...firstDiet,
+                    total_days: firstDiet.duration ?? firstDiet.total_days,
+                }
+                : null;
+            setSelecteddietplan(mappedDiet);
+            setOriginalPrescribedDiet(mappedDiet);
+            setEditingPrescriptionId(record?.id || null);
+            setEditingAppointmentId(record?.appointment_id || record?.appointment || appointment?.id || null);
+            setEditingPrescriptionStatus(record?.status || "sent");
+            setOriginalPrescriptionItems(mappedItems);
+            setShowAddMed(false);
+            setEditingPrescription(null);
+            setActiveTab("prescription");
+            toast.success("Prescription loaded for editing");
+        } catch (error) {
+            console.error(error);
+            toast.error("Failed to load prescription for editing");
+        }
+    };
+
+    const handleCancelEditPrescription = () => {
+        setEditingPrescriptionId(null);
+        setEditingAppointmentId(null);
+        setEditingPrescriptionStatus("sent");
+        setOriginalPrescriptionItems([]);
+        setFormData(getEmptyPrescriptionForm());
+        setSelecteddietplan(null);
+        setOriginalPrescribedDiet(null);
+        setDietSearchQuery("");
+        setShowAddMed(false);
+        setEditingPrescription(null);
+        setActiveTab("history");
+    };
+
+    const handleFileUpload = (e) => {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        setSelectedUploadFiles(files);
+        setShowUploadModal(true);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const handleSubmitDocumentUpload = async () => {
+        if (!selectedUploadFiles.length) {
+            toast.error('Please select at least one document');
+            return;
+        }
+        if (!uploadMeta.medical_record_type) {
+            toast.error('Please select a medical record type');
+            return;
+        }
+
+        const currentAppointmentId = appointment?.id || (type !== 'patient' ? appointmentId : null);
+        if (!currentAppointmentId) {
+            toast.error('Appointment ID is required to upload documents');
+            return;
+        }
+
+        setUploading(true);
+        try {
+            let uploadedCount = 0;
+            for (const file of selectedUploadFiles) {
+                const uploadRes = await vendorService.uploadfiles(file, 'appointment_documents');
+                const fileUrl = uploadRes?.data?.data?.url || uploadRes?.data?.url;
+                if (!fileUrl) {
+                    toast.error(`Failed to upload ${file.name}`);
+                    continue;
+                }
+
+                await doctorService.uploadAppointmentDocument(currentAppointmentId, {
+                    file_url: fileUrl,
+                    file_type: getDocumentFileType(file),
+                    medical_record_type: uploadMeta.medical_record_type,
+                    description: uploadMeta.description?.trim() || file.name,
+                });
+                uploadedCount += 1;
+            }
+
+            if (uploadedCount > 0) {
+                toast.success(`${uploadedCount} document(s) uploaded successfully`);
+                resetUploadForm();
+                const docsId = type === 'patient' ? appointment?.patient?.id : appointment?.id;
+                await fetchPatientDocuments(docsId);
+            }
+        } catch (error) {
+            toast.error(error?.message || error?.response?.data?.message || 'Failed to upload document');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+
     const validateProductInfo = () => {
         const newErrors = {};
 
@@ -816,11 +1303,29 @@ const AppointmentDetail = () => {
             toast.error("Chief Complaint is required");
             return false;
         }
-        if (!formData.prescriptions[0]) {
-            toast.error("Prescribed Medicines is required");
-            return false;
-        }
+        // if (!formData.prescriptions[0]) {
+        //     toast.error("Prescribed Medicines is required");
+        //     return false;
+        // }
         return true;
+    };
+
+    const convertBulletTextToArray = (text) => {
+        if (Array.isArray(text)) return text.filter(Boolean);
+        if (!text) return [];
+        return String(text)
+            .split("\n")
+            .map(line => line.replace(/^•\s*/, "").trim())
+            .filter(Boolean);
+    };
+
+    const getDietPlanId = (diet) => diet?.diet_plan_id || diet?.diet_plan || diet?.id || null;
+
+    const getDietAdditionalNotes = (diet) => {
+        if (Array.isArray(diet?.additional_notes)) {
+            return diet.additional_notes.filter(Boolean);
+        }
+        return [];
     };
     // Save prescription to history
     const handleSavePrescription = async () => {
@@ -828,45 +1333,170 @@ const AppointmentDetail = () => {
         setSavingPrescription(true);
         setUpdating(true)
 
-        const prescriptionData = {
-            id: Date.now().toString(),
-            appointment_id: appointment?.id,
-            surgical_history: formData.surgical_history,
-            allergies: formData.allergies,
-            family_history: formData.family_history,
-            symptom_description: formData.symptom_description,
-            history_of_past_illness: formData.history_of_past_illness,
-            clinical_notes: formData.clinical_notes,
-            diagnosis_advice: formData.diagnosis,
-            prescription_items: formData.prescriptions,
-            follow_up: formData.follow_up,
+        const isEditing = Boolean(editingPrescriptionId);
+        const prescriptionData = isEditing
+            ? {
+                symptom_description: formData.symptom_description,
+                history_of_past_illness: formData.history_of_past_illness,
+                surgical_history: formData.surgical_history,
+                allergies: formData.allergies,
+                family_history: formData.family_history,
+                clinical_notes: formData.clinical_notes,
+                diagnosis_advice: formData.diagnosis,
+                dos: convertBulletTextToArray(formData?.dos),
+                donts: convertBulletTextToArray(formData?.donts),
+                follow_up: formData.follow_up,
+                status: editingPrescriptionStatus || "sent",
+                prescription_items: formData.prescriptions,
+            }
+            : {
+                id: Date.now().toString(),
+                appointment_id: appointment?.id,
+                surgical_history: formData.surgical_history,
+                allergies: formData.allergies,
+                family_history: formData.family_history,
+                symptom_description: formData.symptom_description,
+                history_of_past_illness: formData.history_of_past_illness,
+                clinical_notes: formData.clinical_notes,
+                diagnosis_advice: formData.diagnosis,
+                prescription_items: formData.prescriptions,
+                follow_up: formData.follow_up,
+                dos: convertBulletTextToArray(formData?.dos),
+                donts: convertBulletTextToArray(formData?.donts)
+            };
+
+        const dietAppointmentId = isEditing
+            ? (editingAppointmentId || appointment?.id)
+            : appointment?.id;
+        const dietplanData = {
+            patient_id: appointment?.patient?.id,
+            diet_plan_id: getDietPlanId(selecteddietplan),
+            appointment_id: dietAppointmentId,
+            plan_json: {},
         };
 
         try {
-            const res = await doctorService.postprescription(appointment?.patient?.id, prescriptionData)
-            console.log('Prescription saved:', prescriptionData, res);
+            const res = isEditing
+                ? await doctorService.editPrescription(
+                    appointment?.patient?.id,
+                    editingPrescriptionId,
+                    prescriptionData
+                )
+                : await doctorService.postprescription(
+                    appointment?.patient?.id,
+                    prescriptionData
+                );
+
             if (res.data.success) {
-                toast.success('Prescription saved successfully!');
+                if (isEditing) {
+                    const currentItems = formData.prescriptions || [];
+                    const currentIds = new Set(
+                        currentItems.map((med) => med.id).filter(isExistingPrescriptionItem)
+                    );
+
+                    const removedItems = originalPrescriptionItems.filter(
+                        (med) => isExistingPrescriptionItem(med.id) && !currentIds.has(med.id)
+                    );
+                    // for (const med of removedItems) {
+                    //     await doctorService.deletePrescriptionItem(med.id);
+                    // }
+
+                    const originalById = Object.fromEntries(
+                        originalPrescriptionItems
+                            .filter((med) => isExistingPrescriptionItem(med.id))
+                            .map((med) => [med.id, med])
+                    );
+
+                    for (const med of currentItems) {
+                        const payload = getMedicineItemPayload(med);
+                        if (!payload.medicine) continue;
+
+                        if (isExistingPrescriptionItem(med.id)) {
+                            const original = originalById[med.id];
+                            const hasChanged = !original ||
+                                String(original.medicine) !== String(payload.medicine) ||
+                                String(original.dosage || "") !== String(payload.dosage) ||
+                                String(original.frequency || "") !== String(payload.frequency) ||
+                                String(original.duration || "") !== String(payload.duration) ||
+                                String(original.instruction || "") !== String(payload.instruction);
+                            if (hasChanged) {
+                                await doctorService.updatePrescriptionItem(med.id, payload);
+                            }
+                        }
+                        // else {
+                        //     await doctorService.addPrescriptionItem(editingPrescriptionId, payload);
+                        // }
+                    }
+                }
+
+                // Save or replace diet plan if selected
+                const newDietPlanId = getDietPlanId(selecteddietplan);
+                const currentDietPlanId = getDietPlanId(originalPrescribedDiet);
+
+                if (newDietPlanId) {
+                    const dietChanged = Boolean(currentDietPlanId) &&
+                        String(currentDietPlanId) !== String(newDietPlanId);
+
+                    if (dietChanged || !currentDietPlanId) {
+                        const getdietplan = await doctorService.getdietbyid(newDietPlanId);
+                        const rawDiet = getdietplan?.data?.data || getdietplan?.data || {};
+                        const dietPayload = Array.isArray(rawDiet) ? (rawDiet[0] || {}) : rawDiet;
+                        const schedule = dietPayload.schedule || dietPayload.plan_json;
+
+                        if (schedule) {
+                            if (dietChanged) {
+                                await doctorService.replacedietplan({
+                                    patient_id: appointment?.patient?.id,
+                                    current_diet_plan_id: currentDietPlanId,
+                                    new_diet_plan_id: newDietPlanId,
+                                    appointment_id: dietAppointmentId,
+                                    additional_notes: getDietAdditionalNotes(selecteddietplan).length
+                                        ? getDietAdditionalNotes(selecteddietplan)
+                                        : getDietAdditionalNotes(originalPrescribedDiet),
+                                    plan_json: schedule,
+                                });
+                            } else {
+                                await doctorService.postdietplan({
+                                    ...dietplanData,
+                                    diet_plan_id: newDietPlanId,
+                                    plan_json: schedule,
+                                });
+                            }
+                        }
+                    }
+                }
+
+                toast.success(isEditing ? "Prescription updated successfully!" : "Prescription saved successfully!");
+
                 setShowPreview(false);
-                setFormData({
-                    symptom_description: '',
-                    history_of_past_illness: '',
-                    surgical_history: '',
-                    allergies: '',
-                    family_history: '',
-                    clinical_notes: '',
-                    diagnosis: '',
-                    prescriptions: [],
-                    follow_up: { schedule: false, date: '', reason: '' }
-                })
-                setUpdating(false)
+                setEditingPrescriptionId(null);
+                setEditingAppointmentId(null);
+                setEditingPrescriptionStatus("sent");
+                setOriginalPrescriptionItems([]);
+                setFormData(getEmptyPrescriptionForm());
+                setSelecteddietplan(null);
+                setOriginalPrescribedDiet(null);
+                setDietSearchQuery("");
+
+                fetchAppointmentDetails();
+                setActiveTab("history");
+                setUpdating(false);
             } else {
-                toast.error(res.data.errors.appointment_id[0]);
+                toast.error(
+                    res?.data?.errors?.appointment_id?.[0] ||
+                    (isEditing ? "Failed to update prescription" : "Failed to save prescription")
+                );
             }
         } catch (err) {
-            setUpdating(false)
-            console.error('Failed to save prescription:', err);
-            toast.error('Failed to save prescription', err);
+            console.error(isEditing ? "Failed to update prescription:" : "Failed to save prescription:", err);
+
+            setUpdating(false);
+
+            toast.error(
+                err?.response?.data?.message ||
+                err?.message ||
+                (isEditing ? "Failed to update prescription" : "Failed to save prescription")
+            );
         } finally {
             setSavingPrescription(false);
         }
@@ -960,6 +1590,32 @@ const AppointmentDetail = () => {
         }
     };
 
+    const handleBulletList = (e, field) => {
+        if (e.key !== "Enter") return;
+
+        e.preventDefault();
+
+        const textarea = e.target;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+
+        const value = formData[field];
+        console.log('Current value:', value, 'Start:', start, 'End:', end);
+
+        const newValue =
+            value?.substring(0, start) +
+            "\n• " +
+            value?.substring(end);
+        handleInputChange(field, newValue);
+        setTimeout(() => {
+            textarea.selectionStart = textarea.selectionEnd = start + 3;
+        }, 0);
+    };
+    const handleFocus = (field) => {
+        if (!formData[field]) {
+            handleInputChange(field, "• ");
+        }
+    };
     if (loading) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -998,9 +1654,10 @@ const AppointmentDetail = () => {
     const tabs = [
         { id: 'prescription', label: 'Prescription', icon: Pill },
         { id: 'questions', label: 'Questions', icon: Notebook },
+        { id: 'diet-progress', label: 'Diet Progress', icon: Leaf },
         { id: 'history', label: 'History', icon: History },
         { id: 'documents', label: 'Documents', icon: FileHeart },
-        { id: 'billing', label: 'Billing', icon: IndianRupee },
+        // { id: 'billing', label: 'Billing', icon: IndianRupee },
     ];
 
     return (
@@ -1031,20 +1688,22 @@ const AppointmentDetail = () => {
                                 appointment?.status &&
                                 <StatusBadge status={appointment?.status} />
                             }
-                            {
-                                type != "patient" &&
+                            {/* {
+                                type != "patient" && (appointment?.status == "confirmed" || appointment?.status == "completed") &&
                                 <button onClick={() => setShowPreview(true)}
                                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-600 text-[#0D614E] text-sm font-semibold hover:bg-emerald-50 transition-all">
                                     <Eye className="w-4 h-4" />
                                     Preview Prescription
                                 </button>
-                            }
-                            <button onClick={handleSavePrescription} disabled={updating}
-                                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:shadow-lg disabled:opacity-50"
-                                style={{ background: 'linear-gradient(135deg, #0D614E 0%, #0a4a3d 100%)' }}>
-                                <Save className="w-4 h-4" />
-                                {updating ? 'Saving...' : 'Save Changes'}
-                            </button>
+                            } */}
+                            {/* {(appointment?.status == "confirmed" || appointment?.status == "completed") &&
+                                <button onClick={handleSavePrescription} disabled={updating}
+                                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:shadow-lg disabled:opacity-50"
+                                    style={{ background: 'linear-gradient(135deg, #0D614E 0%, #0a4a3d 100%)' }}>
+                                    <Save className="w-4 h-4" />
+                                    {updating ? 'Saving...' : 'Save Changes'}
+                                </button>
+                            } */}
                         </div>
                     </div>
                 </div>
@@ -1064,24 +1723,30 @@ const AppointmentDetail = () => {
                                 </div>
                                 <h3 className="font-bold text-gray-900 text-lg mt-3">{appointment?.patient?.first_name + " " + appointment?.patient?.last_name}</h3>
                                 <p className="text-xs text-gray-400 mt-0.5 mb-2">Patient ID: {patient?.id?.slice(0, 8)}...</p>
-                                {(appointment?.prakriti?.result?.result || appointment?.prakriti) && (
+                                {(type == "patient" ? appointment?.prakriti?.result?.result : appointment?.prakriti) && (
                                     <span className="mb-2 inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-[#0D614E]">
                                         <Sparkles className="w-3 h-3" />
-                                        Prakriti: {appointment?.prakriti?.result?.result || appointment?.prakriti}
+                                        Prakriti: {(type == "patient" ? appointment?.prakriti?.result?.result : appointment?.prakriti)}
                                     </span>
                                 )}
-                                {
+                                {/* {
                                     appointment?.status &&
                                     <StatusBadge status={appointment?.status} />
+                                } */}
+                                {
+                                    appointment?.status == "confirmed" &&
+                                    <div className="grid grid-cols-2 gap-2 w-full mt-2">
+                                        <Link to={`/doctor/messenger/${patient?.id}`} className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 bg-emerald-50 text-[#0D614E]">
+                                            <MessageCircle className="w-3.5 h-3.5" /> Message
+                                        </Link>
+                                        <button onClick={e => {
+                                            // setshowCall(!showCall)
+                                            videodetails({ ...videodetails, showCall: !videodetails.showCall, patient: patient, appointment: appointment })
+                                        }} className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 bg-emerald-50 text-[#0D614E]">
+                                            <Video className="w-3.5 h-3.5" />Join Call
+                                        </button>
+                                    </div>
                                 }
-                                <div className="grid grid-cols-2 gap-2 w-full mt-2">
-                                    <button className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 bg-emerald-50 text-[#0D614E]">
-                                        <MessageCircle className="w-3.5 h-3.5" /> Message
-                                    </button>
-                                    <button onClick={e => setshowCall(!showCall)} className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-80 bg-emerald-50 text-[#0D614E]">
-                                        <Video className="w-3.5 h-3.5" />Join Call
-                                    </button>
-                                </div>
                             </div>
                         </SectionCard>
 
@@ -1153,13 +1818,30 @@ const AppointmentDetail = () => {
 
                                 {/* Prescription Tab */}
                                 {activeTab === 'prescription' && (
-                                    appointment?.status == "confirmed" || appointment?.status == "completed" ?
+                                    appointment?.status == "confirmed" || editingPrescriptionId
+                                        // || appointment?.status == "completed"
+                                        ?
                                         <div className="space-y-6">
+                                            {editingPrescriptionId && (
+                                                <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-emerald-200 bg-emerald-50">
+                                                    <div className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
+                                                        <PencilIcon className="w-4 h-4" />
+                                                        Editing existing prescription
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleCancelEditPrescription}
+                                                        className="text-xs font-semibold text-emerald-700 hover:text-emerald-900"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            )}
                                             {/* Chief Complaint */}
                                             <div className="space-y-2">
                                                 <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                                                     <AlertCircle className="w-3.5 h-3.5 text-emerald-600" />
-                                                    Chief Complaint
+                                                    Chief Complaint<span className="text-rose-500">*</span>
                                                 </label>
                                                 <textarea
                                                     rows={8}
@@ -1231,210 +1913,573 @@ const AppointmentDetail = () => {
                                             </div>
 
                                             {/* Prescriptions */}
-                                            <div>
-                                                <div className="flex items-center justify-between mb-4">
-                                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Prescribed Medicines</p>
-                                                    <button onClick={() => setShowAddMed(!showAddMed)}
-                                                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-semibold transition-all hover:shadow-md"
-                                                        style={{ background: '#0D614E' }}>
-                                                        <Plus className="w-4 h-4" /> Add Medicine
+                                            <div className="space-y-4">
+                                                <div className="flex items-center justify-between gap-3">
+                                                    <div className="flex items-center gap-2.5">
+                                                        <div className="w-8 h-8 rounded-lg bg-[#0D614E]/10 flex items-center justify-center">
+                                                            <Pill className="w-4 h-4 text-[#0D614E]" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-gray-800">Prescribed Medicines</p>
+                                                            <p className="text-[11px] text-gray-400">
+                                                                {formData.prescriptions.length === 0
+                                                                    ? 'No medicines added yet'
+                                                                    : `${formData.prescriptions.length} medicine${formData.prescriptions.length > 1 ? 's' : ''} in Rx`}
+                                                            </p>
+                                                        </div>
+                                                        {formData.prescriptions.length > 0 && (
+                                                            <span className="ml-1 inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-[11px] font-bold text-white bg-[#0D614E]">
+                                                                {formData.prescriptions.length}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (showAddMed) {
+                                                                setShowAddMed(false);
+                                                                setShowDropdown(false);
+                                                                setSearch('');
+                                                                setNewMed({ medicine_name: '', dosage: '', frequency: '', duration: '', instruction: '', medicine: '', medicinedata: {} });
+                                                            } else {
+                                                                setShowAddMed(true);
+                                                            }
+                                                        }}
+                                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${showAddMed
+                                                            ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                            : 'text-white hover:shadow-md'
+                                                            }`}
+                                                        style={!showAddMed ? { background: '#0D614E' } : undefined}
+                                                    >
+                                                        {showAddMed ? (
+                                                            <>
+                                                                <X className="w-4 h-4" /> Close
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Plus className="w-4 h-4" /> Add Medicine
+                                                            </>
+                                                        )}
                                                     </button>
                                                 </div>
 
                                                 {showAddMed && (
-                                                    <div className="mb-5 p-5 bg-gradient-to-br from-gray-50 to-white rounded-2xl border-2 border-dashed border-emerald-200 space-y-3">
-                                                        <div className="relative">
-                                                            <input
-                                                                type="search"
-                                                                placeholder="Search medicine..."
-                                                                value={search}
-                                                                onChange={(e) => {
-                                                                    setSearch(e.target.value);
-                                                                    setShowDropdown(true);
-                                                                }}
-                                                                className="w-full px-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                                            />
+                                                    <div className="rounded-2xl border border-emerald-200 bg-white overflow-hidden shadow-sm">
+                                                        <div className="px-4 py-3 bg-[#0D614E]/5 border-b border-emerald-100 flex items-center gap-2">
+                                                            <div className="w-6 h-6 rounded-full bg-[#0D614E] text-white text-[11px] font-bold flex items-center justify-center">1</div>
+                                                            <p className="text-sm font-semibold text-gray-800">Search & select medicine</p>
+                                                        </div>
 
-                                                            {showDropdown && medicines?.length > 0 && (
-                                                                <div className="absolute z-5 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-72 overflow-y-auto">
-                                                                    {medicines.map((item) => (
-                                                                        <div
-                                                                            key={item.id}
-                                                                            onClick={() => selectMedicine(item)}
-                                                                            className="px-4 py-3 cursor-pointer hover:bg-emerald-50 border-b border-gray-100 last:border-0 transition-colors"
-                                                                        >
-                                                                            <div className="flex items-center justify-between gap-2">
-                                                                                <img src={item?.cover_image} className='w-[50px] h-[50px] rounded-[8px] shadow-md object-cover' />
-                                                                                <div className="flex-1">
-                                                                                    {/* Product Name */}
-                                                                                    <h4 className="text-sm font-semibold text-gray-900">
-                                                                                        {item.product_name}
-                                                                                    </h4>
-
-                                                                                    {/* Brand */}
-                                                                                    <p className="text-xs text-gray-500 mt-0.5">
-                                                                                        Brand: {item.brand_name}
+                                                        <div className="p-4 space-y-4">
+                                                            {newMed?.medicine && newMed?.medicinedata ? (
+                                                                <div className="relative flex items-start gap-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+                                                                    <img
+                                                                        src={newMed.medicinedata.cover_image}
+                                                                        alt=""
+                                                                        className="w-14 h-14 rounded-lg object-cover border border-white shadow-sm flex-shrink-0"
+                                                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                                                    />
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex items-start justify-between gap-2">
+                                                                            <div>
+                                                                                <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-600 mb-0.5">Selected</p>
+                                                                                <h4 className="text-sm font-semibold text-gray-900 leading-snug">
+                                                                                    {newMed.medicinedata.product_name}
+                                                                                </h4>
+                                                                                <p className="text-xs text-gray-500 mt-0.5">
+                                                                                    {newMed.medicinedata.brand_name}
+                                                                                    {newMed.medicinedata.variant_code ? ` · ${newMed.medicinedata.variant_code}` : ''}
+                                                                                </p>
+                                                                            </div>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    setNewMed({ medicine_name: '', dosage: newMed.dosage, frequency: newMed.frequency, duration: newMed.duration, instruction: newMed.instruction, medicine: '', medicinedata: {} });
+                                                                                    setSearch('');
+                                                                                    setShowDropdown(false);
+                                                                                }}
+                                                                                className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-white transition-colors"
+                                                                                title="Change medicine"
+                                                                            >
+                                                                                <X className="w-4 h-4" />
+                                                                            </button>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                                                                            {newMed.medicinedata.title && (
+                                                                                <span className="px-2 py-0.5 text-[10px] font-medium bg-white text-emerald-700 rounded-md border border-emerald-100">
+                                                                                    {newMed.medicinedata.title}
+                                                                                </span>
+                                                                            )}
+                                                                            {(newMed.medicinedata.size || newMed.medicinedata.weightage) && (
+                                                                                <span className="px-2 py-0.5 text-[10px] font-medium bg-white text-sky-700 rounded-md border border-sky-100">
+                                                                                    {newMed.medicinedata.size} {newMed.medicinedata.weightage}
+                                                                                </span>
+                                                                            )}
+                                                                            {newMed.medicinedata.physical_state && (
+                                                                                <span className="px-2 py-0.5 text-[10px] font-medium bg-white text-amber-700 rounded-md border border-amber-100">
+                                                                                    {newMed.medicinedata.physical_state}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="relative">
+                                                                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                                                                    <input
+                                                                        type="search"
+                                                                        placeholder="Type medicine name, brand, or variant code..."
+                                                                        value={search}
+                                                                        onChange={(e) => {
+                                                                            setSearch(e.target.value);
+                                                                            setShowDropdown(true);
+                                                                        }}
+                                                                        className="w-full pl-10 pr-4 py-3 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all"
+                                                                        autoFocus
+                                                                    />
+                                                                    {showDropdown && search.trim().length >= 2 && (
+                                                                        <>
+                                                                            {loader ? (
+                                                                                <div className="absolute z-50 w-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl max-h-72 overflow-y-auto">
+                                                                                    {[...Array(4)].map((_, index) => (
+                                                                                        <div key={index} className="px-4 py-3 border-b border-gray-50 last:border-0">
+                                                                                            <div className="animate-pulse flex items-center gap-3">
+                                                                                                <div className="w-12 h-12 bg-gray-200 rounded-lg flex-shrink-0" />
+                                                                                                <div className="flex-1 space-y-2">
+                                                                                                    <div className="h-3.5 bg-gray-200 rounded w-2/5" />
+                                                                                                    <div className="h-3 bg-gray-100 rounded w-1/4" />
+                                                                                                    <div className="flex gap-2">
+                                                                                                        <div className="h-4 w-16 bg-gray-100 rounded" />
+                                                                                                        <div className="h-4 w-14 bg-gray-100 rounded" />
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            ) : medicines?.length > 0 ? (
+                                                                                <div className="absolute z-50 w-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl max-h-72 overflow-y-auto">
+                                                                                    <p className="sticky top-0 z-10 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 bg-gray-50 border-b border-gray-100">
+                                                                                        {medicines.length} result{medicines.length > 1 ? 's' : ''} — tap to select
                                                                                     </p>
-
-                                                                                    {/* Variant */}
-                                                                                    <div className="flex items-center gap-2 mt-2">
-                                                                                        <span className="px-2 py-0.5 text-xs bg-emerald-100 text-emerald-700 rounded-full">
-                                                                                            {item.title}
-                                                                                        </span>
-
-                                                                                        <span className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full">
-                                                                                            {item.size} {item.weightage}
-                                                                                        </span>
-                                                                                        <span className="px-2 py-0.5 text-xs bg-orange-100 text-orange-700 rounded-full">
-                                                                                            {item.physical_state}
-                                                                                        </span>
+                                                                                    {medicines.map((item) => (
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            key={item.id}
+                                                                                            onClick={() => selectMedicine(item)}
+                                                                                            className="w-full text-left px-4 py-3 hover:bg-emerald-50 border-b border-gray-50 last:border-0 transition-colors"
+                                                                                        >
+                                                                                            <div className="flex items-center gap-3">
+                                                                                                {item?.cover_image ? (
+                                                                                                    <img
+                                                                                                        src={item.cover_image}
+                                                                                                        alt=""
+                                                                                                        className="w-12 h-12 rounded-lg object-cover border border-gray-100 flex-shrink-0"
+                                                                                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                                                                                    />
+                                                                                                ) : (
+                                                                                                    <div className="w-12 h-12 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                                                                                                        <Pill className="w-5 h-5 text-emerald-600" />
+                                                                                                    </div>
+                                                                                                )}
+                                                                                                <div className="flex-1 min-w-0">
+                                                                                                    <h4 className="text-sm font-semibold text-gray-900 truncate">{item.product_name}</h4>
+                                                                                                    <p className="text-xs text-gray-500 mt-0.5 truncate">
+                                                                                                        {item.brand_name}
+                                                                                                        {item.variant_code ? ` · ${item.variant_code}` : ''}
+                                                                                                    </p>
+                                                                                                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                                                                                        {item.title && (
+                                                                                                            <span className="px-1.5 py-0.5 text-[10px] bg-emerald-50 text-emerald-700 rounded">{item.title}</span>
+                                                                                                        )}
+                                                                                                        {(item.size || item.weightage) && (
+                                                                                                            <span className="px-1.5 py-0.5 text-[10px] bg-sky-50 text-sky-700 rounded">{item.size} {item.weightage}</span>
+                                                                                                        )}
+                                                                                                        {item.physical_state && (
+                                                                                                            <span className="px-1.5 py-0.5 text-[10px] bg-amber-50 text-amber-700 rounded">{item.physical_state}</span>
+                                                                                                        )}
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                                <Plus className="w-4 h-4 text-emerald-600 flex-shrink-0 opacity-0 group-hover:opacity-100" />
+                                                                                            </div>
+                                                                                        </button>
+                                                                                    ))}
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className="absolute z-50 w-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl">
+                                                                                    <div className="flex flex-col items-center justify-center py-8 px-4">
+                                                                                        <div className="w-12 h-12 rounded-full bg-gray-50 flex items-center justify-center mb-3">
+                                                                                            <Search className="w-5 h-5 text-gray-300" />
+                                                                                        </div>
+                                                                                        <h4 className="text-sm font-semibold text-gray-800">No medicine found</h4>
+                                                                                        <p className="text-xs text-gray-500 mt-1 text-center max-w-[220px]">
+                                                                                            Try another name, brand, or variant code
+                                                                                        </p>
                                                                                     </div>
                                                                                 </div>
-
-                                                                                {/* Variant Code */}
-                                                                                <div className="text-xs font-medium text-gray-600">
-                                                                                    {item.variant_code}
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    ))}
+                                                                            )}
+                                                                        </>
+                                                                    )}
                                                                 </div>
                                                             )}
-                                                        </div>
-                                                        <div className="grid grid-cols-2 gap-3">
-                                                            <input type="text" placeholder="Dosage (e.g., 500mg)" value={newMed.dosage}
-                                                                onChange={e => setNewMed({ ...newMed, dosage: e.target.value })}
-                                                                className="px-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                                                            <input type="text" placeholder="Frequency (e.g., Twice daily)" value={newMed.frequency}
-                                                                onChange={e => setNewMed({ ...newMed, frequency: e.target.value })}
-                                                                className="px-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                                                        </div>
-                                                        <input type="text" placeholder="Duration (e.g., 7 days)" value={newMed.duration}
-                                                            onChange={e => setNewMed({ ...newMed, duration: e.target.value })}
-                                                            className="w-full px-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                                                        <textarea placeholder="Instructions" rows={2} value={newMed.instruction}
-                                                            onChange={e => setNewMed({ ...newMed, instruction: e.target.value })}
-                                                            className="w-full px-4 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                                                        <div className="flex gap-3 pt-2">
-                                                            <button onClick={handleAddMed} className="flex-1 py-2.5 rounded-xl text-white font-semibold transition-all hover:shadow-md" style={{ background: '#0D614E' }}>Add to Prescription</button>
-                                                            <button onClick={() => setShowAddMed(false)} className="px-6 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition-all">Cancel</button>
+
+                                                            <div className={`space-y-4 ${!newMed?.medicine ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                                <div className="flex items-center gap-2 pt-1">
+                                                                    <div className="w-6 h-6 rounded-full bg-[#0D614E] text-white text-[11px] font-bold flex items-center justify-center">2</div>
+                                                                    <p className="text-sm font-semibold text-gray-800">Set dosage & schedule</p>
+                                                                    {!newMed?.medicine && (
+                                                                        <span className="text-[11px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md">Select a medicine first</span>
+                                                                    )}
+                                                                </div>
+
+                                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                                    <div className="space-y-1.5">
+                                                                        <label className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                                                                            <Package className="w-3 h-3 text-sky-500" /> Dosage *
+                                                                        </label>
+                                                                        <input
+                                                                            type="text"
+                                                                            placeholder="e.g. 1 tablet, 5ml"
+                                                                            value={newMed.dosage}
+                                                                            onChange={e => setNewMed({ ...newMed, dosage: e.target.value })}
+                                                                            className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
+                                                                        />
+                                                                        <div className="flex flex-wrap gap-1">
+                                                                            {['1 tablet', '2 tablets', '5 ml', '10 ml', '1 tsp'].map(opt => (
+                                                                                <button
+                                                                                    key={opt}
+                                                                                    type="button"
+                                                                                    onClick={() => setNewMed({ ...newMed, dosage: opt })}
+                                                                                    className={`px-2 py-0.5 text-[10px] rounded-md border transition-colors ${newMed.dosage === opt
+                                                                                        ? 'bg-sky-100 border-sky-300 text-sky-800'
+                                                                                        : 'bg-white border-gray-200 text-gray-500 hover:border-sky-200 hover:text-sky-700'
+                                                                                        }`}
+                                                                                >
+                                                                                    {opt}
+                                                                                </button>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="space-y-1.5">
+                                                                        <label className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                                                                            <Clock3 className="w-3 h-3 text-amber-500" /> Frequency *
+                                                                        </label>
+                                                                        <input
+                                                                            type="text"
+                                                                            placeholder="e.g. Twice daily"
+                                                                            value={newMed.frequency}
+                                                                            onChange={e => setNewMed({ ...newMed, frequency: e.target.value })}
+                                                                            className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
+                                                                        />
+                                                                        <div className="flex flex-wrap gap-1">
+                                                                            {['Once daily', 'Twice daily', 'Thrice daily', 'At bedtime'].map(opt => (
+                                                                                <button
+                                                                                    key={opt}
+                                                                                    type="button"
+                                                                                    onClick={() => setNewMed({ ...newMed, frequency: opt })}
+                                                                                    className={`px-2 py-0.5 text-[10px] rounded-md border transition-colors ${newMed.frequency === opt
+                                                                                        ? 'bg-amber-100 border-amber-300 text-amber-800'
+                                                                                        : 'bg-white border-gray-200 text-gray-500 hover:border-amber-200 hover:text-amber-700'
+                                                                                        }`}
+                                                                                >
+                                                                                    {opt}
+                                                                                </button>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="space-y-1.5">
+                                                                        <label className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                                                                            <CalendarDays className="w-3 h-3 text-violet-500" /> Duration *
+                                                                        </label>
+                                                                        <input
+                                                                            type="text"
+                                                                            placeholder="e.g. 7 days"
+                                                                            value={newMed.duration}
+                                                                            onChange={e => setNewMed({ ...newMed, duration: e.target.value })}
+                                                                            className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
+                                                                        />
+                                                                        <div className="flex flex-wrap gap-1">
+                                                                            {['3 days', '5 days', '7 days', '15 days', '30 days'].map(opt => (
+                                                                                <button
+                                                                                    key={opt}
+                                                                                    type="button"
+                                                                                    onClick={() => setNewMed({ ...newMed, duration: opt })}
+                                                                                    className={`px-2 py-0.5 text-[10px] rounded-md border transition-colors ${newMed.duration === opt
+                                                                                        ? 'bg-violet-100 border-violet-300 text-violet-800'
+                                                                                        : 'bg-white border-gray-200 text-gray-500 hover:border-violet-200 hover:text-violet-700'
+                                                                                        }`}
+                                                                                >
+                                                                                    {opt}
+                                                                                </button>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="space-y-1.5">
+                                                                    <label className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                                                                        <FileText className="w-3 h-3 text-gray-400" /> Instructions
+                                                                    </label>
+                                                                    <textarea
+                                                                        placeholder="e.g. After food with warm water..."
+                                                                        rows={2}
+                                                                        value={newMed.instruction}
+                                                                        onChange={e => setNewMed({ ...newMed, instruction: e.target.value })}
+                                                                        className="w-full px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white resize-none"
+                                                                    />
+                                                                    <div className="flex flex-wrap gap-1">
+                                                                        {['Before food', 'After food', 'With warm water', 'Empty stomach'].map(opt => (
+                                                                            <button
+                                                                                key={opt}
+                                                                                type="button"
+                                                                                onClick={() => setNewMed({
+                                                                                    ...newMed,
+                                                                                    instruction: newMed.instruction
+                                                                                        ? (newMed.instruction.includes(opt) ? newMed.instruction : `${newMed.instruction}, ${opt}`)
+                                                                                        : opt
+                                                                                })}
+                                                                                className={`px-2 py-0.5 text-[10px] rounded-md border transition-colors ${newMed.instruction?.includes(opt)
+                                                                                    ? 'bg-gray-200 border-gray-300 text-gray-800'
+                                                                                    : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                                                                                    }`}
+                                                                            >
+                                                                                {opt}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="flex gap-2.5 pt-1">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={handleAddMed}
+                                                                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:shadow-md disabled:opacity-50"
+                                                                        style={{ background: '#0D614E' }}
+                                                                    >
+                                                                        <CheckCircle2 className="w-4 h-4" />
+                                                                        Add to Prescription
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setShowAddMed(false);
+                                                                            setShowDropdown(false);
+                                                                            setSearch('');
+                                                                            setNewMed({ medicine_name: '', dosage: '', frequency: '', duration: '', instruction: '', medicine: '', medicinedata: {} });
+                                                                        }}
+                                                                        className="px-5 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold hover:bg-gray-200 transition-all"
+                                                                    >
+                                                                        Cancel
+                                                                    </button>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 )}
 
                                                 {formData.prescriptions.length > 0 ? (
-                                                    <div className="space-y-3">
-                                                        {formData.prescriptions.map(med => (
-                                                            <div key={med.id} className="flex items-center gap-4 p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-100 group hover:shadow-md transition-all">
-                                                                {editingPrescription === med.id ? (
-                                                                    <div className="flex-1 space-y-2">
-                                                                        <input type="text" value={med.medicine_name}
-                                                                            onChange={e => setEditingPrescription({ ...med, medicine_name: e.target.value })}
-                                                                            className="w-full px-3 py-2 text-sm border rounded-lg" />
-                                                                        <div className="grid grid-cols-2 gap-2">
-                                                                            <input type="text" value={med.dosage}
-                                                                                onChange={e => setEditingPrescription({ ...med, dosage: e.target.value })}
-                                                                                placeholder="Dosage" className="px-3 py-2 text-sm border rounded-lg" />
-                                                                            <input type="text" value={med.frequency}
-                                                                                onChange={e => setEditingPrescription({ ...med, frequency: e.target.value })}
-                                                                                placeholder="Frequency" className="px-3 py-2 text-sm border rounded-lg" />
-                                                                        </div>
-                                                                        <input type="text" value={med.duration}
-                                                                            onChange={e => setEditingPrescription({ ...med, duration: e.target.value })}
-                                                                            placeholder="Duration" className="w-full px-3 py-2 text-sm border rounded-lg" />
-                                                                        <textarea value={med.instruction}
-                                                                            onChange={e => setEditingPrescription({ ...med, instruction: e.target.value })}
-                                                                            placeholder="Instructions" rows={2} className="w-full px-3 py-2 text-sm border rounded-lg" />
-                                                                        <div className="flex gap-2">
-                                                                            <button onClick={() => handleUpdatePrescription(med.id, editingPrescription)}
-                                                                                className="px-3 py-1 bg-emerald-600 text-white rounded-lg text-sm">Save</button>
-                                                                            <button onClick={() => setEditingPrescription(null)}
-                                                                                className="px-3 py-1 bg-gray-200 rounded-lg text-sm">Cancel</button>
-                                                                        </div>
-                                                                    </div>
-                                                                ) : (
-                                                                    <>
-                                                                        <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center border border-emerald-100">
-                                                                            <Pill className="w-6 h-6 text-[#0D614E]" />
-                                                                        </div>
-
-                                                                        <div className="flex-1 min-w-0">
+                                                    <div className="rounded-2xl border border-gray-200 overflow-hidden bg-white">
+                                                        <div className="hidden sm:grid grid-cols-12 gap-2 px-4 py-2.5 bg-gray-50 border-b border-gray-100 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                                                            <div className="col-span-4">Medicine</div>
+                                                            <div className="col-span-2">Dosage</div>
+                                                            <div className="col-span-2">Frequency</div>
+                                                            <div className="col-span-2">Duration</div>
+                                                            <div className="col-span-2 text-right">Actions</div>
+                                                        </div>
+                                                        <div className="divide-y divide-gray-100">
+                                                            {formData.prescriptions.map((med, index) => (
+                                                                <div key={med.id} className="group">
+                                                                    {editingPrescription?.id === med.id ? (
+                                                                        <div className="p-4 bg-emerald-50/40 space-y-3">
                                                                             <div className="flex items-center justify-between">
-                                                                                <div>
-                                                                                    <h4 className="font-semibold text-gray-900 text-sm">
-                                                                                        {med.medicine_name}
-                                                                                    </h4>
-
-                                                                                    {med.brand_name && (
-                                                                                        <p className="text-xs text-gray-500 mt-0.5">
-                                                                                            {med.brand_name}
-                                                                                        </p>
+                                                                                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+                                                                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                                                    Editing medicine #{index + 1}
+                                                                                </span>
+                                                                            </div>
+                                                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                                                                                <div className="space-y-1">
+                                                                                    <label className="text-[10px] font-semibold text-gray-500 uppercase">Medicine</label>
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        value={editingPrescription.medicine_name || ''}
+                                                                                        onChange={e => setEditingPrescription({ ...editingPrescription, medicine_name: e.target.value })}
+                                                                                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 outline-none bg-white"
+                                                                                    />
+                                                                                </div>
+                                                                                <div className="space-y-1">
+                                                                                    <label className="text-[10px] font-semibold text-gray-500 uppercase">Dosage</label>
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        value={editingPrescription.dosage || ''}
+                                                                                        onChange={e => setEditingPrescription({ ...editingPrescription, dosage: e.target.value })}
+                                                                                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 outline-none bg-white"
+                                                                                    />
+                                                                                </div>
+                                                                                <div className="space-y-1">
+                                                                                    <label className="text-[10px] font-semibold text-gray-500 uppercase">Frequency</label>
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        value={editingPrescription.frequency || ''}
+                                                                                        onChange={e => setEditingPrescription({ ...editingPrescription, frequency: e.target.value })}
+                                                                                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 outline-none bg-white"
+                                                                                    />
+                                                                                </div>
+                                                                                <div className="space-y-1">
+                                                                                    <label className="text-[10px] font-semibold text-gray-500 uppercase">Duration</label>
+                                                                                    <input
+                                                                                        type="text"
+                                                                                        value={editingPrescription.duration || ''}
+                                                                                        onChange={e => setEditingPrescription({ ...editingPrescription, duration: e.target.value })}
+                                                                                        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 outline-none bg-white"
+                                                                                    />
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="space-y-1">
+                                                                                <label className="text-[10px] font-semibold text-gray-500 uppercase">Instructions</label>
+                                                                                <input
+                                                                                    type="text"
+                                                                                    value={editingPrescription.instruction || ''}
+                                                                                    onChange={e => setEditingPrescription({ ...editingPrescription, instruction: e.target.value })}
+                                                                                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 outline-none bg-white"
+                                                                                    placeholder="Optional instructions"
+                                                                                />
+                                                                            </div>
+                                                                            <div className="flex gap-2">
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => handleUpdatePrescription(med.id, editingPrescription)}
+                                                                                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0D614E] hover:bg-[#0a4f3f] text-white rounded-lg text-xs font-semibold transition-all"
+                                                                                >
+                                                                                    <CheckCircle2 className="w-3.5 h-3.5" /> Save changes
+                                                                                </button>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => setEditingPrescription(null)}
+                                                                                    className="px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-600 rounded-lg text-xs font-semibold transition-all"
+                                                                                >
+                                                                                    Cancel
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="p-3.5 sm:px-4 hover:bg-gray-50/80 transition-colors">
+                                                                            <div className="flex sm:grid sm:grid-cols-12 gap-3 items-start sm:items-center">
+                                                                                <div className="flex items-center gap-3 flex-1 sm:col-span-4 min-w-0">
+                                                                                    <span className="w-6 h-6 rounded-md bg-[#0D614E]/10 text-[#0D614E] text-[11px] font-bold flex items-center justify-center flex-shrink-0">
+                                                                                        {index + 1}
+                                                                                    </span>
+                                                                                    {med?.medicinedata?.cover_image ? (
+                                                                                        <img
+                                                                                            src={med.medicinedata.cover_image}
+                                                                                            alt=""
+                                                                                            className="w-10 h-10 rounded-lg object-cover border border-gray-100 flex-shrink-0"
+                                                                                            onError={(e) => { e.target.style.display = 'none'; }}
+                                                                                        />
+                                                                                    ) : (
+                                                                                        <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                                                                                            <Pill className="w-4 h-4 text-emerald-600" />
+                                                                                        </div>
                                                                                     )}
+                                                                                    <div className="min-w-0">
+                                                                                        <h5 className="text-sm font-semibold text-gray-800 truncate">{med.medicine_name}</h5>
+                                                                                        {(med.brand_name || med?.medicinedata?.brand_name) && (
+                                                                                            <p className="text-[11px] text-gray-400 truncate">
+                                                                                                {med.brand_name || med?.medicinedata?.brand_name}
+                                                                                            </p>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <div className="hidden sm:block sm:col-span-2">
+                                                                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-sky-700 bg-sky-50 px-2 py-1 rounded-md">
+                                                                                        <Package className="w-3 h-3" />
+                                                                                        {med.dosage || '—'}
+                                                                                    </span>
+                                                                                </div>
+                                                                                <div className="hidden sm:block sm:col-span-2">
+                                                                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded-md">
+                                                                                        <Clock3 className="w-3 h-3" />
+                                                                                        {med.frequency || '—'}
+                                                                                    </span>
+                                                                                </div>
+                                                                                <div className="hidden sm:block sm:col-span-2">
+                                                                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-violet-700 bg-violet-50 px-2 py-1 rounded-md">
+                                                                                        <CalendarDays className="w-3 h-3" />
+                                                                                        {med.duration || '—'}
+                                                                                    </span>
+                                                                                </div>
+
+                                                                                <div className="flex items-center gap-1 sm:col-span-2 sm:justify-end flex-shrink-0">
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => setEditingPrescription({ ...med })}
+                                                                                        className="p-2 rounded-lg text-gray-400 hover:text-[#0D614E] hover:bg-emerald-50 transition-all"
+                                                                                        title="Edit"
+                                                                                    >
+                                                                                        <Edit2 className="w-3.5 h-3.5" />
+                                                                                    </button>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={() => handleRemovePrescription(med.id)}
+                                                                                        className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                                                                                        title="Remove"
+                                                                                    >
+                                                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                                                    </button>
                                                                                 </div>
                                                                             </div>
 
-                                                                            <div className="flex flex-wrap gap-2 mt-3">
+                                                                            {/* Mobile dosage row */}
+                                                                            <div className="flex sm:hidden flex-wrap gap-1.5 mt-2.5 ml-9">
                                                                                 {med.dosage && (
-                                                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
-                                                                                        <Package className="w-3.5 h-3.5" />
-                                                                                        {med.dosage}
+                                                                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md">
+                                                                                        <Package className="w-3 h-3" />{med.dosage}
                                                                                     </span>
                                                                                 )}
-
                                                                                 {med.frequency && (
-                                                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-medium">
-                                                                                        <Clock3 className="w-3.5 h-3.5" />
-                                                                                        {med.frequency}
+                                                                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md">
+                                                                                        <Clock3 className="w-3 h-3" />{med.frequency}
                                                                                     </span>
                                                                                 )}
-
                                                                                 {med.duration && (
-                                                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 text-xs font-medium">
-                                                                                        <CalendarDays className="w-3.5 h-3.5" />
-                                                                                        {med.duration}
+                                                                                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-violet-700 bg-violet-50 px-2 py-0.5 rounded-md">
+                                                                                        <CalendarDays className="w-3 h-3" />{med.duration}
                                                                                     </span>
                                                                                 )}
                                                                             </div>
 
                                                                             {med.instruction && (
-                                                                                <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                                                                                    <div className="flex items-center gap-2">
-                                                                                        <FileText className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                                                                                        <p className="text-xs text-gray-600 leading-relaxed">
-                                                                                            {med.instruction}
-                                                                                        </p>
-                                                                                    </div>
+                                                                                <div className="mt-2 ml-9 sm:ml-[3.25rem] flex items-start gap-1.5 text-[11px] text-gray-500">
+                                                                                    <FileText className="w-3 h-3 mt-0.5 flex-shrink-0 text-gray-400" />
+                                                                                    <span>{med.instruction}</span>
                                                                                 </div>
                                                                             )}
                                                                         </div>
-
-                                                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                                                                            {/* <button
-                                                                            onClick={() => setEditingPrescription(med.id)}
-                                                                            className="p-2 rounded-xl text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                                                                        >
-                                                                            <Edit2 className="w-4 h-4" />
-                                                                        </button> */}
-
-                                                                            <button
-                                                                                onClick={() => handleRemovePrescription(med.id)}
-                                                                                className="p-2 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
-                                                                            >
-                                                                                <Trash2 className="w-4 h-4" />
-                                                                            </button>
-                                                                        </div>
-                                                                    </>
-                                                                )}
-                                                            </div>
-                                                        ))}
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
                                                     </div>
-                                                ) : (
-                                                    <div className="text-center py-16 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                                                        <Pill className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                                                        <p className="text-sm text-gray-400">No medicines prescribed yet</p>
-                                                        <p className="text-xs text-gray-300 mt-1">Click "Add Medicine" to start prescribing</p>
+                                                ) : !showAddMed ? (
+                                                    <div className="text-center py-12 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                                                        <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-white border border-gray-100 flex items-center justify-center shadow-sm">
+                                                            <Pill className="w-7 h-7 text-gray-300" />
+                                                        </div>
+                                                        <p className="text-sm font-medium text-gray-500">No medicines prescribed yet</p>
+                                                        <p className="text-xs text-gray-400 mt-1 mb-4">Search and add medicines to build the Rx</p>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowAddMed(true)}
+                                                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-semibold hover:shadow-md transition-all"
+                                                            style={{ background: '#0D614E' }}
+                                                        >
+                                                            <Plus className="w-4 h-4" /> Add first medicine
+                                                        </button>
                                                     </div>
-                                                )}
+                                                ) : null}
                                             </div>
 
                                             {/* Clinical Notes */}
@@ -1467,6 +2512,639 @@ const AppointmentDetail = () => {
                                                 />
                                             </div>
 
+
+                                            {/* Diet Plan Picker */}
+                                            <div className="space-y-3" ref={dietDropdownRef}>
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                                        <BiFoodMenu className="w-3.5 h-3.5 text-emerald-600" />
+                                                        Diet Plan
+                                                    </label>
+                                                    {selecteddietplan && (
+                                                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
+                                                            <CheckCircle2 className="w-3 h-3" />
+                                                            Plan selected
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                <div className="relative">
+                                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                                                    <input
+                                                        type="text"
+                                                        value={dietSearchQuery}
+                                                        placeholder="Search by name, prakriti, or condition..."
+                                                        onFocus={() => {
+                                                            if (dietSearchQuery.trim().length >= 2 || (filterdietplans && filterdietplans.length > 0)) {
+                                                                setShowDropdowndiet(true);
+                                                            }
+                                                        }}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value;
+                                                            setDietSearchQuery(value);
+                                                            setShowDropdowndiet(true);
+                                                            searchdietplans(value);
+                                                        }}
+                                                        className="w-full pl-10 pr-10 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                                                    />
+                                                    {dietloading ? (
+                                                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-600 animate-spin" />
+                                                    ) : dietSearchQuery ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setDietSearchQuery("");
+                                                                setFilterdietplans([]);
+                                                                setShowDropdowndiet(false);
+                                                            }}
+                                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                                                            aria-label="Clear search"
+                                                        >
+                                                            <X className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    ) : null}
+
+                                                    {showDropdowndiet && (
+                                                        <div className="absolute z-50 w-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+                                                            <div className="px-3 py-2 border-b border-gray-100 bg-gray-50/80 flex items-center justify-between">
+                                                                <p className="text-[11px] font-medium text-gray-500">
+                                                                    {dietloading
+                                                                        ? "Searching diet plans…"
+                                                                        : dietSearchQuery.trim().length < 2
+                                                                            ? "Type at least 2 characters"
+                                                                            : `${(filterdietplans || []).filter((d) => d?.is_active !== false).length} plan(s) found`}
+                                                                </p>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setShowDropdowndiet(false)}
+                                                                    className="text-[11px] text-gray-400 hover:text-gray-600"
+                                                                >
+                                                                    Close
+                                                                </button>
+                                                            </div>
+
+                                                            <div className="max-h-80 overflow-y-auto">
+                                                                {dietloading ? (
+                                                                    <div className="flex flex-col items-center justify-center py-10 px-4">
+                                                                        <Loader2 className="w-6 h-6 text-emerald-600 animate-spin mb-2" />
+                                                                        <p className="text-sm text-gray-500">Loading diet plans…</p>
+                                                                    </div>
+                                                                ) : dietSearchQuery.trim().length < 2 ? (
+                                                                    <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+                                                                        <Search className="w-8 h-8 text-gray-300 mb-2" />
+                                                                        <p className="text-sm font-medium text-gray-700">Start typing to search</p>
+                                                                        <p className="text-xs text-gray-400 mt-1">Search by plan name, prakriti, or health condition</p>
+                                                                    </div>
+                                                                ) : (filterdietplans || []).filter((d) => d?.is_active !== false).length === 0 ? (
+                                                                    <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+                                                                        <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mb-2">
+                                                                            <AlertCircle className="w-6 h-6 text-amber-500" />
+                                                                        </div>
+                                                                        <p className="text-sm font-medium text-gray-800">No diet plans found</p>
+                                                                        <p className="text-xs text-gray-500 mt-1">Try another name or create a plan in Diet Plans</p>
+                                                                    </div>
+                                                                ) : (
+                                                                    (filterdietplans || [])
+                                                                        .filter((item) => item?.is_active !== false)
+                                                                        .map((item) => {
+                                                                            const cover =
+                                                                                item.diet_plan_gallery?.find((g) => g.is_cover)?.image_url ||
+                                                                                item.diet_plan_gallery?.[0]?.image_url ||
+                                                                                null;
+                                                                            const isSelected = String(getDietPlanId(selecteddietplan) || "") === String(item.id);
+                                                                            const diseases = item.health_diseases || [];
+
+                                                                            return (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    key={item.id}
+                                                                                    onClick={() => {
+                                                                                        setSelecteddietplan(item);
+                                                                                        setShowDropdowndiet(false);
+                                                                                        setDietSearchQuery(item.name || "");
+                                                                                    }}
+                                                                                    className={`w-full text-left px-3 py-3 border-b border-gray-50 last:border-0 transition-colors ${isSelected
+                                                                                        ? "bg-emerald-50/80"
+                                                                                        : "hover:bg-gray-50"
+                                                                                        }`}
+                                                                                >
+                                                                                    <div className="flex gap-3">
+                                                                                        <div className="w-12 h-12 rounded-lg overflow-hidden bg-emerald-50 border border-emerald-100 flex items-center justify-center shrink-0">
+                                                                                            {cover ? (
+                                                                                                <img
+                                                                                                    src={cover}
+                                                                                                    alt=""
+                                                                                                    className="w-full h-full object-cover"
+                                                                                                    onError={(e) => {
+                                                                                                        e.currentTarget.style.display = "none";
+                                                                                                    }}
+                                                                                                />
+                                                                                            ) : (
+                                                                                                <Leaf className="w-5 h-5 text-emerald-500" />
+                                                                                            )}
+                                                                                        </div>
+
+                                                                                        <div className="min-w-0 flex-1">
+                                                                                            <div className="flex items-start justify-between gap-2">
+                                                                                                <div className="min-w-0">
+                                                                                                    <p className="text-sm font-semibold text-gray-900 truncate">
+                                                                                                        {item.name || "Unnamed Diet Plan"}
+                                                                                                    </p>
+                                                                                                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-gray-500">
+                                                                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-100">
+                                                                                                            <Leaf className="w-3 h-3" />
+                                                                                                            {item.prakriti || "—"}
+                                                                                                        </span>
+                                                                                                        {item.season && (
+                                                                                                            <span className="px-1.5 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-100 capitalize">
+                                                                                                                {String(item.season).replace(/_/g, " ")}
+                                                                                                            </span>
+                                                                                                        )}
+                                                                                                        <span className="px-1.5 py-0.5 rounded-md bg-gray-50 text-gray-600 border border-gray-100">
+                                                                                                            {item.total_days ?? "—"} days
+                                                                                                        </span>
+                                                                                                        <span className="px-1.5 py-0.5 rounded-md bg-gray-50 text-gray-600 border border-gray-100">
+                                                                                                            {item.meals_per_day ?? "—"} meals/day
+                                                                                                        </span>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                                <div className="flex flex-col items-end gap-1 shrink-0">
+                                                                                                    <span
+                                                                                                        className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${item.is_paid
+                                                                                                            ? "bg-amber-50 text-amber-700 border border-amber-100"
+                                                                                                            : "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                                                                                                            }`}
+                                                                                                    >
+                                                                                                        {item.is_paid ? `₹${item.price || 0}` : "Free"}
+                                                                                                    </span>
+                                                                                                    {isSelected && (
+                                                                                                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            </div>
+
+                                                                                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                                                                                {item.is_common && (
+                                                                                                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100">
+                                                                                                        Common
+                                                                                                    </span>
+                                                                                                )}
+                                                                                                {diseases.slice(0, 3).map((disease) => (
+                                                                                                    <span
+                                                                                                        key={disease.id || disease.name}
+                                                                                                        className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-100"
+                                                                                                    >
+                                                                                                        {disease.name}
+                                                                                                    </span>
+                                                                                                ))}
+                                                                                                {diseases.length > 3 && (
+                                                                                                    <span className="text-[10px] text-gray-400">
+                                                                                                        +{diseases.length - 3} more
+                                                                                                    </span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </button>
+                                                                            );
+                                                                        })
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Selected diet confirmation card */}
+                                                {selecteddietplan ? (
+                                                    <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50/60 to-white overflow-hidden">
+                                                        <div className="px-3.5 py-2.5 border-b border-emerald-100 flex items-center justify-between gap-2 bg-emerald-50/50">
+                                                            <div className="flex items-center gap-2 min-w-0">
+                                                                <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                                                                    <CheckCircle2 className="w-4 h-4" />
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                                                                        Assigned diet plan
+                                                                    </p>
+                                                                    <p className="text-sm font-semibold text-gray-900 truncate">
+                                                                        {selecteddietplan.name || "Unnamed plan"}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setSelecteddietplan(null);
+                                                                    setDietSearchQuery("");
+                                                                }}
+                                                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-colors"
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                                Remove
+                                                            </button>
+                                                        </div>
+
+                                                        <div className="p-3.5 space-y-3">
+                                                            <div className="flex gap-3">
+                                                                {(() => {
+                                                                    const cover =
+                                                                        selecteddietplan.diet_plan_gallery?.find((g) => g.is_cover)?.image_url ||
+                                                                        selecteddietplan.diet_plan_gallery?.[0]?.image_url ||
+                                                                        null;
+                                                                    return (
+                                                                        <div className="w-16 h-16 rounded-xl overflow-hidden bg-white border border-gray-200 flex items-center justify-center shrink-0">
+                                                                            {cover ? (
+                                                                                <img
+                                                                                    src={cover}
+                                                                                    alt=""
+                                                                                    className="w-full h-full object-cover"
+                                                                                    onError={(e) => {
+                                                                                        e.currentTarget.style.display = "none";
+                                                                                    }}
+                                                                                />
+                                                                            ) : (
+                                                                                <Leaf className="w-6 h-6 text-emerald-500" />
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })()}
+
+                                                                <div className="min-w-0 flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                                                    <div className="rounded-lg bg-white border border-gray-100 px-2.5 py-2">
+                                                                        <p className="text-[10px] uppercase tracking-wide text-gray-400">Prakriti</p>
+                                                                        <p className="text-xs font-semibold text-gray-800 mt-0.5 truncate">
+                                                                            {selecteddietplan.prakriti || "—"}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="rounded-lg bg-white border border-gray-100 px-2.5 py-2">
+                                                                        <p className="text-[10px] uppercase tracking-wide text-gray-400">Season</p>
+                                                                        <p className="text-xs font-semibold text-gray-800 mt-0.5 truncate capitalize">
+                                                                            {selecteddietplan.season
+                                                                                ? String(selecteddietplan.season).replace(/_/g, " ")
+                                                                                : "—"}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="rounded-lg bg-white border border-gray-100 px-2.5 py-2">
+                                                                        <p className="text-[10px] uppercase tracking-wide text-gray-400">Duration</p>
+                                                                        <p className="text-xs font-semibold text-gray-800 mt-0.5">
+                                                                            {selecteddietplan.total_days ?? "—"} days
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="rounded-lg bg-white border border-gray-100 px-2.5 py-2">
+                                                                        <p className="text-[10px] uppercase tracking-wide text-gray-400">Meals</p>
+                                                                        <p className="text-xs font-semibold text-gray-800 mt-0.5">
+                                                                            {selecteddietplan.meals_per_day ?? "—"} / day
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <span
+                                                                    className={`text-[11px] font-semibold px-2 py-1 rounded-full ${selecteddietplan.is_paid
+                                                                        ? "bg-amber-50 text-amber-700 border border-amber-100"
+                                                                        : "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                                                                        }`}
+                                                                >
+                                                                    {selecteddietplan.is_paid
+                                                                        ? `Paid · ₹${selecteddietplan.price || 0}`
+                                                                        : "Free plan"}
+                                                                </span>
+                                                                {selecteddietplan.is_common && (
+                                                                    <span className="text-[11px] font-medium px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+                                                                        Common plan
+                                                                    </span>
+                                                                )}
+                                                                {selecteddietplan.created_by_name && (
+                                                                    <span className="text-[11px] text-gray-500 px-2 py-1 rounded-full bg-gray-50 border border-gray-100">
+                                                                        By {selecteddietplan.created_by_name}
+                                                                        {selecteddietplan.created_by_role
+                                                                            ? ` · ${selecteddietplan.created_by_role}`
+                                                                            : ""}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+
+                                                            {selecteddietplan.health_diseases?.length > 0 && (
+                                                                <div>
+                                                                    <p className="text-[10px] uppercase tracking-wide text-gray-400 mb-1.5">
+                                                                        Health conditions
+                                                                    </p>
+                                                                    <div className="flex flex-wrap gap-1.5">
+                                                                        {selecteddietplan.health_diseases.map((disease) => (
+                                                                            <span
+                                                                                key={disease.id || disease.name}
+                                                                                className="text-[11px] font-medium px-2 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-100"
+                                                                            >
+                                                                                {disease.name}
+                                                                            </span>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {selecteddietplan.diet_plan_gallery?.length > 0 && (
+                                                                <div>
+                                                                    <p className="text-[10px] uppercase tracking-wide text-gray-400 mb-1.5">
+                                                                        Gallery preview
+                                                                    </p>
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        {selecteddietplan.diet_plan_gallery.slice(0, 5).map((img, idx) => (
+                                                                            <div
+                                                                                key={img.id || idx}
+                                                                                className="w-10 h-10 rounded-lg overflow-hidden border border-gray-200 bg-gray-50"
+                                                                                title={img.caption || `Image ${idx + 1}`}
+                                                                            >
+                                                                                <img
+                                                                                    src={img.image_url}
+                                                                                    alt=""
+                                                                                    className="w-full h-full object-cover"
+                                                                                />
+                                                                            </div>
+                                                                        ))}
+                                                                        {selecteddietplan.diet_plan_gallery.length > 5 && (
+                                                                            <span className="text-[11px] text-gray-500 px-2">
+                                                                                +{selecteddietplan.diet_plan_gallery.length - 5}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/60 px-4 py-4 text-center">
+                                                        <Leaf className="w-6 h-6 text-gray-300 mx-auto mb-1.5" />
+                                                        <p className="text-sm text-gray-500">No diet plan assigned yet</p>
+                                                        <p className="text-xs text-gray-400 mt-0.5">
+                                                            Search above and select a plan for this patient
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="space-y-2 relative">
+                                                <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                                    <Stethoscope className="w-3.5 h-3.5 text-emerald-600" />
+                                                    Do's and Don'ts
+                                                </label>
+
+                                                <div className="relative">
+                                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                                                    <input
+                                                        type="text"
+                                                        value={doDontSearchQuery}
+                                                        placeholder="Search by prakriti, condition, do or don't…"
+                                                        onFocus={() => setShowDropdowndo(true)}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value;
+                                                            setDoDontSearchQuery(value);
+                                                            searchDoDonts(value);
+                                                            setShowDropdowndo(true);
+                                                        }}
+                                                        className="w-full pl-9 pr-9 py-2.5 text-sm bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                                                    />
+                                                    {doDontSearchQuery ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setDoDontSearchQuery("");
+                                                                searchDoDonts("");
+                                                                setShowDropdowndo(true);
+                                                            }}
+                                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                                                            aria-label="Clear search"
+                                                        >
+                                                            <X className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    ) : null}
+                                                </div>
+
+                                                {showDropdowndo && (
+                                                    <div className="absolute z-50 w-full mt-1.5 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+                                                        <div className="px-3 py-2 border-b border-gray-100 bg-gray-50/80 flex items-center justify-between">
+                                                            <p className="text-[11px] font-medium text-gray-500">
+                                                                {doDontSearchQuery.trim().length > 0 && doDontSearchQuery.trim().length < 2
+                                                                    ? "Type at least 2 characters"
+                                                                    : `${(filterdoDonts || []).length} template(s) found`}
+                                                            </p>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setShowDropdowndo(false)}
+                                                                className="text-[11px] text-gray-400 hover:text-gray-600"
+                                                            >
+                                                                Close
+                                                            </button>
+                                                        </div>
+
+                                                        <div className="max-h-80 overflow-y-auto">
+                                                            {(filterdoDonts || []).length === 0 ? (
+                                                                <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+                                                                    <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mb-2">
+                                                                        <AlertCircle className="w-6 h-6 text-amber-500" />
+                                                                    </div>
+                                                                    <p className="text-sm font-medium text-gray-800">No Do's & Don'ts found</p>
+                                                                    <p className="text-xs text-gray-500 mt-1">
+                                                                        Try another prakriti, condition, or advice keyword
+                                                                    </p>
+                                                                </div>
+                                                            ) : (
+                                                                (filterdoDonts || []).map((item) => {
+                                                                    const diseases = item.health_diseases || [];
+                                                                    const dosList = Array.isArray(item.dos) ? item.dos : [];
+                                                                    const dontsList = Array.isArray(item.donts) ? item.donts : [];
+                                                                    const isSelected = selectedDoDontId === item.id;
+
+                                                                    return (
+                                                                        <button
+                                                                            type="button"
+                                                                            key={item.id}
+                                                                            onClick={() => {
+                                                                                setFormData((prev) => ({
+                                                                                    ...prev,
+                                                                                    dos: dosList.map((text) => `• ${text}`).join("\n"),
+                                                                                    donts: dontsList.map((text) => `• ${text}`).join("\n"),
+                                                                                }));
+                                                                                setSelectedDoDontId(item.id);
+                                                                                setDoDontSearchQuery(
+                                                                                    [item.prakriti, diseases[0]?.name].filter(Boolean).join(" · ") || "Selected template"
+                                                                                );
+                                                                                setShowDropdowndo(false);
+                                                                            }}
+                                                                            className={`w-full text-left px-3 py-3 border-b border-gray-50 last:border-0 transition-colors ${isSelected ? "bg-emerald-50/80" : "hover:bg-gray-50"
+                                                                                }`}
+                                                                        >
+                                                                            <div className="flex items-start justify-between gap-2 mb-2">
+                                                                                <div className="min-w-0 flex-1">
+                                                                                    <div className="flex flex-wrap items-center gap-1.5">
+                                                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-100">
+                                                                                            <Leaf className="w-3 h-3" />
+                                                                                            {item.prakriti || "—"}
+                                                                                        </span>
+                                                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                                                                            <CheckCircle2 className="w-3 h-3" />
+                                                                                            {dosList.length} Do's
+                                                                                        </span>
+                                                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-rose-50 text-rose-700 border border-rose-100">
+                                                                                            <XCircle className="w-3 h-3" />
+                                                                                            {dontsList.length} Don'ts
+                                                                                        </span>
+                                                                                    </div>
+
+                                                                                    {diseases.length > 0 && (
+                                                                                        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                                                                                            {diseases.slice(0, 4).map((disease) => (
+                                                                                                <span
+                                                                                                    key={disease.id || disease.name}
+                                                                                                    className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-100"
+                                                                                                >
+                                                                                                    {disease.name}
+                                                                                                </span>
+                                                                                            ))}
+                                                                                            {diseases.length > 4 && (
+                                                                                                <span className="text-[10px] text-gray-400">
+                                                                                                    +{diseases.length - 4} more
+                                                                                                </span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+
+                                                                                <div className="shrink-0 flex flex-col items-end gap-1">
+                                                                                    {isSelected ? (
+                                                                                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                                                                    ) : (
+                                                                                        <span className="text-[10px] font-semibold text-emerald-600 px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-100">
+                                                                                            Use
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                                                <div className="rounded-lg border border-emerald-100 bg-emerald-50/50 p-2">
+                                                                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 mb-1 flex items-center gap-1">
+                                                                                        <CheckCircle2 className="w-3 h-3" />
+                                                                                        Do's
+                                                                                    </p>
+                                                                                    <ul className="space-y-0.5">
+                                                                                        {dosList.slice(0, 3).map((doItem, index) => (
+                                                                                            <li
+                                                                                                key={index}
+                                                                                                className="text-[11px] text-emerald-800 leading-snug line-clamp-1"
+                                                                                            >
+                                                                                                • {doItem}
+                                                                                            </li>
+                                                                                        ))}
+                                                                                        {dosList.length === 0 && (
+                                                                                            <li className="text-[11px] text-gray-400">No items</li>
+                                                                                        )}
+                                                                                        {dosList.length > 3 && (
+                                                                                            <li className="text-[10px] text-emerald-600/70">
+                                                                                                +{dosList.length - 3} more
+                                                                                            </li>
+                                                                                        )}
+                                                                                    </ul>
+                                                                                </div>
+
+                                                                                <div className="rounded-lg border border-rose-100 bg-rose-50/50 p-2">
+                                                                                    <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-700 mb-1 flex items-center gap-1">
+                                                                                        <XCircle className="w-3 h-3" />
+                                                                                        Don'ts
+                                                                                    </p>
+                                                                                    <ul className="space-y-0.5">
+                                                                                        {dontsList.slice(0, 3).map((dontItem, index) => (
+                                                                                            <li
+                                                                                                key={index}
+                                                                                                className="text-[11px] text-rose-800 leading-snug line-clamp-1"
+                                                                                            >
+                                                                                                • {dontItem}
+                                                                                            </li>
+                                                                                        ))}
+                                                                                        {dontsList.length === 0 && (
+                                                                                            <li className="text-[11px] text-gray-400">No items</li>
+                                                                                        )}
+                                                                                        {dontsList.length > 3 && (
+                                                                                            <li className="text-[10px] text-rose-600/70">
+                                                                                                +{dontsList.length - 3} more
+                                                                                            </li>
+                                                                                        )}
+                                                                                    </ul>
+                                                                                </div>
+                                                                            </div>
+                                                                        </button>
+                                                                    );
+                                                                })
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+                                                {/* DO's */}
+                                                <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+                                                    <div className="flex items-center gap-3 mb-4">
+                                                        <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                                                            <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                                                        </div>
+
+                                                        <div>
+                                                            <h3 className="font-semibold text-emerald-700">
+                                                                Do's
+                                                            </h3>
+                                                            <p className="text-xs text-emerald-600">
+                                                                Advise the patient what they should follow.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    {
+                                                        console.log(formData.dos)
+                                                    }
+
+                                                    <textarea
+                                                        rows={6}
+                                                        value={formData.dos}
+                                                        onChange={(e) => handleInputChange("dos", e.target.value)}
+                                                        onKeyDown={(e) => handleBulletList(e, "dos")}
+                                                        onFocus={() => handleFocus("dos")}
+                                                        placeholder={`• Drink 2-3 liters of water daily`}
+                                                        className="w-full rounded-xl border border-emerald-200 bg-white p-4 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+                                                    />
+                                                </div>
+
+                                                {/* DON'Ts */}
+                                                <div className="bg-red-50 border border-red-200 rounded-2xl p-5">
+                                                    <div className="flex items-center gap-3 mb-4">
+                                                        <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+                                                            <XCircle className="w-5 h-5 text-red-600" />
+                                                        </div>
+
+                                                        <div>
+                                                            <h3 className="font-semibold text-red-700">
+                                                                Don'ts
+                                                            </h3>
+                                                            <p className="text-xs text-red-600">
+                                                                Mention activities or foods to avoid.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <textarea
+                                                        rows={6}
+                                                        value={formData.donts}
+                                                        onKeyDown={(e) => handleBulletList(e, "donts")}
+                                                        onChange={(e) => handleInputChange("donts", e.target.value)}
+                                                        onFocus={() => handleFocus("donts")}
+                                                        placeholder={`• Avoid oily and spicy food`}
+                                                        className="w-full rounded-xl border border-red-200 bg-white p-4 text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+                                                    />
+                                                </div>
+
+                                            </div>
+
                                             {/* Follow-up */}
                                             <div className="p-5 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl border border-emerald-100">
                                                 <label className="flex items-center gap-3 cursor-pointer">
@@ -1492,12 +3170,35 @@ const AppointmentDetail = () => {
 
                                             {/* Save Prescription Button */}
                                             <div className="flex justify-end gap-3 pt-4">
-                                                <button onClick={handleSavePrescription}
-                                                    disabled={updating}
-                                                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:shadow-lg"
-                                                    style={{ background: 'linear-gradient(135deg, #0D614E 0%, #0a4a3d 100%)' }}>
+                                                {editingPrescriptionId && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleCancelEditPrescription}
+                                                        disabled={updating}
+                                                        className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-semibold hover:bg-gray-200 transition-all disabled:opacity-50"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                        Cancel Edit
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={handleSavePrescription}
+                                                    disabled={
+                                                        updating ||
+                                                        !formData?.symptom_description?.trim()
+                                                        // || formData.prescriptions.length === 0
+                                                    }
+                                                    className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:shadow-lg ${updating ||
+                                                        !formData?.symptom_description?.trim()
+                                                        // || formData.prescriptions.length === 0
+                                                        ? "bg-gray-400 cursor-not-allowed"
+                                                        : "bg-gradient-to-r from-[#0D614E] to-[#0a4a3d]"
+                                                        }`}
+                                                >
                                                     <Save className="w-4 h-4" />
-                                                    {updating ? 'Saving...' : 'Save Prescription to History'}
+                                                    {updating
+                                                        ? (editingPrescriptionId ? "Updating..." : "Saving...")
+                                                        : (editingPrescriptionId ? "Update Prescription" : "Save Prescription")}
                                                 </button>
                                             </div>
                                         </div>
@@ -1535,21 +3236,32 @@ const AppointmentDetail = () => {
                                                     Unable to Add Prescription
                                                 </h3>
 
-                                                <p className="text-slate-600 mt-2 max-w-lg">
-                                                    This consultation was cancelled before completion. Prescription
-                                                    generation is disabled for cancelled appointments to maintain
+                                                {/* <p className="text-slate-600 mt-2 max-w-lg">
+                                                    This consultation was {appointment?.status} before completion. Prescription
+                                                    generation is disabled for {appointment?.status} appointments to maintain
                                                     accurate medical records.
-                                                </p>
+                                                </p> */}
+                                                {
+                                                    appointment?.status === "completed" && (
+                                                        <p className="text-slate-600 mt-2 max-w-lg">
+                                                            The prescription has already been provided for this appointment.
+                                                        </p>
+                                                    )
+                                                }
 
-                                                <div className="mt-6 flex items-center gap-2 px-4 py-2 rounded-full bg-red-100 text-red-700">
-                                                    <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                                                    Appointment Status: Cancelled
+                                                <div className={"mt-6 flex capitalize items-center gap-2 px-4 py-2 rounded-full  " + (appointment?.status == "cancelled" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700")}>
+                                                    {/* <span className="w-2 h-2 rounded-full bg-red-500 "></span> */}
+                                                    Appointment Status: {appointment?.status}
                                                 </div>
                                             </div>
                                         </div>
                                 )}
                                 {activeTab === 'questions' && (
                                     <DoctorQAPanelPremium patientid={appointment?.patient?.id} />
+                                )}
+
+                                {activeTab === 'diet-progress' && (
+                                    <DietProgress patientId={appointment?.patient?.id} />
                                 )}
 
                                 {/* History Tab */}
@@ -1566,7 +3278,7 @@ const AppointmentDetail = () => {
                                                     <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-200">
                                                         <p className="text-xs text-emerald-700 font-semibold uppercase tracking-widest">Last Visit</p>
                                                         <p className="text-sm font-bold text-emerald-900 mt-1">
-                                                            {patientHistory.length > 0 ? formatDateTime(patientHistory[0].appointment_date, patientHistory[0].start_time).split(' at ')[0] : '—'}
+                                                            {patientHistory.length > 0 ? formatDate(patientHistory[0].appointment_date) : '—'}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -1591,17 +3303,22 @@ const AppointmentDetail = () => {
                                                             <div className="ml-16 bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-all">
 
                                                                 {/* Card Header - Click to Expand */}
-                                                                <button
+                                                                <div
                                                                     onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)}
-                                                                    className="w-full flex items-center justify-between px-6 py-5 hover:bg-gray-50 transition-colors group"
+                                                                    className="w-full flex items-center justify-between px-6 py-5 hover:bg-gray-50 transition-colors group cursor-pointer"
                                                                 >
                                                                     <div className="flex-1 text-left">
                                                                         {/* Date & Time */}
                                                                         <div className="flex items-center gap-3 mb-2">
                                                                             <Calendar className="w-4 h-4 text-emerald-600" />
                                                                             <p className="font-semibold text-gray-900">
-                                                                                {formatDateTime(record.appointment_date + ":" + record.start_time)}
+                                                                                {formatSlotDateTime(record.appointment_date, record.start_time)}
                                                                             </p>
+                                                                            {record.start_time && record.end_time && (
+                                                                                <span className="text-xs text-gray-500">
+                                                                                    {formatTime(record.start_time)} – {formatTime(record.end_time)}
+                                                                                </span>
+                                                                            )}
                                                                         </div>
 
                                                                         {/* Quick Summary - Chief Complaint Preview */}
@@ -1621,18 +3338,40 @@ const AppointmentDetail = () => {
                                                                                 {record.prescription_items?.length || 0}
                                                                             </span>
 
+                                                                            {(record.diets?.length || 0) > 0 && (
+                                                                                <span className="px-4 py-2 rounded-full text-sm font-semibold bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center gap-2">
+                                                                                    <Leaf className="w-3.5 h-3.5" />
+                                                                                    {record.diets.length}
+                                                                                </span>
+                                                                            )}
+
                                                                             {/* Status Badge */}
                                                                             <span className={`px-4 py-2 rounded-full text-sm font-semibold border ${getStatusColor(record.status)}`}>
                                                                                 {record.status?.charAt(0).toUpperCase() + record.status?.slice(1) || 'Pending'}
                                                                             </span>
                                                                         </div>
 
+                                                                        {/* Edit Icon */}
+                                                                        {isPrescriptionStillEditable(record) && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={(e) => handleEditPrescriptionForm(record, e)}
+                                                                                className={`cursor-pointer p-2 rounded-xl transition ${editingPrescriptionId === record.id
+                                                                                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                                                                                    : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+                                                                                    }`}
+                                                                                title="Edit prescription"
+                                                                            >
+                                                                                <PencilIcon className={`w-5 h-5 ${editingPrescriptionId === record.id ? "text-white" : "text-emerald-600"}`} />
+                                                                            </button>
+                                                                        )}
+
                                                                         {/* Expand Icon */}
                                                                         <div className={`text-gray-400 transition-transform ${expandedIdx === idx ? 'rotate-180' : ''}`}>
                                                                             {expandedIdx === idx ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                                                                         </div>
                                                                     </div>
-                                                                </button>
+                                                                </div>
 
                                                                 {/* Expandable Content */}
                                                                 {expandedIdx === idx && (
@@ -1640,7 +3379,7 @@ const AppointmentDetail = () => {
 
                                                                         {/* Chief Complaint Section */}
                                                                         {record.symptom_description && (
-                                                                            <div className="bg-white rounded-xl p-4 border border-amber-200 bg-amber-50">
+                                                                            <div className="rounded-xl p-4 border border-amber-200 bg-amber-50">
                                                                                 <div className="flex items-start gap-3">
                                                                                     <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                                                                                     <div className="flex-1">
@@ -1651,27 +3390,47 @@ const AppointmentDetail = () => {
                                                                             </div>
                                                                         )}
 
+                                                                        {/* Medical History Details */}
+                                                                        {(record.history_of_past_illness || record.allergies || record.family_history || record.surgical_history) && (
+                                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                            {record.history_of_past_illness && (
+                                                                                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
+                                                                                    <p className="flex gap-2 text-xs font-bold text-orange-900 uppercase tracking-widest mb-2"><Notebook size={16} /> Past Illness</p>
+                                                                                    <p className="text-sm text-orange-900">{record.history_of_past_illness}</p>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {record.allergies && (
+                                                                                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                                                                                    <p className="flex gap-2 text-xs font-bold text-red-900 uppercase tracking-widest mb-2"><FaAllergies /> Allergies</p>
+                                                                                    <p className="text-sm text-red-900">{record.allergies}</p>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {record.family_history && (
+                                                                                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                                                                                    <p className="flex gap-2 text-xs font-bold text-purple-900 uppercase tracking-widest mb-2"><MdFamilyRestroom size={14} /> Family History</p>
+                                                                                    <p className="text-sm text-purple-900">{record.family_history}</p>
+                                                                                </div>
+                                                                            )}
+
+                                                                            {record.surgical_history && (
+                                                                                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                                                                                    <p className="text-xs font-bold text-red-900 uppercase tracking-widest mb-2">Surgical History</p>
+                                                                                    <p className="text-sm text-red-900">{record.surgical_history}</p>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                        )}
+
                                                                         {/* Diagnosis Section */}
                                                                         {record.diagnosis_advice && (
-                                                                            <div className="bg-white rounded-xl p-4 border border-emerald-200 bg-emerald-50">
+                                                                            <div className="rounded-xl p-4 border border-emerald-200 bg-emerald-50">
                                                                                 <div className="flex items-start gap-3">
                                                                                     <TrendingUp className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
                                                                                     <div className="flex-1">
                                                                                         <p className="text-xs font-bold text-emerald-900 uppercase tracking-widest">Diagnosis</p>
                                                                                         <p className="text-sm text-emerald-900 mt-2 leading-relaxed">{record.diagnosis_advice}</p>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                        )}
-
-                                                                        {/* Clinical Observations */}
-                                                                        {record.clinical_notes && (
-                                                                            <div className="bg-white rounded-xl p-4 border border-blue-200 bg-blue-50">
-                                                                                <div className="flex items-start gap-3">
-                                                                                    <Thermometer className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                                                                                    <div className="flex-1">
-                                                                                        <p className="text-xs font-bold text-blue-900 uppercase tracking-widest">Clinical Observations</p>
-                                                                                        <p className="text-sm text-blue-900 mt-2 leading-relaxed">{record.clinical_notes}</p>
                                                                                     </div>
                                                                                 </div>
                                                                             </div>
@@ -1687,29 +3446,26 @@ const AppointmentDetail = () => {
 
                                                                                 <div className="overflow-hidden rounded-xl border border-gray-200">
                                                                                     <table className="w-full text-sm">
-                                                                                        <thead className="bg-[#0D614E] to-teal-600 text-white">
+                                                                                        <thead className="bg-[#0D614E] text-white">
                                                                                             <tr>
                                                                                                 <th className="px-4 py-3 text-left font-semibold">Medicine</th>
                                                                                                 <th className="px-4 py-3 text-left font-semibold">Dosage</th>
                                                                                                 <th className="px-4 py-3 text-left font-semibold">Frequency</th>
                                                                                                 <th className="px-4 py-3 text-left font-semibold">Duration</th>
+                                                                                                <th className="px-4 py-3 text-left font-semibold">Instructions</th>
                                                                                             </tr>
                                                                                         </thead>
                                                                                         <tbody>
                                                                                             {record.prescription_items.map((med, i) => (
                                                                                                 <tr
-                                                                                                    key={i}
+                                                                                                    key={med.id || i}
                                                                                                     className={`border-t border-gray-200 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-[#0D614E]/10 transition-colors`}
                                                                                                 >
-                                                                                                    <td className="px-4 py-4">
-                                                                                                        <p className="font-semibold text-gray-900">{med.product_name || med.medicine_name}</p>
-                                                                                                        {med.instruction && (
-                                                                                                            <p className="text-xs text-gray-600 mt-1">📝 {med.instruction}</p>
-                                                                                                        )}
-                                                                                                    </td>
+                                                                                                    <td className="px-4 py-4 font-semibold text-gray-900">{med.product_name || med.medicine_name || '—'}</td>
                                                                                                     <td className="px-4 py-4 text-gray-700">{med.dosage || '—'}</td>
                                                                                                     <td className="px-4 py-4 text-gray-700">{med.frequency || '—'}</td>
-                                                                                                    <td className="px-4 py-4 text-gray-700">{med.duration ? `${med.duration} days` : '—'}</td>
+                                                                                                    <td className="px-4 py-4 text-gray-700">{formatDurationLabel(med.duration)}</td>
+                                                                                                    <td className="px-4 py-4 text-sm text-gray-600 italic">{med.instruction || '—'}</td>
                                                                                                 </tr>
                                                                                             ))}
                                                                                         </tbody>
@@ -1718,36 +3474,99 @@ const AppointmentDetail = () => {
                                                                             </div>
                                                                         )}
 
-                                                                        {/* Medical History Details */}
-                                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                                            {record.allergies && (
-                                                                                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                                                                                    <p className="flex gap-2 text-xs font-bold text-red-900 uppercase tracking-widest mb-2"><FaAllergies /> Allergies</p>
-                                                                                    <p className="text-sm text-red-900">{record.allergies}</p>
+                                                                        {record.diets && record.diets.length > 0 && (
+                                                                            <div>
+                                                                                <div className="flex items-center gap-2 mb-4">
+                                                                                    <Leaf className="w-5 h-5 text-emerald-600" />
+                                                                                    <h4 className="font-bold text-gray-900">Diet Plans</h4>
                                                                                 </div>
-                                                                            )}
 
-                                                                            {record.family_history && (
-                                                                                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-                                                                                    <p className="flex gap-2 text-xs font-bold text-purple-900 uppercase tracking-widest mb-2"><MdFamilyRestroom size={14} /> Family History</p>
-                                                                                    <p className="text-sm text-purple-900">{record.family_history}</p>
+                                                                                <div className="grid grid-cols-1 gap-4">
+                                                                                    {record.diets.map((diet) => (
+                                                                                        <div key={diet.id || diet.name} className="bg-white border border-emerald-200 rounded-xl p-4 shadow-sm">
+                                                                                            <div className="flex items-start justify-between gap-4">
+                                                                                                <div className="flex items-start gap-3">
+                                                                                                    <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                                                                                                        <Leaf className="w-5 h-5 text-emerald-600" />
+                                                                                                    </div>
+                                                                                                    <div>
+                                                                                                        <h5 className="font-semibold text-gray-900">{diet.name}</h5>
+                                                                                                        <p className="text-sm text-gray-500 mt-1">Assigned with this prescription</p>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                                <div className="text-right flex flex-wrap gap-2 justify-end">
+                                                                                                    <span className="inline-block bg-emerald-100 text-emerald-800 text-xs font-medium px-2.5 py-0.5 rounded">{formatDurationLabel(diet.duration)}</span>
+                                                                                                    {diet.meals_per_day != null && diet.meals_per_day !== '' && (
+                                                                                                        <span className="inline-block bg-sky-100 text-sky-800 text-xs font-medium px-2.5 py-0.5 rounded">{diet.meals_per_day} meals/day</span>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ))}
                                                                                 </div>
-                                                                            )}
+                                                                            </div>
+                                                                        )}
 
-                                                                            {record.history_of_past_illness && (
-                                                                                <div className="bg-orange-50 border border-orange-200 rounded-xl p-4">
-                                                                                    <p className="flex gap-2 text-xs font-bold text-orange-900 uppercase tracking-widest mb-2"><Notebook size={16} /> Past Illness</p>
-                                                                                    <p className="text-sm text-orange-900 line-clamp-3">{record.history_of_past_illness}</p>
+                                                                        {/* Clinical Observations */}
+                                                                        {record.clinical_notes && (
+                                                                            <div className="rounded-xl p-4 border border-blue-200 bg-blue-50">
+                                                                                <div className="flex items-start gap-3">
+                                                                                    <Thermometer className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                                                                                    <div className="flex-1">
+                                                                                        <p className="text-xs font-bold text-blue-900 uppercase tracking-widest">Clinical Notes & Observations</p>
+                                                                                        <p className="text-sm text-blue-900 mt-2 leading-relaxed">{record.clinical_notes}</p>
+                                                                                    </div>
                                                                                 </div>
-                                                                            )}
+                                                                            </div>
+                                                                        )}
 
-                                                                            {record.surgical_history && (
-                                                                                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                                                                                    <p className="text-xs font-bold text-red-900 uppercase tracking-widest mb-2">🏥 Surgical History</p>
-                                                                                    <p className="text-sm text-red-900">{record.surgical_history}</p>
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
+                                                                        {(toAdviceList(record.dos).length > 0 || toAdviceList(record.donts).length > 0) && (
+                                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                                                                {toAdviceList(record.dos).length > 0 && (
+                                                                                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5">
+                                                                                        <div className="flex items-center gap-3 mb-4">
+                                                                                            <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                                                                                                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                                                                                            </div>
+                                                                                            <div>
+                                                                                                <h3 className="font-semibold text-emerald-700">Do's</h3>
+                                                                                                <p className="text-xs text-emerald-600">Advise the patient what they should follow.</p>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <ul className="space-y-2">
+                                                                                            {toAdviceList(record.dos).map((item, i) => (
+                                                                                                <li key={i} className="flex gap-2 text-sm text-emerald-900">
+                                                                                                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                                                                                                    <span>{item}</span>
+                                                                                                </li>
+                                                                                            ))}
+                                                                                        </ul>
+                                                                                    </div>
+                                                                                )}
+
+                                                                                {toAdviceList(record.donts).length > 0 && (
+                                                                                    <div className="bg-red-50 border border-red-200 rounded-2xl p-5">
+                                                                                        <div className="flex items-center gap-3 mb-4">
+                                                                                            <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+                                                                                                <XCircle className="w-5 h-5 text-red-600" />
+                                                                                            </div>
+                                                                                            <div>
+                                                                                                <h3 className="font-semibold text-red-700">Don'ts</h3>
+                                                                                                <p className="text-xs text-red-600">Mention activities or foods to avoid.</p>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <ul className="space-y-2">
+                                                                                            {toAdviceList(record.donts).map((item, i) => (
+                                                                                                <li key={i} className="flex gap-2 text-sm text-red-900">
+                                                                                                    <XCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                                                                                                    <span>{item}</span>
+                                                                                                </li>
+                                                                                            ))}
+                                                                                        </ul>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
 
                                                                         {/* Follow-up Information */}
                                                                         {record.follow_up?.schedule && record.follow_up?.date && (
@@ -1847,8 +3666,8 @@ const AppointmentDetail = () => {
                                                                         </span>
                                                                         <span className="hidden sm:inline">•</span>
                                                                         <span className="flex items-center gap-1 font-medium text-slate-700">
-                                                                            <IndianRupee className="w-3.5 h-3.5" />
-                                                                            ₹{item.amount.toLocaleString('en-IN')}
+                                                                            {/* <IndianRupee className="w-3.5 h-3.5" /> */}
+                                                                            ₹{item?.amount?.toLocaleString('en-IN')}
                                                                         </span>
                                                                     </div>
 
@@ -1864,10 +3683,10 @@ const AppointmentDetail = () => {
 
                                                                 {/* Actions */}
                                                                 <div>
-                                                                    <Link to={`/doctor/appointments/appointment/${item.id}`} className="px-4 py-1.5 rounded-lg text-sm font-medium text-indigo-600 
+                                                                    <a href={`/doctor/appointments/appointment/${item.id}`} className="px-4 py-1.5 rounded-lg text-sm font-medium text-indigo-600 
               hover:bg-indigo-50 transition-colors duration-200">
                                                                         View Details →
-                                                                    </Link>
+                                                                    </a>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1880,7 +3699,7 @@ const AppointmentDetail = () => {
                                 {/* Documents Tab */}
                                 {activeTab === 'documents' && (
                                     <div className="space-y-5">
-                                        {/* <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between">
                                             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
                                                 <FileHeart className="w-3.5 h-3.5 text-emerald-600" />
                                                 Medical Records
@@ -1890,9 +3709,16 @@ const AppointmentDetail = () => {
                                                     style={{ background: '#0D614E' }}>
                                                     <Upload className="w-4 h-4" /> Upload Document
                                                 </span>
-                                                <input type="file" multiple className="hidden" onChange={handleFileUpload} accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                                                <input
+                                                    ref={fileInputRef}
+                                                    type="file"
+                                                    multiple
+                                                    className="hidden"
+                                                    onChange={handleFileUpload}
+                                                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                                />
                                             </label>
-                                        </div> */}
+                                        </div>
 
                                         {uploading && (
                                             <div className="flex items-center gap-3 p-4 bg-emerald-50 rounded-xl border border-emerald-200">
@@ -1901,26 +3727,56 @@ const AppointmentDetail = () => {
                                             </div>
                                         )}
 
-                                        {documents.length > 0 ? (
+                                        {patientDocument?.length > 0 ? (
                                             <div className="grid grid-cols-1 gap-3">
-                                                {documents.map(doc => (
-                                                    <div key={doc.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 group hover:shadow-md transition-all">
-                                                        <div className="w-12 h-12 rounded-xl bg-white border border-gray-200 flex items-center justify-center shadow-sm">
-                                                            {doc.type?.startsWith('image/') ?
-                                                                <Image className="w-5 h-5 text-gray-500" /> :
-                                                                <FileText className="w-5 h-5 text-gray-500" />}
+                                                {patientDocument.map((doc) => (
+                                                    <div
+                                                        key={doc.id}
+                                                        className="group flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 hover:border-[#0D614E]/20 hover:shadow-md transition-all"
+                                                    >
+                                                        <div className="w-12 h-12 rounded-xl bg-[#0D614E]/10 flex items-center justify-center">
+                                                            {doc.file_type === "image" ? (
+                                                                <Image className="w-5 h-5 text-[#0D614E]" />
+                                                            ) : (
+                                                                <FileText className="w-5 h-5 text-[#0D614E]" />
+                                                            )}
                                                         </div>
-                                                        <div className="flex-1">
-                                                            <p className="text-sm font-medium text-gray-800">{doc.name}</p>
-                                                            <p className="text-xs text-gray-400 mt-0.5">{new Date(doc.upload_date).toLocaleDateString()}</p>
+
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="text-sm font-semibold text-gray-800 capitalize">
+                                                                {doc.medical_record_type}
+                                                            </h4>
+
+                                                            <p className="text-xs text-gray-500 truncate mt-1">
+                                                                {doc.description || "Medical Document"}
+                                                            </p>
+
+                                                            <p className="text-xs text-gray-400 mt-1">
+                                                                Uploaded on{" "}
+                                                                {new Date(doc.created_at).toLocaleDateString("en-IN", {
+                                                                    day: "2-digit",
+                                                                    month: "short",
+                                                                    year: "numeric",
+                                                                })}
+                                                            </p>
                                                         </div>
-                                                        <div className="flex gap-2">
-                                                            <Link to={doc.url} target="_blank" className="p-2 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all">
+
+                                                        <div className="flex items-center gap-2">
+                                                            <a
+                                                                href={doc.file_url}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="p-2 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition"
+                                                            >
                                                                 <Eye size={16} />
-                                                            </Link>
-                                                            <button onClick={() => handleRemoveDocument(doc.id)} className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all">
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
+                                                            </a>
+                                                            {
+                                                                appointment?.doctor_id == doc?.added_by?.id && (
+                                                                    <a onClick={() => handleDeleteDocument(doc.id)} className="cursor-pointer p-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition">
+                                                                        <XCircleIcon className="w-5 h-5 text-red-600 " />
+                                                                    </a>
+                                                                )
+                                                            }
                                                         </div>
                                                     </div>
                                                 ))}
@@ -1928,8 +3784,12 @@ const AppointmentDetail = () => {
                                         ) : (
                                             <div className="text-center py-16 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
                                                 <FileHeart className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                                                <p className="text-sm font-medium text-gray-400">No documents uploaded</p>
-                                                <p className="text-xs text-gray-300 mt-1">Upload reports, prescriptions, or medical records</p>
+                                                <p className="text-sm font-semibold text-gray-500">
+                                                    No Medical Documents
+                                                </p>
+                                                <p className="text-xs text-gray-400 mt-1">
+                                                    Upload prescriptions, reports, scans, and medical records
+                                                </p>
                                             </div>
                                         )}
                                     </div>
@@ -2035,6 +3895,89 @@ const AppointmentDetail = () => {
                 </div>
             </div>
 
+            {showUploadModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900">Upload Medical Record</h3>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                    {selectedUploadFiles.length} file{selectedUploadFiles.length !== 1 ? 's' : ''} selected
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={resetUploadForm}
+                                disabled={uploading}
+                                className="p-2 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="px-6 py-5 space-y-4">
+                            <div className="space-y-2 max-h-32 overflow-y-auto">
+                                {selectedUploadFiles.map((file, index) => (
+                                    <div key={`${file.name}-${index}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                        <FileText className="w-4 h-4 text-[#0D614E] shrink-0" />
+                                        <span className="text-sm text-gray-700 truncate">{file.name}</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                                    Medical Record Type
+                                </label>
+                                <select
+                                    value={uploadMeta.medical_record_type}
+                                    onChange={(e) => setUploadMeta((prev) => ({ ...prev, medical_record_type: e.target.value }))}
+                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#0D614E]/20 focus:border-[#0D614E]"
+                                >
+                                    {MEDICAL_RECORD_TYPES.map((item) => (
+                                        <option key={item.value} value={item.value}>{item.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                                    Description
+                                </label>
+                                <textarea
+                                    rows={3}
+                                    value={uploadMeta.description}
+                                    onChange={(e) => setUploadMeta((prev) => ({ ...prev, description: e.target.value }))}
+                                    placeholder="e.g. Post-consultation prescription"
+                                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#0D614E]/20 focus:border-[#0D614E] resize-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={resetUploadForm}
+                                disabled={uploading}
+                                className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSubmitDocumentUpload}
+                                disabled={uploading}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-semibold transition-all hover:shadow-md disabled:opacity-60"
+                                style={{ background: '#0D614E' }}
+                            >
+                                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                                {uploading ? 'Uploading...' : 'Upload'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Prescription Preview Modal */}
             {showPreview && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center  p-4 animate-in fade-in duration-200">
@@ -2133,6 +4076,7 @@ const AppointmentDetail = () => {
                                     doctor={doctor}
                                     patient={patient}
                                     date={new Date()}
+                                    dietPlans={selecteddietplan ? [selecteddietplan] : []}
                                 />
                             </div>
                         </div>

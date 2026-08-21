@@ -86,10 +86,15 @@
 .menu-item:hover svg path,
 .menu-item:hover .label,
 .menu-item.active svg path,
+.menu-item.active svg.bowl,
 .menu-item.active .label {
   color: #fff;
   font-weight: 600;
   stroke: #fff;
+}
+.menu-item.active svg.bowl,
+.menu-item:hover svg.bowl{
+  fill: #fff;
 }
 
 .menu-item:hover {

@@ -430,20 +430,18 @@ const HelpSupport = () => {
 
     // Simulate typing indicator
     useEffect(() => {
-        if (isTyping) {
-            const timer = setTimeout(() => {
-                setIsTyping(false);
-                const supportResponse = {
-                    id: chatMessages.length + 1,
-                    sender: 'support',
-                    message: 'I understand. Let me help you with that. Could you provide more details?',
-                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    type: 'text'
-                };
-                setChatMessages([...chatMessages, supportResponse]);
-            }, 2000);
-            return () => clearTimeout(timer);
-        }
+        if (!isTyping) return undefined;
+        const timer = setTimeout(() => {
+            setIsTyping(false);
+            setChatMessages(prev => [...prev, {
+                id: prev.length + 1,
+                sender: 'support',
+                message: 'I understand. Let me help you with that. Could you provide more details?',
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                type: 'text'
+            }]);
+        }, 2000);
+        return () => clearTimeout(timer);
     }, [isTyping]);
 
     const handleSendMessage = () => {
