@@ -21,6 +21,9 @@ import { Rnd } from "react-rnd";
 import { X } from "lucide-react";
 import DietPlanList from "./Doctor_dashboard/components/Diets/Diets";
 
+const PrivacyPolicyPage = lazy(() => import("./policy/privacy"));
+const TermsOfUsePage = lazy(() => import("./policy/termsofuse"));
+
 // Doctor Pages
 const DoctorDashboard = lazy(() => import("./Doctor_dashboard/components/dashboard/Dashboard"));
 const DietPlanManager = lazy(() => import("./Doctor_dashboard/components/Diets/Editdiet"));
@@ -153,14 +156,17 @@ function App() {
         )}
       <BrowserRouter>
         <OnboardingRedirect />
+        <Suspense fallback={<LoadingFallback />}>
         <Routes>
           {/* Reference route only — patient app integration is a separate repository */}
           <Route path="patvideocall/:token/:consultationId" element={<PatientVideoCallWeb />} />
           {/* PUBLIC ROUTES */}
           <Route path="/login" element={<Login />} />
-          <Route path="/login/forgot-password" element={<ForgotPassword />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms-conditions" element={<TermsOfUsePage />} />
+          {/* <Route path="/login/forgot-password" element={<ForgotPassword />} />
           <Route path="/login/reset-password/:token?" element={<ResetPassword />} />
-          <Route path="/unauthorized" element={<Unauthorized />} />
+          <Route path="/unauthorized" element={<Unauthorized />} /> */}
 
           {/* DOCTOR ROUTES */}
           {isAuthenticated && role === "doctor" && (
@@ -274,6 +280,7 @@ function App() {
           />
 
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </>
   );
