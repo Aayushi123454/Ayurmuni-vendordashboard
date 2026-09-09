@@ -762,6 +762,7 @@ export default function AuthPage() {
             first_name: data?.profile?.business_name || data?.profile?.first_name || "",
             verify: data?.is_verified,
             is_dietitian: data?.is_dietitian || false,
+            policies_accepted: data?.profile?.policies_accepted || false,
           })
         );
 

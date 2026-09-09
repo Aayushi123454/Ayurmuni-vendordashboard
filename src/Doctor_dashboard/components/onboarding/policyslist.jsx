@@ -150,7 +150,7 @@ export default function PoliciesListPopup({
         (list.length > 0 && list.every((item) => item?.is_accepted));
       if (alreadyAccepted) {
         setAcceptAll(true);
-        onAcceptChange?.(true, list);
+        // onAcceptChange?.(true, list);
       }
     } catch (err) {
       setError(err?.message || "Failed to load policies.");
@@ -191,7 +191,9 @@ export default function PoliciesListPopup({
 
   const handleAcceptAllChange = (checked) => {
     setAcceptAll(checked);
-    onAcceptChange?.(checked, policies);
+    if (onClose) {
+      onAcceptChange?.(checked, policies);
+    }
   };
 
   if (!open) return null;
@@ -233,14 +235,18 @@ export default function PoliciesListPopup({
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
+              {
+                onClose && (
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
+                    aria-label="Close"
+                  >
+                    <X size={18} />
+                  </button>
+                )
+              }
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
@@ -349,7 +355,7 @@ export default function PoliciesListPopup({
                 </button>
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={onClose ? onClose : () => onAcceptChange(acceptAll, policies)}
                   disabled={!acceptAll}
                   className="rounded-lg bg-[#0D614E] px-4 py-2 text-sm font-medium text-white hover:bg-[#0a4f3f] disabled:cursor-not-allowed disabled:opacity-50"
                 >

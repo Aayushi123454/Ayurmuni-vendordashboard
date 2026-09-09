@@ -11,6 +11,9 @@ import {
 } from "lucide-react";
 import { notificationService } from "../../services/notificationService";
 import { useVendorHeaderActionsSlot } from "../providers/VendorHeaderActionsContext";
+import PoliciesListPopup from "../../Doctor_dashboard/components/onboarding/policyslist";
+import { acceptLegalPolicies } from "../../services/policyService";
+import toast from "react-hot-toast";
 
 const VENDOR_TITLES = {
     "/vendor/dashboard": "Dashboard",
@@ -46,6 +49,9 @@ const Header = () => {
     const [unreadCount, setUnreadCount] = useState(0);
     const [searchQuery, setSearchQuery] = useState("");
     const profileRef = useRef(null);
+    const [policiesOpen, setPoliciesOpen] = useState(false);
+    const [allPoliciesAccepted, setallPoliciesAccepted] = useState(false);
+
     const role = sessionStorage.getItem("role") || "vendor";
     const isVendor = role === "vendor";
     const [user, setUser] = useState({
@@ -55,12 +61,20 @@ const Header = () => {
         last_name: "",
         avatar: "",
         business_name: "",
+        policies_accepted: false,
     });
 
+    console.log(allPoliciesAccepted);
+
+
     useEffect(() => {
-        setUser(JSON.parse(sessionStorage.getItem("profile") || "null") || {});
+        const userdata = JSON.parse(sessionStorage.getItem("profile") || "null");
+        setUser(userdata || {});
+        setPoliciesOpen(userdata?.policies_accepted === false);
         fetchNotifications();
     }, []);
+
+
 
     useEffect(() => {
         const handleClick = (e) => {
@@ -78,6 +92,26 @@ const Header = () => {
             setUnreadCount(response.data?.data?.unread_count || 0);
         } catch (error) {
             console.error("Notification fetch error:", error);
+        }
+    };
+
+    // const handlePoliciesAcceptChange = (accepted) => {
+    //     setallPoliciesAccepted(accepted);
+    // }
+
+    const postpoliciesAccepted = async () => {
+        try {
+            const response = await acceptLegalPolicies("all");
+            console.log("Policies accepted response:", response);
+            if (response?.success) {
+                toast.success("Policies accepted successfully!");
+                setPoliciesOpen(false);
+                const updatedUser = { ...user, policies_accepted: true };
+                setUser(updatedUser);
+                sessionStorage.setItem("profile", JSON.stringify(updatedUser));
+            }
+        } catch (error) {
+            console.error("Error accepting policies:", error);
         }
     };
 
@@ -103,6 +137,17 @@ const Header = () => {
         navigate("/vendor/products", { state: { search: searchQuery.trim() } });
         setSearchQuery("");
     };
+
+    if (user?.policies_accepted === false) {
+        return (
+            <PoliciesListPopup
+                open={policiesOpen}
+                // onClose={() => setPoliciesOpen(false)}
+                accepted={allPoliciesAccepted}
+                onAcceptChange={postpoliciesAccepted}
+            />
+        )
+    }
 
     if (!isVendor) {
         return (
