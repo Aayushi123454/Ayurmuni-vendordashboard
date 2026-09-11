@@ -557,12 +557,16 @@ export default function EditProduct() {
                 roundToTwo(originalEntered) === roundToTwo(enteredPrice)
             );
 
+            const mrp = Number(variantForm.mrp) || 0;
+            const sellingPrice = Number(variantForm.selling_price) || 0;
+            const discount = mrp > 0 && sellingPrice < mrp ? Math.round(((mrp - sellingPrice) / mrp) * 100) : 0;
+
             const newVariant = {
                 id: editingVariant ? editingVariant.id : Date.now(),
                 vendor_sku_code: variantForm.vendor_sku_code || generateSKU(),
                 title: variantForm.title,
                 mrp: roundToTwo(variantForm.mrp),
-                discount: variantForm.discount || "",
+                discount: discount || "",
                 cost_per_item: variantForm.cost_per_item ? roundToTwo(variantForm.cost_per_item) : "",
                 stock: parseInt(variantForm.stock),
                 low_stock_threshold: variantForm.low_stock_threshold || "",

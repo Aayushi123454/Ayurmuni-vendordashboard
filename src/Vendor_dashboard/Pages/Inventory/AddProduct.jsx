@@ -494,12 +494,26 @@ export default function AddProduct() {
         is_cover: item.is_cover || (variantForm.coverImage?.id === item.id)
       }));
 
+      const mrp = Number(variantForm.mrp) || 0;
+
+      const sellingPrice =
+        priceType === "TP"
+          ? Number(variantForm.selling_price) +
+          (Number(variantForm.selling_price) * platformFee / 100) +
+          ((Number(variantForm.selling_price) * platformFee / 100) * gst / 100)
+          : Number(variantForm.selling_price) || 0;
+
+      const discount =
+        mrp > 0 && sellingPrice < mrp
+          ? Math.round(((mrp - sellingPrice) / mrp) * 100)
+          : 0;
+
       const newVariant = {
         id: editingVariant ? editingVariant.id : Date.now(),
         vendor_sku_code: variantForm.vendor_sku_code || generateSKU(),
         title: variantForm.title,
         mrp: parseFloat(variantForm.mrp),
-        discount: variantForm.discount || "",
+        discount: discount || "",
         cost_per_item: variantForm.cost_per_item ? parseFloat(variantForm.cost_per_item) : "",
         stock: parseInt(variantForm.stock),
         low_stock_threshold: variantForm.low_stock_threshold || "",
@@ -913,7 +927,7 @@ export default function AddProduct() {
                     >
                       <option value="">Select Category</option>
                       {lists?.productcat?.map((data) => (
-                        <option key={data?.id} value={data?.id}>{data?.name}</option>
+                        <option key={data?.id} value={data?.id}>{data?.name} - Service Category : {data?.service_category_name}</option>
                       ))}
                     </select>
                     {errors.product_subcategory_id && <span className="error-text">{errors.product_subcategory_id}</span>}
